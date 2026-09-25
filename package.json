@@ -24,6 +24,9 @@
     "test:infra": "node --test dev/tools/infra.test.mjs",
     "test:host": "node host/test/run.mjs",
     "fixture:dsk": "node host/tools/gen_blank_dsk.mjs",
+    "apple2js:sync": "gulp apple2js:sync",
+    "apple2js:catalog": "gulp apple2js:catalog",
+    "apple2js:audit": "gulp apple2js:audit",
     "gulp:tasks": "gulp --tasks"
   },
   "microgulp": {

@@ -211,7 +211,9 @@ Umgebung: `bringup` in `platformio.ini` (pioarduino / ESP32-S3, Arduino-GFX für
 
 ## Speicher / virtuelle Disks
 
-microSD mit Bibliotheksstruktur (z. B. `/apple2/<Titel>/game.json` + Images). Firmware und Medien getrennt. Nutzer stellen legal erworbene Images selbst bereit.
+microSD mit Bibliotheksstruktur (z. B. `/apple2/games/<id>/game.json` + Images). Firmware und Medien getrennt. Nutzer stellen legal erworbene Images selbst bereit. Metadaten dürfen existieren, auch wenn das Image fehlt (`media not installed`).
+
+Entwicklungskatalog/Referenz: [apple2js](https://github.com/whscullin/apple2js) (MIT für den Emulator — **nicht** für Drittmedien). ESP][ ist nicht mit apple2js affiliated. Details: `docs/media/apple2js.md`.
 
 ---
 
@@ -239,6 +241,7 @@ Miniatur-Apple-II-Setup; sichtbares Monitor-Viewport ≠ volles AMOLED — **PLA
 - **Keine** kommerziellen Apple-II-ROMs oder urheberrechtlich geschützten Disk-Images in diesem Repository.
 - Nutzer dürfen **legal erworbene** Images lokal auf der microSD verwenden.
 - „Apple II“ und verwandte Marken gehören ihren Rechteinhabern; dieses Projekt ist unabhängig und nicht von Apple endorsed.
+- [apple2js](https://github.com/whscullin/apple2js) wird nur als Entwicklungsreferenz / Katalogquelle genutzt; die MIT-Lizenz des Emulators deckt keine kommerziellen Disk-Images der Website ab.
 
 ---
 

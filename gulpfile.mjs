@@ -11,9 +11,10 @@
 // No help clutter. Default = docs (safe).
 //================================================================
 
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import gulp from "gulp";
 import {
   Log,
@@ -45,6 +46,7 @@ import {
   PIO_ENV,
   UploadArgs,
 } from "./dev/tools/pio.mjs";
+import { syncApple2js } from "./dev/tools/apple2js/sync.mjs";
 
 InstallStringExtensions();
 
@@ -539,3 +541,135 @@ export default docs;
 gulp.task("backup:git", BACKUP_GIT);
 gulp.task("backup:all", BACKUP_ALL);
 // npm script backup:nas → gulp backup (no second dashboard entry)
+
+//================================================================
+// apple2js / media (developer; network only for :sync)
+//================================================================
+
+function runNodeCli(relScript, args, label) {
+  const script = join(rootDir, relScript);
+  const r = spawnSync(process.execPath, [script, ...args], {
+    cwd: rootDir,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.status !== 0) {
+    throw new Error(`${label} failed (exit ${r.status})`);
+  }
+}
+
+export async function apple2jsSync() {
+  ReportProgress(0, "apple2js-sync");
+  Log(
+    'Syncing apple2js cache (network)…<context="task log"/>',
+  );
+  const r = await syncApple2js({ fetchWebIndex: true });
+  Log(
+    'apple2js @ <short/> — web catalog <count/> entries.<context="task log"/>',
+    { short: r.pin.short, count: String(r.webIndexCount ?? 0) },
+  );
+  ReportProgress(1, "apple2js-sync");
+  PlaySignal("success");
+}
+_Tag(apple2jsSync, {
+  gulpName: "apple2js:sync",
+  µDisplayName: 'apple2js Sync<context="µDisplayName"/>',
+  µDescription:
+    'Clones/updates .cache/apple2js and fetches website catalog index (network).<context="µDescription"/>',
+  µIcon: "\u2601",
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 60,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2jsCatalog() {
+  ReportProgress(0, "apple2js-catalog");
+  runNodeCli("dev/tools/apple2js/cli.mjs", ["catalog"], "apple2js:catalog");
+  ReportProgress(1, "apple2js-catalog");
+}
+_Tag(apple2jsCatalog, {
+  gulpName: "apple2js:catalog",
+  µDisplayName: 'apple2js Catalog<context="µDisplayName"/>',
+  µDescription:
+    'Summarize cached apple2js git+website catalog (offline if cache present).<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 61,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2jsAudit() {
+  ReportProgress(0, "apple2js-audit");
+  runNodeCli("dev/tools/apple2js/cli.mjs", ["audit"], "apple2js:audit");
+  ReportProgress(1, "apple2js-audit");
+  PlaySignal("success");
+}
+_Tag(apple2jsAudit, {
+  gulpName: "apple2js:audit",
+  µDisplayName: 'apple2js Audit<context="µDisplayName"/>',
+  µDescription:
+    'Provenance audit + metadata stubs (offline if cache present).<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 62,
+  µExecutionConcurrency: false,
+});
+
+export async function mediaIdentify() {
+  const file = GetParameter("file");
+  if (!file) {
+    throw new Error("media:identify requires parameter file=<path>");
+  }
+  runNodeCli(
+    "dev/tools/media/cli.mjs",
+    ["identify", file],
+    "media:identify",
+  );
+}
+_Tag(mediaIdentify, {
+  gulpName: "media:identify",
+  µDisplayName: 'Media Identify<context="µDisplayName"/>',
+  µDescription:
+    'Offline SHA-256 + format check for a user disk image.<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 63,
+  µParameters: {
+    file: {
+      type: "string",
+      description: 'Path to .dsk/.po/.nib/.woz<context="µParameter"/>',
+    },
+  },
+  µExecutionConcurrency: false,
+});
+
+export async function mediaImport() {
+  const file = GetParameter("file");
+  const gameId = GetParameter("gameId") || GetParameter("game-id");
+  if (!file || !gameId) {
+    throw new Error("media:import requires file= and gameId=");
+  }
+  runNodeCli(
+    "dev/tools/media/cli.mjs",
+    ["import", file, "--game-id", gameId, "--library", "library/user"],
+    "media:import",
+  );
+}
+_Tag(mediaImport, {
+  gulpName: "media:import",
+  µDisplayName: 'Media Import<context="µDisplayName"/>',
+  µDescription:
+    'Copy a user-supplied disk into library/user/<gameId>/ (offline).<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 64,
+  µParameters: {
+    file: { type: "string" },
+    gameId: { type: "string" },
+  },
+  µExecutionConcurrency: false,
+});
+
+gulp.task("apple2js:sync", apple2jsSync);
+gulp.task("apple2js:catalog", apple2jsCatalog);
+gulp.task("apple2js:audit", apple2jsAudit);
+gulp.task("media:identify", mediaIdentify);
+gulp.task("media:import", mediaImport);

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "audit",
+  "title": "Audit",
+  "category": "Diagnostics",
+  "disks": [
+    {
+      "file": "audit.dsk",
+      "label": "disk1",
+      "writeProtected": true,
+      "mediaInstalled": false
+    }
+  ],
+  "bootDisk": "audit.dsk",
+  "defaultDrive1": "audit.dsk",
+  "defaultDrive2": null,
+  "joystickMode": "auto",
+  "videoColorMode": "CompositeColor",
+  "displayEffect": "Sharp",
+  "effectStrength": "Off",
+  "notes": "Metadata imported from apple2js catalog. Disk image not bundled with ESP][.",
+  "mediaStatus": "available_if_obtained",
+  "source": {
+    "type": "apple2js",
+    "repository": "https://github.com/whscullin/apple2js",
+    "site": "https://www.scullinsteel.com/apple2/",
+    "upstreamCommit": "ee0aed25f73c69d0245e86a2a5fccb3324c3056c",
+    "upstreamPath": "json/disks/audit.json",
+    "upstreamUrl": "https://www.scullinsteel.com/apple2/json/disks/audit.json",
+    "inGitRepo": true,
+    "onWebsite": true
+  },
+  "redistribution": {
+    "status": "REDISTRIBUTABLE",
+    "evidence": "Corresponds to Zellyn Hunter a2audit (MIT). Prefer upstream https://github.com/zellyn/a2audit audit/audit.dsk rather than website JSON blob. apple2js README acknowledges a2audit.",
+    "preferredUpstream": "https://github.com/zellyn/a2audit",
+    "publisherHint": null
+  }
+}

@@ -1,0 +1,3681 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-09-25T19:53:48.358Z",
+  "upstreamPin": {
+    "repository": "https://github.com/whscullin/apple2js",
+    "commit": "ee0aed25f73c69d0245e86a2a5fccb3324c3056c",
+    "short": "ee0aed2",
+    "subject": "Bump postcss from 8.5.14 to 8.5.26 (#305)",
+    "syncedAt": "2026-09-25T19:53:48.163Z",
+    "note": "Local cache only (.cache/apple2js). Not part of ESP][ commits."
+  },
+  "webIndexCachePresent": true,
+  "gitEntryCount": 5,
+  "webEntryCount": 261,
+  "mergedEntryCount": 261,
+  "summary": {
+    "REDISTRIBUTABLE": 1,
+    "USER_SUPPLIED_ONLY": 179,
+    "UNKNOWN": 70,
+    "DO_NOT_DISTRIBUTE": 11
+  },
+  "entries": [
+    {
+      "id": "boot-13",
+      "title": "Boot 13",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/boot13.json",
+      "basename": "boot13",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "dos-31-master",
+      "title": "DOS 3.1 Master",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/dos31master.json",
+      "basename": "dos31master",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "dos-32-master",
+      "title": "DOS 3.2 Master",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/dos32master.json",
+      "basename": "dos32master",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "dos-32-master-2",
+      "title": "DOS 3.2 Master 2",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/dos32master2.json",
+      "basename": "dos32master2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "softside-1981-11",
+      "title": "SoftSide 1981-11",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_1981_11.json",
+      "basename": "ss_1981_11",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-1982-03",
+      "title": "SoftSide 1982-03",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_1982_03.json",
+      "basename": "ss_1982_03",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-1982-04",
+      "title": "SoftSide 1982-04",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_1982_04.json",
+      "basename": "ss_1982_04",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-1982-05",
+      "title": "SoftSide 1982-05",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_1982_05.json",
+      "basename": "ss_1982_05",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-30",
+      "title": "SoftSide 30",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_30.json",
+      "basename": "ss_30",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-31",
+      "title": "SoftSide 31",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_31.json",
+      "basename": "ss_31",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-32",
+      "title": "SoftSide 32",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_32.json",
+      "basename": "ss_32",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "softside-33",
+      "title": "SoftSide 33",
+      "category": "13 Sector",
+      "upstreamFilename": "json/disks/ss_33.json",
+      "basename": "ss_33",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "blank-dos-33",
+      "title": "Blank DOS 3.3",
+      "category": "Blank",
+      "upstreamFilename": "json/disks/blank_dos33.json",
+      "basename": "blank_dos33",
+      "inGitRepo": true,
+      "onWebsite": true,
+      "catalogSource": "git",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "Blank DOS 3.3 template in apple2js git. May still embed Apple DOS boot/format IP; treat as non-shipped template until legal review."
+      }
+    },
+    {
+      "id": "blank-prodos",
+      "title": "Blank ProDOS",
+      "category": "Blank",
+      "upstreamFilename": "json/disks/blank_prodos.json",
+      "basename": "blank_prodos",
+      "inGitRepo": true,
+      "onWebsite": true,
+      "catalogSource": "git",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "Blank ProDOS template in apple2js git. ProDOS is Apple copyrighted system software territory; UNKNOWN."
+      }
+    },
+    {
+      "id": "1984-christmas-demo",
+      "title": "1984 Christmas Demo",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/xmas_demo.json",
+      "basename": "xmas_demo",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-presents-the-e-1985",
+      "title": "Apple Presents the //e (1985)",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/apple2edemo2.json",
+      "basename": "apple2edemo2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-presents-the-e-1986",
+      "title": "Apple Presents the //e (1986)",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/apple2edemo3.json",
+      "basename": "apple2edemo3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-presents-the-apple-iie",
+      "title": "Apple Presents the Apple IIe",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/apple2edemo1.json",
+      "basename": "apple2edemo1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "extended-80-column-demo",
+      "title": "Extended 80 Column Demo",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/ext80demo1.json",
+      "basename": "ext80demo1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "extended-80-column-demo",
+      "title": "Extended 80 Column Demo",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/ext80demo2.json",
+      "basename": "ext80demo2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "festro",
+      "title": "Festro",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/festro.json",
+      "basename": "festro",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "rgb-color-card-dos",
+      "title": "RGB Color Card (DOS)",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/rgb_dos.json",
+      "basename": "rgb_dos",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "rgb-color-card-prodos",
+      "title": "RGB Color Card (Prodos)",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/rgb_prodos.json",
+      "basename": "rgb_prodos",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "video-7",
+      "title": "Video 7",
+      "category": "Demo",
+      "upstreamFilename": "json/disks/video7.json",
+      "basename": "video7",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-diagnostics",
+      "title": "Apple ][+ Diagnostics",
+      "category": "Diagnostics",
+      "upstreamFilename": "json/disks/diagnostics2plus.json",
+      "basename": "diagnostics2plus",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-e-diagnostics-20",
+      "title": "Apple //e Diagnostics 2.0",
+      "category": "Diagnostics",
+      "upstreamFilename": "json/disks/diagnostics2e2.json",
+      "basename": "diagnostics2e2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-e-diagnostics-21",
+      "title": "Apple //e Diagnostics 2.1",
+      "category": "Diagnostics",
+      "upstreamFilename": "json/disks/diagnostics2e.json",
+      "basename": "diagnostics2e",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "audit",
+      "title": "Audit",
+      "category": "Diagnostics",
+      "upstreamFilename": "json/disks/audit.json",
+      "basename": "audit",
+      "inGitRepo": true,
+      "onWebsite": true,
+      "catalogSource": "git",
+      "redistribution": {
+        "status": "REDISTRIBUTABLE",
+        "evidence": "Corresponds to Zellyn Hunter a2audit (MIT). Prefer upstream https://github.com/zellyn/a2audit audit/audit.dsk rather than website JSON blob. apple2js README acknowledges a2audit.",
+        "preferredUpstream": "https://github.com/zellyn/a2audit"
+      }
+    },
+    {
+      "id": "mecc-computer-inspector",
+      "title": "MECC Computer Inspector",
+      "category": "Diagnostics",
+      "upstreamFilename": "json/disks/mecc_a240.json",
+      "basename": "mecc_a240",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "carmen-sandiego-1",
+      "title": "Carmen Sandiego 1",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/carmen1.json",
+      "basename": "carmen1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "carmen-sandiego-2",
+      "title": "Carmen Sandiego 2",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/carmen2.json",
+      "basename": "carmen2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "latin-skills-i-cursus-honorum",
+      "title": "Latin Skills I: Cursus Honorum",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/latin1.json",
+      "basename": "latin1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "latin-skills-ii-verb-factory",
+      "title": "Latin Skills II: Verb Factory",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/latin2.json",
+      "basename": "latin2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "latin-skills-iii-mare-nostrum",
+      "title": "Latin Skills III: Mare Nostrum",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/latin3.json",
+      "basename": "latin3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "latin-skills-iv-translat",
+      "title": "Latin Skills IV: Translat",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/latin4.json",
+      "basename": "latin4",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "latin-skills-v-artifex-verborum",
+      "title": "Latin Skills V: Artifex Verborum",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/latin5.json",
+      "basename": "latin5",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "number-squares",
+      "title": "Number Squares",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/numbersquares.json",
+      "basename": "numbersquares",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "odell-lake",
+      "title": "Odell Lake",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/odell_lake.json",
+      "basename": "odell_lake",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "oregon-trail",
+      "title": "Oregon Trail",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/oregon_trail_1.json",
+      "basename": "oregon_trail_1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "oregon-trail",
+      "title": "Oregon Trail",
+      "category": "Educational",
+      "upstreamFilename": "json/disks/oregon_trail_2.json",
+      "basename": "oregon_trail_2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "adventure",
+      "title": "Adventure",
+      "category": "Game",
+      "upstreamFilename": "json/disks/adventure.json",
+      "basename": "adventure",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "airheart",
+      "title": "Airheart",
+      "category": "Game",
+      "upstreamFilename": "json/disks/airheart.json",
+      "basename": "airheart",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "akalabeth",
+      "title": "Akalabeth",
+      "category": "Game",
+      "upstreamFilename": "json/disks/akalabeth.json",
+      "basename": "akalabeth",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "ancient-legends",
+      "title": "Ancient Legends",
+      "category": "Game",
+      "upstreamFilename": "json/disks/ancient_legends_1.json",
+      "basename": "ancient_legends_1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "ancient-legends",
+      "title": "Ancient Legends",
+      "category": "Game",
+      "upstreamFilename": "json/disks/ancient_legends_2.json",
+      "basename": "ancient_legends_2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "apple-invaders",
+      "title": "Apple Invaders",
+      "category": "Game",
+      "upstreamFilename": "json/disks/appleinvaders.json",
+      "basename": "appleinvaders",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "apple-panic",
+      "title": "Apple Panic",
+      "category": "Game",
+      "upstreamFilename": "json/disks/apple_panic.json",
+      "basename": "apple_panic",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "apple-trek",
+      "title": "Apple Trek",
+      "category": "Game",
+      "upstreamFilename": "json/disks/appletrek.json",
+      "basename": "appletrek",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "applesoft-games",
+      "title": "Applesoft Games",
+      "category": "Game",
+      "upstreamFilename": "json/disks/applesoft.json",
+      "basename": "applesoft",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "apventure-to-atlantis",
+      "title": "Apventure to Atlantis",
+      "category": "Game",
+      "upstreamFilename": "json/disks/atlantis.json",
+      "basename": "atlantis",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "archon",
+      "title": "Archon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/archon.json",
+      "basename": "archon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "archon-ii",
+      "title": "Archon II",
+      "category": "Game",
+      "upstreamFilename": "json/disks/archon2.json",
+      "basename": "archon2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "arkanoid",
+      "title": "Arkanoid",
+      "category": "Game",
+      "upstreamFilename": "json/disks/arkanoid.json",
+      "basename": "arkanoid",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "artic-fox",
+      "title": "Artic Fox",
+      "category": "Game",
+      "upstreamFilename": "json/disks/artic_fox.json",
+      "basename": "artic_fox",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "asteroid-field",
+      "title": "Asteroid Field",
+      "category": "Game",
+      "upstreamFilename": "json/disks/asteroid.json",
+      "basename": "asteroid",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "autobahn",
+      "title": "Autobahn",
+      "category": "Game",
+      "upstreamFilename": "json/disks/autobahn.json",
+      "basename": "autobahn",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "aztec",
+      "title": "Aztec",
+      "category": "Game",
+      "upstreamFilename": "json/disks/aztec.json",
+      "basename": "aztec",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bards-tale-boot",
+      "title": "Bards Tale Boot",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bards_tale_boot.json",
+      "basename": "bards_tale_boot",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bards-tale-character",
+      "title": "Bards Tale Character",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bards_tale_character.json",
+      "basename": "bards_tale_character",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bards-tale-dungeon",
+      "title": "Bards Tale Dungeon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bards_tale_dungeon.json",
+      "basename": "bards_tale_dungeon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "basic-games-1",
+      "title": "Basic Games 1",
+      "category": "Game",
+      "upstreamFilename": "json/disks/basic_games_1.json",
+      "basename": "basic_games_1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "basic-games-2",
+      "title": "Basic Games 2",
+      "category": "Game",
+      "upstreamFilename": "json/disks/basic_games_2.json",
+      "basename": "basic_games_2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "batman",
+      "title": "Batman",
+      "category": "Game",
+      "upstreamFilename": "json/disks/batman1.json",
+      "basename": "batman1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "batman",
+      "title": "Batman",
+      "category": "Game",
+      "upstreamFilename": "json/disks/batman2.json",
+      "basename": "batman2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "battlezone",
+      "title": "Battlezone",
+      "category": "Game",
+      "upstreamFilename": "json/disks/battlezone.json",
+      "basename": "battlezone",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bezare",
+      "title": "Bezare",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bezare.json",
+      "basename": "bezare",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bolo",
+      "title": "Bolo",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bolo.json",
+      "basename": "bolo",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bongo-bash",
+      "title": "Bongo Bash",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bongos_bash.json",
+      "basename": "bongos_bash",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "boulder-dash",
+      "title": "Boulder Dash",
+      "category": "Game",
+      "upstreamFilename": "json/disks/boulder_dash.json",
+      "basename": "boulder_dash",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bubble-bobble-1",
+      "title": "Bubble Bobble 1",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bubble_bobble1.json",
+      "basename": "bubble_bobble1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "bubble-bobble-2",
+      "title": "Bubble Bobble 2",
+      "category": "Game",
+      "upstreamFilename": "json/disks/bubble_bobble2.json",
+      "basename": "bubble_bobble2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "cannonball-blitz",
+      "title": "Cannonball Blitz",
+      "category": "Game",
+      "upstreamFilename": "json/disks/cannonball.json",
+      "basename": "cannonball",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "castle-wolfenstein",
+      "title": "Castle Wolfenstein",
+      "category": "Game",
+      "upstreamFilename": "json/disks/wolfenstein.json",
+      "basename": "wolfenstein",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "cavern-creatures",
+      "title": "Cavern Creatures",
+      "category": "Game",
+      "upstreamFilename": "json/disks/caverncreatures.json",
+      "basename": "caverncreatures",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "chivalry",
+      "title": "Chivalry",
+      "category": "Game",
+      "upstreamFilename": "json/disks/chivalry.json",
+      "basename": "chivalry",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "choplifter",
+      "title": "Choplifter",
+      "category": "Game",
+      "upstreamFilename": "json/disks/choplifter.json",
+      "basename": "choplifter",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial Broderbund title. Listed on apple2js website catalog only; not in public git json/disks on inspected main. No redistribution grant found.",
+        "publisherHint": "Broderbund"
+      }
+    },
+    {
+      "id": "chuck-yeager-1",
+      "title": "Chuck Yeager 1",
+      "category": "Game",
+      "upstreamFilename": "json/disks/yeager1.json",
+      "basename": "yeager1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "chuck-yeager-2",
+      "title": "Chuck Yeager 2",
+      "category": "Game",
+      "upstreamFilename": "json/disks/yeager2.json",
+      "basename": "yeager2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "crossfire",
+      "title": "Crossfire",
+      "category": "Game",
+      "upstreamFilename": "json/disks/crossfire.json",
+      "basename": "crossfire",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "dangerous-dave",
+      "title": "Dangerous Dave",
+      "category": "Game",
+      "upstreamFilename": "json/disks/dangerous_dave.json",
+      "basename": "dangerous_dave",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "dino-eggs",
+      "title": "Dino Eggs",
+      "category": "Game",
+      "upstreamFilename": "json/disks/dino_eggs.json",
+      "basename": "dino_eggs",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "donkey-kong",
+      "title": "Donkey Kong",
+      "category": "Game",
+      "upstreamFilename": "json/disks/donkey_kong.json",
+      "basename": "donkey_kong",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "dungeon-adventure",
+      "title": "Dungeon Adventure",
+      "category": "Game",
+      "upstreamFilename": "json/disks/dungeon.json",
+      "basename": "dungeon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "elite",
+      "title": "Elite",
+      "category": "Game",
+      "upstreamFilename": "json/disks/elite.json",
+      "basename": "elite",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "falcons",
+      "title": "Falcons",
+      "category": "Game",
+      "upstreamFilename": "json/disks/falcons.json",
+      "basename": "falcons",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "flapple-bird",
+      "title": "Flapple Bird",
+      "category": "Game",
+      "upstreamFilename": "json/disks/flapple.json",
+      "basename": "flapple",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "flight-simulator",
+      "title": "Flight Simulator",
+      "category": "Game",
+      "upstreamFilename": "json/disks/flightsimulator.json",
+      "basename": "flightsimulator",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "galaxian",
+      "title": "Galaxian",
+      "category": "Game",
+      "upstreamFilename": "json/disks/galaxian.json",
+      "basename": "galaxian",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "galaxy",
+      "title": "Galaxy",
+      "category": "Game",
+      "upstreamFilename": "json/disks/galaxy.json",
+      "basename": "galaxy",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "gorgons",
+      "title": "Gorgons",
+      "category": "Game",
+      "upstreamFilename": "json/disks/gorgon.json",
+      "basename": "gorgon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "hard-hat-mac",
+      "title": "Hard Hat Mac",
+      "category": "Game",
+      "upstreamFilename": "json/disks/burgertime.json",
+      "basename": "burgertime",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "horizon-v",
+      "title": "Horizon V",
+      "category": "Game",
+      "upstreamFilename": "json/disks/horizonv.json",
+      "basename": "horizonv",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "interlude",
+      "title": "Interlude",
+      "category": "Game",
+      "upstreamFilename": "json/disks/interlude.json",
+      "basename": "interlude",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "jungle-hunt",
+      "title": "Jungle Hunt",
+      "category": "Game",
+      "upstreamFilename": "json/disks/jungle_hunt.json",
+      "basename": "jungle_hunt",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "karateka",
+      "title": "Karateka",
+      "category": "Game",
+      "upstreamFilename": "json/disks/karateka.json",
+      "basename": "karateka",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "kings-bounty",
+      "title": "Kings Bounty",
+      "category": "Game",
+      "upstreamFilename": "json/disks/kings_bounty1.json",
+      "basename": "kings_bounty1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "kings-bounty",
+      "title": "Kings Bounty",
+      "category": "Game",
+      "upstreamFilename": "json/disks/kings_bounty2.json",
+      "basename": "kings_bounty2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "lambchops",
+      "title": "Lambchops",
+      "category": "Game",
+      "upstreamFilename": "json/disks/lambchops.json",
+      "basename": "lambchops",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "last-ninja-disk-1",
+      "title": "Last Ninja (Disk 1)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/lastninja1.json",
+      "basename": "lastninja1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "last-ninja-disk-2",
+      "title": "Last Ninja (Disk 2)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/lastninja2.json",
+      "basename": "lastninja2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "last-ninja-disk-3",
+      "title": "Last Ninja (Disk 3)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/lastninja3.json",
+      "basename": "lastninja3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "lode-runner",
+      "title": "Lode Runner",
+      "category": "Game",
+      "upstreamFilename": "json/disks/lode_runner.json",
+      "basename": "lode_runner",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "marble-madness-1",
+      "title": "Marble Madness 1",
+      "category": "Game",
+      "upstreamFilename": "json/disks/marble_madness1.json",
+      "basename": "marble_madness1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "marble-madness-2",
+      "title": "Marble Madness 2",
+      "category": "Game",
+      "upstreamFilename": "json/disks/marble_madness2.json",
+      "basename": "marble_madness2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "mario-bros",
+      "title": "Mario Bros",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mariobros.json",
+      "basename": "mariobros",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "midnight-madness",
+      "title": "Midnight Madness",
+      "category": "Game",
+      "upstreamFilename": "json/disks/midnightmadness.json",
+      "basename": "midnightmadness",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "midnight-magic",
+      "title": "Midnight Magic",
+      "category": "Game",
+      "upstreamFilename": "json/disks/midnightmagic.json",
+      "basename": "midnightmagic",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-a",
+      "title": "Might and Magic A",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightmagic1.json",
+      "basename": "mightmagic1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-b",
+      "title": "Might and Magic B",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightmagic2.json",
+      "basename": "mightmagic2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-c",
+      "title": "Might and Magic C",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightmagic3.json",
+      "basename": "mightmagic3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-d",
+      "title": "Might and Magic D",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightmagic4.json",
+      "basename": "mightmagic4",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-a",
+      "title": "Might and Magic II Disk A",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-a.json",
+      "basename": "mightandmagicii-a",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-b",
+      "title": "Might and Magic II Disk B",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-b.json",
+      "basename": "mightandmagicii-b",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-c",
+      "title": "Might and Magic II Disk C",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-c.json",
+      "basename": "mightandmagicii-c",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-d",
+      "title": "Might and Magic II Disk D",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-d.json",
+      "basename": "mightandmagicii-d",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-e",
+      "title": "Might and Magic II Disk E",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-e.json",
+      "basename": "mightandmagicii-e",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "might-and-magic-ii-disk-f",
+      "title": "Might and Magic II Disk F",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mightandmagicii-f.json",
+      "basename": "mightandmagicii-f",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "millenium-leaper",
+      "title": "Millenium Leaper",
+      "category": "Game",
+      "upstreamFilename": "json/disks/millenium.json",
+      "basename": "millenium",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "miner-2049er",
+      "title": "Miner 2049er",
+      "category": "Game",
+      "upstreamFilename": "json/disks/miner_2049er.json",
+      "basename": "miner_2049er",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "mini-dung-beetles",
+      "title": "Mini Dung Beetles",
+      "category": "Game",
+      "upstreamFilename": "json/disks/dung.json",
+      "basename": "dung",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "montezumas-revenge",
+      "title": "Montezuma's Revenge",
+      "category": "Game",
+      "upstreamFilename": "json/disks/montezuma.json",
+      "basename": "montezuma",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "moon-patrol",
+      "title": "Moon Patrol",
+      "category": "Game",
+      "upstreamFilename": "json/disks/moonpatrol.json",
+      "basename": "moonpatrol",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "ms-pacman",
+      "title": "Ms Pacman",
+      "category": "Game",
+      "upstreamFilename": "json/disks/mspacman.json",
+      "basename": "mspacman",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "neuromancer-disk-1",
+      "title": "Neuromancer (Disk 1)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/neuromancer1.json",
+      "basename": "neuromancer1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "neuromancer-disk-2",
+      "title": "Neuromancer (Disk 2)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/neuromancer2.json",
+      "basename": "neuromancer2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "neuromancer-disk-3",
+      "title": "Neuromancer (Disk 3)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/neuromancer3.json",
+      "basename": "neuromancer3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "neuromancer-disk-4",
+      "title": "Neuromancer (Disk 4)",
+      "category": "Game",
+      "upstreamFilename": "json/disks/neuromancer4.json",
+      "basename": "neuromancer4",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "night-flight",
+      "title": "Night Flight",
+      "category": "Game",
+      "upstreamFilename": "json/disks/nightflight.json",
+      "basename": "nightflight",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "night-mission",
+      "title": "Night Mission",
+      "category": "Game",
+      "upstreamFilename": "json/disks/nightmission.json",
+      "basename": "nightmission",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial title (Night Mission / Sublogic lineage commonly cited). Website catalog only; not in public git main. No redistribution grant found.",
+        "publisherHint": "Sublogic (historical)"
+      }
+    },
+    {
+      "id": "nightmare-gallery",
+      "title": "Nightmare Gallery",
+      "category": "Game",
+      "upstreamFilename": "json/disks/nightmaregallery.json",
+      "basename": "nightmaregallery",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "north-atlantic-86",
+      "title": "North Atlantic 86",
+      "category": "Game",
+      "upstreamFilename": "json/disks/atlantic86.json",
+      "basename": "atlantic86",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "odyssey-the-complete-apventure",
+      "title": "Odyssey: The Complete Apventure",
+      "category": "Game",
+      "upstreamFilename": "json/disks/odyssey.json",
+      "basename": "odyssey",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "operation-sabotage",
+      "title": "Operation Sabotage",
+      "category": "Game",
+      "upstreamFilename": "json/disks/operation_sabotage.json",
+      "basename": "operation_sabotage",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "oregon-trail",
+      "title": "Oregon Trail",
+      "category": "Game",
+      "upstreamFilename": "json/disks/oregon_trail.json",
+      "basename": "oregon_trail",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "pacman",
+      "title": "Pacman",
+      "category": "Game",
+      "upstreamFilename": "json/disks/pacman.json",
+      "basename": "pacman",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "penny-arcade",
+      "title": "Penny Arcade",
+      "category": "Game",
+      "upstreamFilename": "json/disks/pennyarcade.json",
+      "basename": "pennyarcade",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "phantom-5",
+      "title": "Phantom 5",
+      "category": "Game",
+      "upstreamFilename": "json/disks/phantom5.json",
+      "basename": "phantom5",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "pinball-construction-set",
+      "title": "Pinball Construction Set",
+      "category": "Game",
+      "upstreamFilename": "json/disks/pcs.json",
+      "basename": "pcs",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "pitfall-ii",
+      "title": "Pitfall II",
+      "category": "Game",
+      "upstreamFilename": "json/disks/pitfallii.json",
+      "basename": "pitfallii",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "prince-of-persia-boot",
+      "title": "Prince of Persia Boot",
+      "category": "Game",
+      "upstreamFilename": "json/disks/prince_of_persia_boot.json",
+      "basename": "prince_of_persia_boot",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "prince-of-persia-disk-a",
+      "title": "Prince of Persia Disk A",
+      "category": "Game",
+      "upstreamFilename": "json/disks/prince_of_persia_a.json",
+      "basename": "prince_of_persia_a",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "prince-of-persia-disk-b",
+      "title": "Prince of Persia Disk B",
+      "category": "Game",
+      "upstreamFilename": "json/disks/prince_of_persia_b.json",
+      "basename": "prince_of_persia_b",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "q-bert",
+      "title": "Q-Bert",
+      "category": "Game",
+      "upstreamFilename": "json/disks/qbert.json",
+      "basename": "qbert",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "qix",
+      "title": "qix",
+      "category": "Game",
+      "upstreamFilename": "json/disks/qix.json",
+      "basename": "qix",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "repton",
+      "title": "Repton",
+      "category": "Game",
+      "upstreamFilename": "json/disks/repton.json",
+      "basename": "repton",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "rescue-on-fractalus",
+      "title": "Rescue on Fractalus",
+      "category": "Game",
+      "upstreamFilename": "json/disks/fractalus.json",
+      "basename": "fractalus",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "rescue-raiders",
+      "title": "Rescue Raiders",
+      "category": "Game",
+      "upstreamFilename": "json/disks/rescue.json",
+      "basename": "rescue",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "return-of-heracles",
+      "title": "Return of Heracles",
+      "category": "Game",
+      "upstreamFilename": "json/disks/returnofhercules.json",
+      "basename": "returnofhercules",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "robotron",
+      "title": "Robotron",
+      "category": "Game",
+      "upstreamFilename": "json/disks/robotron.json",
+      "basename": "robotron",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "rogue",
+      "title": "Rogue",
+      "category": "Game",
+      "upstreamFilename": "json/disks/rogue.json",
+      "basename": "rogue",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "sabotage",
+      "title": "Sabotage",
+      "category": "Game",
+      "upstreamFilename": "json/disks/sabotage.json",
+      "basename": "sabotage",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "sea-dragon",
+      "title": "Sea Dragon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/seadragon.json",
+      "basename": "seadragon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "skyfox",
+      "title": "Skyfox",
+      "category": "Game",
+      "upstreamFilename": "json/disks/skyfox.json",
+      "basename": "skyfox",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "sneakers",
+      "title": "Sneakers",
+      "category": "Game",
+      "upstreamFilename": "json/disks/sneakers.json",
+      "basename": "sneakers",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "softside-34",
+      "title": "SoftSide 34",
+      "category": "Game",
+      "upstreamFilename": "json/disks/softside34.json",
+      "basename": "softside34",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "spys-demise",
+      "title": "Spy's Demise",
+      "category": "Game",
+      "upstreamFilename": "json/disks/spysdemise.json",
+      "basename": "spysdemise",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "star-blazer",
+      "title": "Star Blazer",
+      "category": "Game",
+      "upstreamFilename": "json/disks/starblazer.json",
+      "basename": "starblazer",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "star-trek",
+      "title": "Star Trek",
+      "category": "Game",
+      "upstreamFilename": "json/disks/startrek.json",
+      "basename": "startrek",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "star-wars",
+      "title": "Star Wars",
+      "category": "Game",
+      "upstreamFilename": "json/disks/starwars.json",
+      "basename": "starwars",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "starmaze",
+      "title": "Starmaze",
+      "category": "Game",
+      "upstreamFilename": "json/disks/starmaze.json",
+      "basename": "starmaze",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "stellar-7",
+      "title": "Stellar 7",
+      "category": "Game",
+      "upstreamFilename": "json/disks/stellar7.json",
+      "basename": "stellar7",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "super-quest",
+      "title": "Super Quest",
+      "category": "Game",
+      "upstreamFilename": "json/disks/superquest.json",
+      "basename": "superquest",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "super-zaxxon",
+      "title": "Super Zaxxon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/super_zaxxon.json",
+      "basename": "super_zaxxon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "swashbuckler",
+      "title": "Swashbuckler",
+      "category": "Game",
+      "upstreamFilename": "json/disks/swashbuckler.json",
+      "basename": "swashbuckler",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "taipan",
+      "title": "Taipan",
+      "category": "Game",
+      "upstreamFilename": "json/disks/taipan.json",
+      "basename": "taipan",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tennis-championship",
+      "title": "Tennis Championship",
+      "category": "Game",
+      "upstreamFilename": "json/disks/tennischampionship.json",
+      "basename": "tennischampionship",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "test-drive-disk-1",
+      "title": "Test Drive - Disk 1",
+      "category": "Game",
+      "upstreamFilename": "json/disks/testdrive1.json",
+      "basename": "testdrive1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "test-drive-disk-2",
+      "title": "Test Drive - Disk 2",
+      "category": "Game",
+      "upstreamFilename": "json/disks/testdrive2.json",
+      "basename": "testdrive2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tetris",
+      "title": "Tetris",
+      "category": "Game",
+      "upstreamFilename": "json/disks/tetris.json",
+      "basename": "tetris",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "thexder",
+      "title": "Thexder",
+      "category": "Game",
+      "upstreamFilename": "json/disks/thexder1.json",
+      "basename": "thexder1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "thexder",
+      "title": "Thexder",
+      "category": "Game",
+      "upstreamFilename": "json/disks/thexder2.json",
+      "basename": "thexder2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "threshold",
+      "title": "Threshold",
+      "category": "Game",
+      "upstreamFilename": "json/disks/threshold.json",
+      "basename": "threshold",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tron",
+      "title": "Tron",
+      "category": "Game",
+      "upstreamFilename": "json/disks/tron.json",
+      "basename": "tron",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tsr-dungeon",
+      "title": "TSR Dungeon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/tsr_dungeon.json",
+      "basename": "tsr_dungeon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "twerps",
+      "title": "Twerps",
+      "category": "Game",
+      "upstreamFilename": "json/disks/spaceeggs.json",
+      "basename": "spaceeggs",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "warriors-of-ra-1-dunzhin",
+      "title": "Warriors of Ra 1: Dunzhin",
+      "category": "Game",
+      "upstreamFilename": "json/disks/warriorofras1-dunzhin.json",
+      "basename": "warriorofras1-dunzhin",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "wings-of-fury",
+      "title": "Wings of Fury",
+      "category": "Game",
+      "upstreamFilename": "json/disks/wingsoffury1.json",
+      "basename": "wingsoffury1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "wings-of-fury",
+      "title": "Wings of Fury",
+      "category": "Game",
+      "upstreamFilename": "json/disks/wingsoffury2.json",
+      "basename": "wingsoffury2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "winter-games",
+      "title": "Winter Games",
+      "category": "Game",
+      "upstreamFilename": "json/disks/winter1.json",
+      "basename": "winter1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "winter-games",
+      "title": "Winter Games",
+      "category": "Game",
+      "upstreamFilename": "json/disks/winter2.json",
+      "basename": "winter2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zaxxon",
+      "title": "Zaxxon",
+      "category": "Game",
+      "upstreamFilename": "json/disks/zaxxon.json",
+      "basename": "zaxxon",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "beagle-graphics",
+      "title": "Beagle Graphics",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/beagle_graphics.json",
+      "basename": "beagle_graphics",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "complete-graphics-system",
+      "title": "Complete Graphics System",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/cgsii.json",
+      "basename": "cgsii",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "dazzle-draw",
+      "title": "Dazzle Draw",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/dazzledraw.json",
+      "basename": "dazzledraw",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "fantavision-1",
+      "title": "FantaVision 1",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/fantavision1.json",
+      "basename": "fantavision1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "fantavision-2",
+      "title": "FantaVision 2",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/fantavision2.json",
+      "basename": "fantavision2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "koala-illustrator",
+      "title": "Koala Illustrator",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/koala.json",
+      "basename": "koala",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "the-graphics-magician",
+      "title": "The Graphics Magician",
+      "category": "Graphics",
+      "upstreamFilename": "json/disks/graphics_magician.json",
+      "basename": "graphics_magician",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "adams-adventures-1",
+      "title": "Adam's Adventures 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/adams1.json",
+      "basename": "adams1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "adams-adventures-2",
+      "title": "Adam's Adventures 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/adams2.json",
+      "basename": "adams2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "coveted-mirror-1",
+      "title": "Coveted Mirror 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/coveted1.json",
+      "basename": "coveted1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "coveted-mirror-2",
+      "title": "Coveted Mirror 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/coveted2.json",
+      "basename": "coveted2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "crimson-crown-1",
+      "title": "Crimson Crown 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/crimson1.json",
+      "basename": "crimson1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "crimson-crown-2",
+      "title": "Crimson Crown 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/crimson2.json",
+      "basename": "crimson2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "deadline",
+      "title": "Deadline",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/deadline.json",
+      "basename": "deadline",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "hgttg",
+      "title": "HGTTG",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/hhgttg.json",
+      "basename": "hhgttg",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "incredible-hulk-1",
+      "title": "Incredible Hulk 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/hulk1.json",
+      "basename": "hulk1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "incredible-hulk-2",
+      "title": "Incredible Hulk 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/hulk2.json",
+      "basename": "hulk2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "lurking-horror",
+      "title": "Lurking Horror",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/lurking.json",
+      "basename": "lurking",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "maniac-mansion-disk-1",
+      "title": "Maniac Mansion - Disk 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/maniacmansion1.json",
+      "basename": "maniacmansion1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "maniac-mansion-disk-2",
+      "title": "Maniac Mansion - Disk 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/maniacmansion2.json",
+      "basename": "maniacmansion2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "mission-asteroid",
+      "title": "Mission Asteroid",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/mission_asteroid.json",
+      "basename": "mission_asteroid",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "mystery-house",
+      "title": "Mystery House",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/mystery_house.json",
+      "basename": "mystery_house",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "oo-topos-1",
+      "title": "Oo-topos 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/oo-topos1.json",
+      "basename": "oo-topos1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "oo-topos-2",
+      "title": "Oo-topos 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/oo-topos2.json",
+      "basename": "oo-topos2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "planetfall",
+      "title": "Planetfall",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/planetfall.json",
+      "basename": "planetfall",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-1-side-1",
+      "title": "Space Quest 1 - Disk 1 - Side 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-1-1.json",
+      "basename": "spacequest1-1-1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-1-side-2",
+      "title": "Space Quest 1 - Disk 1 - Side 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-1-2.json",
+      "basename": "spacequest1-1-2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-2-side-1",
+      "title": "Space Quest 1 - Disk 2 - Side 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-2-1.json",
+      "basename": "spacequest1-2-1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-2-side-2",
+      "title": "Space Quest 1 - Disk 2 - Side 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-2-2.json",
+      "basename": "spacequest1-2-2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-3-side-1",
+      "title": "Space Quest 1 - Disk 3 - Side 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-3-1.json",
+      "basename": "spacequest1-3-1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-3-side-2",
+      "title": "Space Quest 1 - Disk 3 - Side 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-3-2.json",
+      "basename": "spacequest1-3-2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-4-side-1",
+      "title": "Space Quest 1 - Disk 4 - Side 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-4-1.json",
+      "basename": "spacequest1-4-1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "space-quest-1-disk-4-side-2",
+      "title": "Space Quest 1 - Disk 4 - Side 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/spacequest1-4-2.json",
+      "basename": "spacequest1-4-2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "starcross",
+      "title": "Starcross",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/starcross.json",
+      "basename": "starcross",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "suspended",
+      "title": "Suspended",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/suspended.json",
+      "basename": "suspended",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tass-times-in-tonetown",
+      "title": "Tass Times in Tonetown",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/tasstimes1.json",
+      "basename": "tasstimes1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "tass-times-in-tonetown",
+      "title": "Tass Times in Tonetown",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/tasstimes2.json",
+      "basename": "tasstimes2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "transylvania",
+      "title": "Transylvania",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/transylvania.json",
+      "basename": "transylvania",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-i",
+      "title": "Zork I",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zork_1.json",
+      "basename": "zork_1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-ii",
+      "title": "Zork II",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zork_2.json",
+      "basename": "zork_2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-iii",
+      "title": "Zork III",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zork_3.json",
+      "basename": "zork_3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-zero-disk-1",
+      "title": "Zork Zero - Disk 1",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zorkzero1.json",
+      "basename": "zorkzero1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-zero-disk-2",
+      "title": "Zork Zero - Disk 2",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zorkzero2.json",
+      "basename": "zorkzero2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-zero-disk-3",
+      "title": "Zork Zero - Disk 3",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zorkzero3.json",
+      "basename": "zorkzero3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "zork-zero-disk-4",
+      "title": "Zork Zero - Disk 4",
+      "category": "Interactive Fiction",
+      "upstreamFilename": "json/disks/zorkzero4.json",
+      "basename": "zorkzero4",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "USER_SUPPLIED_ONLY",
+        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+      }
+    },
+    {
+      "id": "jed",
+      "title": "Jed",
+      "category": "Music Video",
+      "upstreamFilename": "json/disks/jed.json",
+      "basename": "jed",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "x-mas-card",
+      "title": "X-Mas Card",
+      "category": "Personal",
+      "upstreamFilename": "json/disks/xmas-card.json",
+      "basename": "xmas-card",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "x-mas-card-2",
+      "title": "X-Mas Card 2",
+      "category": "Personal",
+      "upstreamFilename": "json/disks/xmas-card2.json",
+      "basename": "xmas-card2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-pie",
+      "title": "Apple Pie",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/applepie.json",
+      "basename": "applepie",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "appleworks-30-disk-1",
+      "title": "Appleworks 3.0 - Disk 1",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/appleworks3-1.json",
+      "basename": "appleworks3-1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "appleworks-30-disk-2",
+      "title": "Appleworks 3.0 - Disk 2",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/appleworks3-2.json",
+      "basename": "appleworks3-2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "appleworks-disk-1",
+      "title": "Appleworks Disk 1",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/appleworks1.json",
+      "basename": "appleworks1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "appleworks-disk-2",
+      "title": "Appleworks Disk 2",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/appleworks2.json",
+      "basename": "appleworks2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "applewriter",
+      "title": "AppleWriter",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/applewriter.json",
+      "basename": "applewriter",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "easywriter",
+      "title": "Easywriter",
+      "category": "Productivity",
+      "upstreamFilename": "json/disks/easywriter.json",
+      "basename": "easywriter",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-logo",
+      "title": "Apple LOGO",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/logo.json",
+      "basename": "logo",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-logo-sample-programs",
+      "title": "Apple LOGO Sample Programs",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/logo_toolkit_samples.json",
+      "basename": "logo_toolkit_samples",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-logo-tool-kit",
+      "title": "Apple LOGO Tool Kit",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/logo_toolkit.json",
+      "basename": "logo_toolkit",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-logo-tool-kit-documentation",
+      "title": "Apple LOGO Tool Kit Documentation",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/logo_toolkit_docs.json",
+      "basename": "logo_toolkit_docs",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-pascal-disk-0",
+      "title": "Apple Pascal - Disk 0",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/pascal0.json",
+      "basename": "pascal0",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-pascal-disk-1",
+      "title": "Apple Pascal - Disk 1",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/pascal1.json",
+      "basename": "pascal1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-pascal-disk-2",
+      "title": "Apple Pascal - Disk 2",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/pascal2.json",
+      "basename": "pascal2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "apple-pascal-disk-3",
+      "title": "Apple Pascal - Disk 3",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/pascal3.json",
+      "basename": "pascal3",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "graforth",
+      "title": "Graforth",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/graforth.json",
+      "basename": "graforth",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "turtles",
+      "title": "Turtles",
+      "category": "Programming",
+      "upstreamFilename": "json/disks/turtles.json",
+      "basename": "turtles",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "dos-33-master",
+      "title": "DOS 3.3 Master",
+      "category": "System",
+      "upstreamFilename": "json/disks/dos33master.json",
+      "basename": "dos33master",
+      "inGitRepo": true,
+      "onWebsite": true,
+      "catalogSource": "git",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Apple DOS 3.3 system master — Apple copyrighted system software. Not redistributable with ESP][."
+      }
+    },
+    {
+      "id": "dos-33-master-2",
+      "title": "DOS 3.3 Master 2",
+      "category": "System",
+      "upstreamFilename": "json/disks/dos33master2.json",
+      "basename": "dos33master2",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "dos-33-sample",
+      "title": "DOS 3.3 Sample",
+      "category": "System",
+      "upstreamFilename": "json/disks/dos33sample.json",
+      "basename": "dos33sample",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "prodos",
+      "title": "ProDOS",
+      "category": "System",
+      "upstreamFilename": "json/disks/prodos.json",
+      "basename": "prodos",
+      "inGitRepo": true,
+      "onWebsite": true,
+      "catalogSource": "git",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Apple ProDOS system disk — Apple copyrighted. Not redistributable with ESP][."
+      }
+    },
+    {
+      "id": "prodos-8",
+      "title": "ProDOS 8",
+      "category": "System",
+      "upstreamFilename": "json/disks/prodos8.json",
+      "basename": "prodos8",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "alpha-plot",
+      "title": "Alpha Plot",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/alpha_plot.json",
+      "basename": "alpha_plot",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "beagle-basic",
+      "title": "Beagle Basic",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/beagle_basic.json",
+      "basename": "beagle_basic",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "copy",
+      "title": "Copy ][+",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/c2plus.json",
+      "basename": "c2plus",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "davex",
+      "title": "Davex",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/davex.json",
+      "basename": "davex",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "dos-boss",
+      "title": "DOS Boss",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/dos_boss.json",
+      "basename": "dos_boss",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "DO_NOT_DISTRIBUTE",
+        "evidence": "Likely Apple system software. Do not distribute with ESP][ without Apple redistribution rights."
+      }
+    },
+    {
+      "id": "freewriter",
+      "title": "FreeWriter",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/freewriter.json",
+      "basename": "freewriter",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "locksmith",
+      "title": "Locksmith",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/locksmith.json",
+      "basename": "locksmith",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "thunderclock-1",
+      "title": "Thunderclock 1",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/thunderclock1.json",
+      "basename": "thunderclock1",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "utility-city",
+      "title": "Utility City",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/utility_city.json",
+      "basename": "utility_city",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    },
+    {
+      "id": "videoterm-utilities",
+      "title": "VideoTerm Utilities",
+      "category": "Utility",
+      "upstreamFilename": "json/disks/videoterm.json",
+      "basename": "videoterm",
+      "inGitRepo": false,
+      "onWebsite": true,
+      "catalogSource": "website",
+      "redistribution": {
+        "status": "UNKNOWN",
+        "evidence": "No explicit redistribution evidence in apple2js MIT LICENSE for third-party media. Default UNKNOWN."
+      }
+    }
+  ]
+}

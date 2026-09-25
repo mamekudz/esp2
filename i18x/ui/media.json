@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "strings": {
+    "media.not_installed": {
+      "en-US": "Media not installed",
+      "de-DE": "Medium nicht installiert"
+    },
+    "media.installed": {
+      "en-US": "Media installed",
+      "de-DE": "Medium installiert"
+    },
+    "media.user_supplied_only": {
+      "en-US": "Provide your own legally obtained disk image",
+      "de-DE": "Eigenes, legal erworbenes Disk-Image bereitstellen"
+    }
+  }
+}

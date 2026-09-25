@@ -66,6 +66,13 @@ __pycache__/
 # Allow only synthetic project fixtures (never commercial media)
 !fixtures/synthetic/**
 
+# User-imported library media (local only)
+library/user/
+
+# apple2js local caches (also covered by .cache/)
+.cache/apple2js/
+.cache/apple2js-meta/
+
 # Host test output
 host/.out/
 host/coverage/

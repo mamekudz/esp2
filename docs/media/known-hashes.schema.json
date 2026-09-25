@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://esp-bracket.local/schemas/known-hashes.v1.json",
+  "title": "ESP][ known-hashes.json",
+  "type": "object",
+  "required": ["schemaVersion", "entries"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "title": { "type": "string" },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sha256", "id", "title", "provenance"],
+        "properties": {
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "format": { "type": "string", "enum": ["dsk", "po", "nib", "woz"] },
+          "provenance": {
+            "type": "object",
+            "required": ["source", "evidence"],
+            "properties": {
+              "source": { "type": "string" },
+              "evidence": { "type": "string" },
+              "redistributionStatus": {
+                "type": "string",
+                "enum": [
+                  "REDISTRIBUTABLE",
+                  "USER_SUPPLIED_ONLY",
+                  "UNKNOWN",
+                  "DO_NOT_DISTRIBUTE"
+                ]
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

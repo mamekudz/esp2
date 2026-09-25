@@ -3,6 +3,16 @@ import { testDskPo } from "./dsk_po.test.mjs";
 import { testViewport } from "./viewport.test.mjs";
 import { testGameJson, testCompatibilityDb } from "./metadata.test.mjs";
 import { testVirtualKeyboard, testGamepadStateShape } from "./input_model.test.mjs";
+import {
+  testApple2jsCatalogParseAndNormalize,
+  testApple2jsMalformedIndex,
+  testApple2jsJsonDiskRoundtrip,
+  testCatalogMergePrefersGitFlag,
+} from "./apple2js_catalog.test.mjs";
+import {
+  testMediaIdentifySynthetic,
+  testMediaImportAndNoMediaState,
+} from "./media_import.test.mjs";
 
 const tests = [
   ["artifact_color", testArtifactColor],
@@ -12,6 +22,12 @@ const tests = [
   ["compatibility_db", testCompatibilityDb],
   ["virtual_keyboard", testVirtualKeyboard],
   ["gamepad_state", testGamepadStateShape],
+  ["apple2js_catalog", testApple2jsCatalogParseAndNormalize],
+  ["apple2js_malformed", testApple2jsMalformedIndex],
+  ["apple2js_json_disk", testApple2jsJsonDiskRoundtrip],
+  ["apple2js_merge", testCatalogMergePrefersGitFlag],
+  ["media_identify", testMediaIdentifySynthetic],
+  ["media_import", testMediaImportAndNoMediaState],
 ];
 
 let failed = 0;

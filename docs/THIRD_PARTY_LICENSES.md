@@ -22,6 +22,7 @@ Phase-1 hardware references remain in `docs/THIRD_PARTY.md`.
 | microM8 | paleotronic.com | Proprietary | — | Not reusable |
 | fake6502-class cores | various | PD/CC0 (verify fork) | 6502 CPU | Leading candidate for host harness |
 | Bluepad32 docs | https://bluepad32.readthedocs.io/ | — | Gamepad compatibility lists | Documentation reference only (no Bluepad32 code yet) |
+| apple2js | https://github.com/whscullin/apple2js | MIT (emulator only) | Catalog format, UX reference, optional oracle | **EVALUATED / DEVELOPMENT REFERENCE** — no emulator source incorporated; website disk media is **not** covered by MIT |
 
 When source is actually copied into this repository, move the row to
 **Incorporated** and add license text under `third_party/<name>/`.

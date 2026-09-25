@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "title": "ESP][ known media hashes",
+  "notes": [
+    "Hashes identify user-supplied media; they are not redistributable media.",
+    "Do not populate from unverified dumps. Record provenance for every entry.",
+    "Empty by default until a hash is verified from a trusted, licensed source."
+  ],
+  "entries": []
+}

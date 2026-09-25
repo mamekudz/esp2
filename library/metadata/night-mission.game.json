@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "id": "night-mission",
+  "title": "Night Mission",
+  "category": "Game",
+  "disks": [
+    {
+      "file": "night-mission.dsk",
+      "label": "disk1",
+      "writeProtected": true,
+      "mediaInstalled": false
+    }
+  ],
+  "bootDisk": "night-mission.dsk",
+  "defaultDrive1": "night-mission.dsk",
+  "defaultDrive2": null,
+  "joystickMode": "auto",
+  "videoColorMode": "CompositeColor",
+  "displayEffect": "Sharp",
+  "effectStrength": "Off",
+  "notes": "Metadata imported from apple2js catalog. Disk image not bundled with ESP][.",
+  "mediaStatus": "not_installed",
+  "source": {
+    "type": "apple2js",
+    "repository": "https://github.com/whscullin/apple2js",
+    "site": "https://www.scullinsteel.com/apple2/",
+    "upstreamCommit": "ee0aed25f73c69d0245e86a2a5fccb3324c3056c",
+    "upstreamPath": "json/disks/nightmission.json",
+    "upstreamUrl": "https://www.scullinsteel.com/apple2/json/disks/nightmission.json",
+    "inGitRepo": false,
+    "onWebsite": true
+  },
+  "redistribution": {
+    "status": "USER_SUPPLIED_ONLY",
+    "evidence": "Commercial title (Night Mission / Sublogic lineage commonly cited). Website catalog only; not in public git main. No redistribution grant found.",
+    "preferredUpstream": null,
+    "publisherHint": "Sublogic (historical)"
+  }
+}
