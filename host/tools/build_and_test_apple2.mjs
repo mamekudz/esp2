@@ -96,4 +96,5 @@ function buildTest(name, mainCpp) {
 
 buildTest("test_cpu", join(root, "host/test_cpp/test_cpu_main.cpp"));
 buildTest("test_machine", join(root, "host/test_cpp/test_machine_main.cpp"));
+buildTest("test_video", join(root, "host/test_cpp/test_video.cpp"));
 console.log("\nHost Apple II C++ suite OK");
