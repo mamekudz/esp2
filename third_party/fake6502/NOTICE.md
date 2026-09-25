@@ -1,0 +1,24 @@
+# Fake6502 (INCORPORATED)
+
+| Field | Value |
+| --- | --- |
+| Upstream | https://github.com/C-Chads/MyLittle6502 |
+| File | `fake6502.h` (header-only MOS 6502 core) |
+| Pinned commit | `3078e2c337f78af68bcc675a2f27a9bd82e202da` |
+| Version | v1.3 (Mike Chambers + David MHS Webster / gek169) |
+| License | Public domain / CC0 (header states FULLY PUBLIC DOMAIN, CC0) |
+| SHA-256 | `CC74213E5457AE0A8620B6AA996E2976A4C0AFE049BE625FDB367AC1135CED25` |
+
+## ESP][ integration notes
+
+- Do **not** enable `NES_CPU` (Apple II requires BCD for ADC/SBC).
+- `UNDOCUMENTED` may remain defined; Apple II software rarely needs it.
+- Access only through `esp_bracket::Cpu6502` — never call `step6502` from app code.
+- Do not clang-format this file.
+- Cycle model: **instruction-level** with base tick table + page-cross /
+  branch penalties. Not a cycle-stepping core.
+
+## Prior unfinished copy
+
+`vendor/fake6502/fake6502.c` was an untracked identical copy of this header
+(same SHA-256). Replaced by this pinned `third_party/` incorporation.

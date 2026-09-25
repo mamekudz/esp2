@@ -80,6 +80,15 @@ host/coverage/
 *.ppm
 *.pgm
 
+# Portable host C++ toolchain (LLVM-MinGW) — do not commit
+tools/host-toolchain/
+
+# Unfinished / superseded local vendor dumps
+vendor/
+
+# Local host C++ toolchain (do not commit)
+tools/host-toolchain/
+
 # clangd / coverity
 .cache/
 compile_commands.json

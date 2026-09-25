@@ -94,7 +94,7 @@ Alles unter [Geplante Funktionen](#geplante-funktionen).
 
 ### Apple-II-Emulation
 
-6502, Speicherabbild, ROM-Handling, Text / LoRes / HiRes — **PLANNED**. Emulation beginnt erst nach stabilem Phase-1-Bring-up.
+Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/`, Wrapper `Cpu6502`, Bus/Soft-Switches/Text/LoRes/HGR/Artifact — **HOST VERIFIED** (`npm run test:apple2`). Firmware-Integration auf dem ESP32: **noch nicht**. Keine Apple-ROMs im Repo (synthetische Test-ROM).
 
 ### Virtuelle Disk II / Media-Schicht
 

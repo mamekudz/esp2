@@ -1,17 +1,15 @@
-# 6502 host harness (skeleton)
+# 6502 host harness
 
-No third-party CPU core is vendored yet (`docs/apple2/core-evaluation.md`).
+Selected core: **fake6502** (see `docs/apple2/core-evaluation.md`,
+`third_party/fake6502/`).
 
-Planned host tests (after permissive core selection):
+Wrapper: `esp_bracket::Cpu6502`  
+Harness: `esp_bracket::CpuHarness` (64 KiB synthetic memory)
 
-- reset vector fetch
-- LDA/STA
-- branches
-- stack PHA/PLA
-- JSR/RTS
-- flags
-- optional cycle counts
+```
+npm run test:apple2
+```
 
-Use a **synthetic** stub ROM in `fixtures/synthetic/roms/` only — never Apple ROMs.
+Requires LLVM-MinGW under `tools/host-toolchain/` (gitignored).
 
-Until a core is selected, this directory holds the plan only.
+Never commit Apple ROMs — use synthetic ROM only.
