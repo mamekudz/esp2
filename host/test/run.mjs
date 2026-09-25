@@ -13,6 +13,16 @@ import {
   testMediaIdentifySynthetic,
   testMediaImportAndNoMediaState,
 } from "./media_import.test.mjs";
+import {
+  testSourcesRegistry,
+  testProvenanceGates,
+  testApple2jsSyncDiffBlocksUpgrade,
+  testFormatMatrixAndIdentify,
+  testImportMultiDiskAndDuplicates,
+  testDirectoryImportNonRecursive,
+  testSdPrepareDryRunSafety,
+  testWozRedistributableHash,
+} from "./media_catalog.test.mjs";
 
 const tests = [
   ["artifact_color", testArtifactColor],
@@ -28,6 +38,14 @@ const tests = [
   ["apple2js_merge", testCatalogMergePrefersGitFlag],
   ["media_identify", testMediaIdentifySynthetic],
   ["media_import", testMediaImportAndNoMediaState],
+  ["sources_registry", testSourcesRegistry],
+  ["provenance_gates", testProvenanceGates],
+  ["apple2js_sync_diff", testApple2jsSyncDiffBlocksUpgrade],
+  ["format_identify", testFormatMatrixAndIdentify],
+  ["import_multidisk_dupes", testImportMultiDiskAndDuplicates],
+  ["directory_import", testDirectoryImportNonRecursive],
+  ["sd_prepare_dryrun", testSdPrepareDryRunSafety],
+  ["woz_redistributable", testWozRedistributableHash],
 ];
 
 let failed = 0;

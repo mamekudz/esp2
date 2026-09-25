@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "title": "ESP][ media / catalog sources",
+  "sources": [
+    {
+      "id": "apple2js",
+      "name": "apple2js",
+      "url": "https://github.com/whscullin/apple2js",
+      "type": "catalog+reference",
+      "license": "MIT (emulator software only)",
+      "mediaPolicy": "USER_SUPPLIED_ONLY_DEFAULT",
+      "catalogSupported": true,
+      "syncSupported": true,
+      "notes": "Website catalog ≠ git disks. MIT does not cover third-party website media."
+    },
+    {
+      "id": "local",
+      "name": "Local metadata / library",
+      "url": null,
+      "type": "local",
+      "license": "n/a",
+      "mediaPolicy": "USER_SUPPLIED",
+      "catalogSupported": true,
+      "syncSupported": false,
+      "notes": "library/metadata stubs and user imports"
+    },
+    {
+      "id": "known-hashes",
+      "name": "Known media hashes",
+      "url": null,
+      "type": "hash-db",
+      "license": "n/a",
+      "mediaPolicy": "IDENTIFY_ONLY",
+      "catalogSupported": true,
+      "syncSupported": false,
+      "notes": "SHA-256 recognition without distributing media"
+    },
+    {
+      "id": "a2kit",
+      "name": "a2kit",
+      "url": "https://github.com/dfgordon/a2kit",
+      "type": "optional-dev-tool",
+      "license": "MIT",
+      "mediaPolicy": "NO_MEDIA_FETCH",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "CLI/Rust lib for disk format validation oracle; optional external invoke only"
+    },
+    {
+      "id": "diskm8",
+      "name": "DiskM8",
+      "url": "https://github.com/paleotronic/diskm8",
+      "type": "optional-dev-tool",
+      "license": "GPL-3.0",
+      "mediaPolicy": "NO_MEDIA_FETCH",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "External CLI only — do not incorporate GPL sources into ESP]["
+    },
+    {
+      "id": "ewm",
+      "name": "Emulated Woz Machine",
+      "url": "https://github.com/st3fan/ewm",
+      "type": "emulator-reference",
+      "license": "MIT",
+      "mediaPolicy": "REFERENCE_ONLY",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "Disk II / WOZ behavior reference; no code copied yet"
+    },
+    {
+      "id": "tcjennings-apple2",
+      "name": "tcjennings/apple2",
+      "url": "https://github.com/tcjennings/apple2",
+      "type": "redistributable-candidate",
+      "license": "MIT (README claims all repository contents)",
+      "mediaPolicy": "REDISTRIBUTABLE_WITH_EVIDENCE",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "screen_address_dos33.woz audited; see fixtures/redistributable/"
+    },
+    {
+      "id": "4am-ia",
+      "name": "4am / Internet Archive Apple II collections",
+      "url": "https://archive.org/details/apple_ii_library_4am",
+      "type": "catalog-research",
+      "license": "mixed / collection-dependent",
+      "mediaPolicy": "CATALOG_ONLY_NO_BULK_DOWNLOAD",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "Hash/provenance research only; not auto-redistributable"
+    },
+    {
+      "id": "total-replay",
+      "name": "Total Replay (4cade)",
+      "url": "https://github.com/a2-4am/4cade",
+      "type": "future-optional",
+      "license": "MIT for launcher source; bundled games remain third-party",
+      "mediaPolicy": "USER_SUPPLIED_ONLY",
+      "catalogSupported": false,
+      "syncSupported": false,
+      "notes": "HDV frontend; not floppy-first ESP][ V1 target; do not auto-download"
+    }
+  ]
+}

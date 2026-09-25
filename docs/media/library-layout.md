@@ -1,44 +1,43 @@
 # SD / library layout (ESP][)
 
 Metadata and media are separate. A catalog entry without a disk file is
-**valid** and should surface as media-not-installed in the UI later.
+**valid** (`mediaStatus: not_installed`).
 
-## On-device (microSD) convention
+## On-device (microSD)
 
 ```
 /apple2/
+  catalog/                 # metadata stubs / index (optional)
   games/
     <game-id>/
-      game.json          # metadata (may ship without media)
-      disk1.dsk          # user-supplied (optional)
-      disk2.dsk          # optional
-      cover.png          # optional
+      game.json
+      disk1.dsk            # user-supplied when needed
+      disk2.dsk
+  diagnostics/             # future self-test disks
 ```
 
-Example:
+Host prepare:
 
-```
-/apple2/games/choplifter/game.json          # USER_SUPPLIED_ONLY metadata
-/apple2/games/choplifter/disk1.dsk          # only if the user installs it
-```
+    gulp sd:prepare --target <dir>          # dry-run by default
+    gulp sd:prepare --target <dir> --dryRun=false
 
-## In-repo (development)
+Never formats a drive; refuses bare drive roots; skips existing files unless
+`confirmOverwrite=true`.
+
+## Host library
 
 ```
 library/
-  metadata/                 # provenance-bearing metadata stubs (no media)
-  user/                     # local import target (gitignored if desired)
-fixtures/synthetic/library/ # legal synthetic fixtures only
+  metadata/                # provenance stubs (committed)
+  user/games/<id>/         # local imports (gitignored via library/user/)
+fixtures/synthetic/        # legal test media
+fixtures/redistributable/  # clearly licensed third-party fixtures
 ```
 
-`library/user/` should remain local; do not commit commercial images.
+## Import
 
-## game.json media fields
+    gulp media:identify --file game.dsk
+    gulp media:import --file game.dsk
+    gulp media:import --file disk2.dsk --game-id choplifter --title Choplifter
 
-- `disks[].mediaInstalled` — boolean for the local/SD file
-- `mediaStatus` — `not_installed` | `installed` | `available_if_obtained`
-- `source` — apple2js provenance block when imported
-- `redistribution.status` — language-neutral enum
-
-UI copy for missing media belongs in i18x (e.g. `media.not_installed`), not
-in core logic.
+Never downloads commercial images because a catalog hash/title matched.

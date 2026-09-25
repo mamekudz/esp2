@@ -27,6 +27,7 @@
     "apple2js:sync": "gulp apple2js:sync",
     "apple2js:catalog": "gulp apple2js:catalog",
     "apple2js:audit": "gulp apple2js:audit",
+    "fixture:test-disks": "node host/tools/gen_test_disks.mjs",
     "gulp:tasks": "gulp --tasks"
   },
   "microgulp": {

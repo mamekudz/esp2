@@ -75,7 +75,15 @@ async function main() {
 
     const outDir = join(ESP2_ROOT, "docs", "media", "generated");
     ensureDir(outDir);
-    writeJson(join(outDir, "apple2js-catalog-audit.json"), {
+    const auditPath = join(outDir, "apple2js-catalog-audit.json");
+    const prevPath = join(outDir, "apple2js-catalog-audit.prev.json");
+    let previous = null;
+    if (existsSync(auditPath)) {
+      previous = readJson(auditPath);
+      writeJson(prevPath, previous);
+    }
+
+    const nextAudit = {
       schemaVersion: 1,
       generatedAt: new Date().toISOString(),
       upstreamPin: pin || (existsSync(PIN_FILE) ? readJson(PIN_FILE) : null),
@@ -85,7 +93,18 @@ async function main() {
       mergedEntryCount: merged.length,
       summary,
       entries: audited,
-    });
+    };
+    writeJson(auditPath, nextAudit);
+
+    let diff = null;
+    if (previous && (cmd === "audit" || process.argv.includes("--diff"))) {
+      const { diffApple2jsAudits } = await import("./sync_diff.mjs");
+      diff = diffApple2jsAudits(previous, nextAudit);
+      writeJson(join(outDir, "apple2js-catalog-diff.json"), {
+        generatedAt: new Date().toISOString(),
+        ...diff,
+      });
+    }
 
     if (cmd === "catalog") {
       console.log(
@@ -95,6 +114,7 @@ async function main() {
             webEntryCount: webEntries.length,
             mergedEntryCount: merged.length,
             summary,
+            diff: diff?.counts || null,
           },
           null,
           2,
@@ -121,11 +141,16 @@ async function main() {
           summary,
           wroteAudit: "docs/media/generated/apple2js-catalog-audit.json",
           stubs: interesting.map((a) => a.id),
+          diff: diff?.counts || null,
+          provenanceBlocked: diff?.provenanceBlocked || [],
         },
         null,
         2,
       ),
     );
+    if (diff?.provenanceBlocked?.length) {
+      process.exitCode = 2;
+    }
     return;
   }
 

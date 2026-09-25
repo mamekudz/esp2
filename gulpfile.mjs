@@ -570,6 +570,8 @@ export async function apple2jsSync() {
     'apple2js @ <short/> — web catalog <count/> entries.<context="task log"/>',
     { short: r.pin.short, count: String(r.webIndexCount ?? 0) },
   );
+  ReportProgress(0.6, "apple2js-audit-diff");
+  runNodeCli("dev/tools/apple2js/cli.mjs", ["audit", "--diff"], "apple2js:audit");
   ReportProgress(1, "apple2js-sync");
   PlaySignal("success");
 }
@@ -577,7 +579,7 @@ _Tag(apple2jsSync, {
   gulpName: "apple2js:sync",
   µDisplayName: 'apple2js Sync<context="µDisplayName"/>',
   µDescription:
-    'Clones/updates .cache/apple2js and fetches website catalog index (network).<context="µDescription"/>',
+    'Clones/updates .cache/apple2js, fetches website index, re-audits with diff (network).<context="µDescription"/>',
   µIcon: "\u2601",
   µGroup: 'Media / apple2js<context="µGroup"/>',
   µOrder: 60,
@@ -622,7 +624,7 @@ export async function mediaIdentify() {
   }
   runNodeCli(
     "dev/tools/media/cli.mjs",
-    ["identify", file],
+    ["identify", "--file", file],
     "media:identify",
   );
 }
@@ -630,13 +632,13 @@ _Tag(mediaIdentify, {
   gulpName: "media:identify",
   µDisplayName: 'Media Identify<context="µDisplayName"/>',
   µDescription:
-    'Offline SHA-256 + format check for a user disk image.<context="µDescription"/>',
+    'Offline SHA-256 + catalog match for a user disk image.<context="µDescription"/>',
   µGroup: 'Media / apple2js<context="µGroup"/>',
   µOrder: 63,
   µParameters: {
     file: {
       type: "string",
-      description: 'Path to .dsk/.po/.nib/.woz<context="µParameter"/>',
+      description: 'Path to .dsk/.po/.nib/.woz/…<context="µParameter"/>',
     },
   },
   µExecutionConcurrency: false,
@@ -644,26 +646,94 @@ _Tag(mediaIdentify, {
 
 export async function mediaImport() {
   const file = GetParameter("file");
+  const directory = GetParameter("directory");
+  const library =
+    GetParameter("library") || GetParameter("target") || "library/user";
+  const title = GetParameter("title");
   const gameId = GetParameter("gameId") || GetParameter("game-id");
-  if (!file || !gameId) {
-    throw new Error("media:import requires file= and gameId=");
+  const dryRun = GetParameter("dryRun") === true || GetParameter("dry-run") === true;
+  if (!file && !directory) {
+    throw new Error("media:import requires file= or directory=");
   }
-  runNodeCli(
-    "dev/tools/media/cli.mjs",
-    ["import", file, "--game-id", gameId, "--library", "library/user"],
-    "media:import",
-  );
+  const args = ["import", "--library", library];
+  if (file) args.push("--file", file);
+  if (directory) args.push("--directory", directory);
+  if (title) args.push("--title", title);
+  if (gameId) args.push("--game-id", gameId);
+  if (dryRun) args.push("--dry-run");
+  runNodeCli("dev/tools/media/cli.mjs", args, "media:import");
 }
 _Tag(mediaImport, {
   gulpName: "media:import",
   µDisplayName: 'Media Import<context="µDisplayName"/>',
   µDescription:
-    'Copy a user-supplied disk into library/user/<gameId>/ (offline).<context="µDescription"/>',
+    'Import user-supplied disk(s) into a library path (offline; never downloads).<context="µDescription"/>',
   µGroup: 'Media / apple2js<context="µGroup"/>',
   µOrder: 64,
   µParameters: {
     file: { type: "string" },
+    directory: { type: "string" },
+    library: { type: "string" },
+    title: { type: "string" },
     gameId: { type: "string" },
+    dryRun: { type: "boolean" },
+  },
+  µExecutionConcurrency: false,
+});
+
+export async function mediaInspect() {
+  const file = GetParameter("file");
+  if (!file) throw new Error("media:inspect requires file=");
+  runNodeCli(
+    "dev/tools/media/inspect_a2kit.mjs",
+    ["--file", file],
+    "media:inspect",
+  );
+}
+_Tag(mediaInspect, {
+  gulpName: "media:inspect",
+  µDisplayName: 'Media Inspect (a2kit)<context="µDisplayName"/>',
+  µDescription:
+    'Optional external a2kit oracle if installed; otherwise ESP][ identify only.<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 65,
+  µParameters: { file: { type: "string" } },
+  µExecutionConcurrency: false,
+});
+
+export async function sdPrepare() {
+  const target = GetParameter("target");
+  if (!target) {
+    throw new Error("sd:prepare requires explicit target=<path>");
+  }
+  // Default dry-run=true; set dryRun=false to actually copy.
+  const dry = !(
+    GetParameter("dryRun") === false || GetParameter("dry-run") === false
+  );
+  const confirmOverwrite =
+    GetParameter("confirmOverwrite") === true ||
+    GetParameter("confirm-overwrite") === true;
+  const { prepareSdLibrary } = await import("./dev/tools/sd/prepare.mjs");
+  const result = prepareSdLibrary({
+    sourceLibrary: join(rootDir, "library"),
+    targetRoot: target,
+    dryRun: dry,
+    confirmOverwrite,
+  });
+  console.log(JSON.stringify(result, null, 2));
+  if (!dry) PlaySignal("success");
+}
+_Tag(sdPrepare, {
+  gulpName: "sd:prepare",
+  µDisplayName: 'SD Prepare Library<context="µDisplayName"/>',
+  µDescription:
+    'Copy host library into target/apple2 (default dry-run; never formats drives).<context="µDescription"/>',
+  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µOrder: 66,
+  µParameters: {
+    target: { type: "string" },
+    dryRun: { type: "boolean" },
+    confirmOverwrite: { type: "boolean" },
   },
   µExecutionConcurrency: false,
 });
@@ -673,3 +743,5 @@ gulp.task("apple2js:catalog", apple2jsCatalog);
 gulp.task("apple2js:audit", apple2jsAudit);
 gulp.task("media:identify", mediaIdentify);
 gulp.task("media:import", mediaImport);
+gulp.task("media:inspect", mediaInspect);
+gulp.task("sd:prepare", sdPrepare);

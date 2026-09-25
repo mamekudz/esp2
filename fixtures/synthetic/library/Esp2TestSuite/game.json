@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "esp2-test-suite",
+  "title": "ESP][ Synthetic Test Suite",
+  "disks": [
+    {
+      "file": "disk1.dsk.bin",
+      "label": "disk1",
+      "writeProtected": true,
+      "mediaInstalled": true
+    },
+    {
+      "file": "disk2.dsk.bin",
+      "label": "disk2",
+      "writeProtected": true,
+      "mediaInstalled": true
+    }
+  ],
+  "bootDisk": "disk1.dsk.bin",
+  "defaultDrive1": "disk1.dsk.bin",
+  "defaultDrive2": "disk2.dsk.bin",
+  "mediaStatus": "installed",
+  "redistribution": {
+    "status": "REDISTRIBUTABLE",
+    "evidence": "Project-generated synthetic fixture; no third-party media."
+  },
+  "notes": "Deterministic sector markers for host/firmware tests."
+}

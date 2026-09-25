@@ -2,9 +2,20 @@
   "schemaVersion": 1,
   "title": "ESP][ known media hashes",
   "notes": [
-    "Hashes identify user-supplied media; they are not redistributable media.",
-    "Do not populate from unverified dumps. Record provenance for every entry.",
-    "Empty by default until a hash is verified from a trusted, licensed source."
+    "Hashes identify user-supplied or redistributable media; the DB is not a download index.",
+    "Do not populate from unverified dumps. Record provenance for every entry."
   ],
-  "entries": []
+  "entries": [
+    {
+      "sha256": "99cb81824aebafdae723109303bfbbf8ba5d90f2a7328f523017d86763a18228",
+      "id": "tcjennings-screen-address",
+      "title": "Screen Address (tcjennings)",
+      "format": "woz",
+      "provenance": {
+        "source": "https://github.com/tcjennings/apple2/blob/master/DSK/screen_address_dos33.woz",
+        "evidence": "MIT license + README claim covering all repository contents (Toby Jennings 2019). See fixtures/redistributable/tcjennings-screen-address/NOTICE.md",
+        "redistributionStatus": "REDISTRIBUTABLE"
+      }
+    }
+  ]
 }

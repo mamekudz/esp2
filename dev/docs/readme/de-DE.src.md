@@ -213,7 +213,7 @@ Umgebung: `bringup` in `platformio.ini` (pioarduino / ESP32-S3, Arduino-GFX für
 
 microSD mit Bibliotheksstruktur (z. B. `/apple2/games/<id>/game.json` + Images). Firmware und Medien getrennt. Nutzer stellen legal erworbene Images selbst bereit. Metadaten dürfen existieren, auch wenn das Image fehlt (`media not installed`).
 
-Entwicklungskatalog/Referenz: [apple2js](https://github.com/whscullin/apple2js) (MIT für den Emulator — **nicht** für Drittmedien). ESP][ ist nicht mit apple2js affiliated. Details: `docs/media/apple2js.md`.
+Entwicklungskatalog/Referenz: [apple2js](https://github.com/whscullin/apple2js) (MIT für den Emulator — **nicht** für Drittmedien). ESP][ ist nicht mit apple2js affiliated. Nutzer importieren legal erworbene Images offline (`media:import`); kommerzielle Titel bleiben `USER_SUPPLIED_ONLY`. Details: `docs/media/apple2js.md`, `docs/media/source-audit.md`.
 
 ---
 

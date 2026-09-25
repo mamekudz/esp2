@@ -63,8 +63,9 @@ __pycache__/
 *.woz
 *.rom
 *.ROM
-# Allow only synthetic project fixtures (never commercial media)
+# Allow only synthetic / redistributable project fixtures (never commercial media)
 !fixtures/synthetic/**
+!fixtures/redistributable/**
 
 # User-imported library media (local only)
 library/user/
