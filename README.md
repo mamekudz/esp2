@@ -1,0 +1,248 @@
+# ESP][
+
+<p align="center">
+  <a href="https://microgulp.dev/de/ready/">
+    <img src="docs/assets/microgulp-ready.png" alt="µGulp Ready" width="110">
+  </a>
+</p>
+
+**ESP][** ist ein experimentelles Hobby-/Open-Source-Projekt: ein miniaturisierter, in sich geschlossener **Apple-II-Emulator** auf dem Board **Waveshare ESP32-S3-Touch-AMOLED-1.64**.
+
+Paket-/Repo-Identifier (ASCII): `esp2` — sichtbarer Projektname bleibt **ESP][**.
+
+**Status:** Phase-1-Hardware-Bring-up. Apple-II-Emulation ist **noch nicht** implementiert.
+
+Dieses Repository ist **µGulp-ready** (Gulp-Tasks für Dokumentation und Backup; siehe [Entwicklung](#entwicklung)).
+
+---
+
+## Hardware
+
+Zielplattform:
+
+| | |
+| --- | --- |
+| Board | Waveshare ESP32-S3-Touch-AMOLED-1.64 |
+| MCU | ESP32-S3 |
+| Flash / PSRAM | 16 MB Flash, 8 MB PSRAM |
+| Display | 1,64″ AMOLED, **280 × 456**, Controller **CO5300** |
+| Touch | **FT3168** |
+| Speicher | microSD |
+| Funk | Wi-Fi, Bluetooth LE |
+| IMU | **QMI8658** (falls bestückt) |
+| Build | **PlatformIO** (kein Arduino-IDE-Hauptprojekt) |
+
+Geplante Zusatzhardware: Piezo/Lokal-Lautsprecher, physischer Reset/Control-Taster, Bluetooth-Tastatur/-Gamepad/-Kopfhörer, später verdrahtete Analog-Paddles.
+
+---
+
+## Aktueller Status
+
+Klar getrennt:
+
+| Stufe | Bedeutung |
+| --- | --- |
+| **IMPLEMENTED / VERIFIED** | Auf dem physischen Board nachvollzogen |
+| **IN DEVELOPMENT** | Teilweise vorhanden, Verifikation unvollständig |
+| **PLANNED** | Architektur/Ziel, noch nicht gebaut |
+
+### IMPLEMENTED / VERIFIED
+
+**DISPLAY**
+
+- CO5300 AMOLED initialisiert
+- Auflösung **280 × 456**
+- Visuell verifiziert (Testmuster / Orientierung)
+
+**TOUCH**
+
+- FT3168 auf shared I2C
+- SDA **GPIO47**, SCL **GPIO48**
+- Touch-Koordinaten-Mapping verifiziert
+
+**microSD**
+
+- SPI: CS **GPIO38**, MOSI **GPIO39**, MISO **GPIO40**, SCLK **GPIO41**
+- SDHC / FAT verifiziert
+- 32-GB-Karte getestet
+- Lesen / Schreiben / Persistenz verifiziert
+
+**Build / Diagnose**
+
+- PlatformIO-Firmware baut und flash
+- Serielle `[TAG]`-Diagnostik für Bring-up
+
+### IN DEVELOPMENT
+
+**QMI8658 (IMU)**
+
+- Erkannt unter I2C-Adresse **0x6B**
+- WHO_AM_I **0x05**, Revision **0x7C**
+- Shared I2C mit FT3168
+- Live-Rohdaten können gelesen werden
+- **Bewegungs-/Live-Sample-Verifikation ist derzeit NICHT abgeschlossen** — IMU-Motion Sensing gilt **nicht** als voll verifiziert
+
+Weitere Bring-up-/Diagnose-Arbeit am IMU-Pfad kann fortgesetzt werden; dieses Dokument behauptet keinen abgeschlossenen Motion-Selftest.
+
+### PLANNED
+
+Alles unter [Geplante Funktionen](#geplante-funktionen).
+
+---
+
+## Geplante Funktionen
+
+### Apple-II-Emulation
+
+6502, Speicherabbild, ROM-Handling, Text / LoRes / HiRes — **PLANNED**. Emulation beginnt erst nach stabilem Phase-1-Bring-up.
+
+### Virtuelle Disk II / Media-Schicht
+
+Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Formate schrittweise (DSK, PO, NIB, WOZ). **PLANNED.** Keine eingebetteten kommerziellen Disk-Images im Repo.
+
+### Touch-Bedienung
+
+Primär Control Screen, Bibliothek, Disk-Management, Settings — **nicht** als Apple-II-Eingabe. **PLANNED** (UI), Touch-Hardware: siehe VERIFIED.
+
+### Bluetooth
+
+- Tastatur (HID → Hotkeys + Apple-Tastatur) — **PLANNED**
+- Gamepad (Referenz 8BitDo SN30 Pro) — **PLANNED**
+- Audio (Kopfhörer; BLE/Classic-Machbarkeit experimentell klären) — **PLANNED**
+
+### Lokales Audio
+
+Piezo / einfacher Wandler aus Apple-II-Speaker-Toggle — **PLANNED** (V1-Ziel).
+
+### Anzeigemodi
+
+- **LANDSCAPE_STANDALONE** — Entwicklung ohne Gehäuse — **PLANNED** (Viewport-Konzept)
+- **PORTRAIT_APPLE2_CASE** — vertikales Monitor-Viewport im Miniaturgehäuse — **PLANNED**
+- **CONTROL_SCREEN** — Touch-UI, Emulation darf weiterlaufen — **PLANNED**
+
+### Videofarben
+
+Unabhängig von CRT-Effekten:
+
+| Modus | Ziel |
+| --- | --- |
+| Composite Color | Authentische Artifact-Farben |
+| White monochrome | Echtes Mono, nicht entsättigtes Composite |
+| Green phosphor | Grünes Monitor-Mono |
+| Amber phosphor | Bernsteinfarbenes Monitor-Mono |
+
+**PLANNED.**
+
+### Display-Effekte (optional)
+
+Sharp / Monitor / CRT-TV, Stärke OFF–HIGH — **PLANNED**, unabhängig von der Farbmodus-Wahl.
+
+### Miniatur-Apple-II-Gehäuse
+
+Basis + Monitor + Disk-II, Board senkrecht im Monitor, USB-C seitlich zugänglich — CAD **nicht** aktuelle Priorität — **PLANNED**.
+
+---
+
+## Entwicklung
+
+Inkrementell, PlatformIO, bestehende Board-Init nicht ohne Grund ersetzen. Agenten lesen zuerst `CLAUDE.md`.
+
+### µGulp / Gulp
+
+```bash
+npm install
+npx gulp help          # Aufgabenliste
+npx gulp docs          # README.md aus de-DE.src.md
+npx gulp backup:git    # Git-Checkpoint (explizit, kein Auto-Commit)
+npx gulp backup:nas    # NAS-Kopie (0–3 Ziele)
+npx gulp backup:all    # docs → Git → NAS
+```
+
+Dokumentationsquelle: `dev/docs/readme/de-DE.src.md` → `npx gulp docs` → `README.md`.
+
+µGulp-Ready-Badge: offizielles Artwork unter `docs/assets/microgulp-ready.png` ([Regeln](https://microgulp.dev/de/ready/)).
+
+### NAS-Backup konfigurieren
+
+1. `config/nas.targets.example` nach `config/nas.targets.local` kopieren
+2. Bis zu drei Pfade setzen (`NAS_TARGET_1` … `NAS_TARGET_3`)
+3. Oder Umgebungsvariablen gleichen Namens setzen
+
+`nas.targets.local` ist gitignored. Maximal drei Ziele; fehlende Ziele werden einzeln übersprungen.
+
+Dry-Run: `ESP2_NAS_DRY_RUN=1`.
+
+### Git-Backup
+
+Expliziter Checkpoint (`backup: ESP][ YYYY-MM-DD HH:mm`), inkl. **CLAUDE.md**, Quellen, Docs, PlatformIO-Config. Kein Force-Push, kein `reset --hard`. Ohne Remote: nur lokaler Commit bzw. klarer Hinweis. Preview: `ESP2_BACKUP_GIT_DRY_RUN=1`.
+
+---
+
+## Bauen mit PlatformIO
+
+```bash
+pio run
+pio run -t upload
+pio device monitor
+```
+
+Umgebung: `bringup` in `platformio.ini` (pioarduino / ESP32-S3, Arduino-GFX für CO5300). Upload-/Monitor-Port lokal anpassen (z. B. COM5).
+
+---
+
+## Bedienung (Ziel)
+
+| Eingabe | Rolle |
+| --- | --- |
+| Bluetooth-Tastatur | Emulator-Hotkeys + Apple-II-Tastatur |
+| Bluetooth-Gamepad | Joystick / Buttons |
+| Touch | Control Screen / Bibliothek |
+| Verdrahtete Paddles | Später, gemeinsames Joystick-Abstrakt |
+
+**PLANNED** außer verifiziertem Touch-Hardware-Pfad.
+
+---
+
+## Speicher / virtuelle Disks
+
+microSD mit Bibliotheksstruktur (z. B. `/apple2/<Titel>/game.json` + Images). Firmware und Medien getrennt. Nutzer stellen legal erworbene Images selbst bereit.
+
+---
+
+## Videomodi
+
+Siehe Tabelle unter Geplante Funktionen. Apple-II-HGR (280 × 192) ist kein gewöhnliches RGB-Bitmap; Artifact-Farbe ist Kernanforderung — **PLANNED**.
+
+---
+
+## Audio
+
+Speaker-Toggle → Audio-Engine → lokal und/oder Bluetooth — **PLANNED**.
+
+---
+
+## Gehäuse
+
+Miniatur-Apple-II-Setup; sichtbares Monitor-Viewport ≠ volles AMOLED — **PLANNED**.
+
+---
+
+## Lizenz / rechtliche Hinweise
+
+- Firmware und Projektdokumentation: Open-Source-Hobbyprojekt (Lizenzdatei folgt bei Veröffentlichung).
+- **Keine** kommerziellen Apple-II-ROMs oder urheberrechtlich geschützten Disk-Images in diesem Repository.
+- Nutzer dürfen **legal erworbene** Images lokal auf der microSD verwenden.
+- „Apple II“ und verwandte Marken gehören ihren Rechteinhabern; dieses Projekt ist unabhängig und nicht von Apple endorsed.
+
+---
+
+## Kurzüberblick Status
+
+| Bereich | Stufe |
+| --- | --- |
+| PlatformIO-Build / Flash / Serial | VERIFIED |
+| CO5300 280×456 Display | VERIFIED |
+| FT3168 Touch (I2C 47/48, Mapping) | VERIFIED |
+| microSD SPI 38–41 | VERIFIED |
+| QMI8658 Detect / WHO_AM_I | IN DEVELOPMENT (Motion nicht voll verifiziert) |
+| Apple-II-Core, Disk, BT, Audio, UI, Gehäuse | PLANNED |

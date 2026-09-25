@@ -1,0 +1,20 @@
+# ESP][ NAS backup destinations (example — copy to nas.targets.local)
+#
+#   copy config\nas.targets.example config\nas.targets.local
+#   then edit nas.targets.local with your real paths
+#
+# Rules:
+#   - Maximum THREE destinations (NAS_TARGET_1 .. NAS_TARGET_3)
+#   - Empty values are ignored
+#   - nas.targets.local is gitignored — never commit real private paths
+#   - Environment variables NAS_TARGET_1/2/3 override this file when set
+#
+# Each target must be an existing dedicated folder (not a drive root).
+# Unavailable targets are skipped independently; others still run.
+
+NAS_TARGET_1=
+NAS_TARGET_2=
+NAS_TARGET_3=
+
+# Optional: set to 1 for robocopy list-only preview (no copy)
+# ESP2_NAS_DRY_RUN=0
