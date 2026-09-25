@@ -46,14 +46,15 @@ void Apple2Bus::write(uint16_t address, uint8_t value) {
 uint8_t Apple2Bus::handleIoRead(uint16_t address) {
     softSwitches_.access(address);
 
-    if (address == SoftSwitches::kAddrKeyboardData) {
+    // II+ mirrors: kbd data $C000–$C00F, strobe $C010–$C01F, speaker $C030–$C03F
+    if (address >= 0xC000u && address <= 0xC00Fu) {
         return keyboard_.readData();
     }
-    if (address == SoftSwitches::kAddrKeyboardStrobe) {
+    if (address >= 0xC010u && address <= 0xC01Fu) {
         keyboard_.clearStrobe();
         return keyboard_.readData();
     }
-    if (address == SoftSwitches::kAddrSpeaker) {
+    if (address >= 0xC030u && address <= 0xC03Fu) {
         speaker_.toggle(accessCycle_);
         return 0x00;
     }
@@ -64,11 +65,11 @@ void Apple2Bus::handleIoWrite(uint16_t address, uint8_t value) {
     (void)value;
     softSwitches_.access(address);
 
-    if (address == SoftSwitches::kAddrKeyboardStrobe) {
+    if (address >= 0xC010u && address <= 0xC01Fu) {
         keyboard_.clearStrobe();
         return;
     }
-    if (address == SoftSwitches::kAddrSpeaker) {
+    if (address >= 0xC030u && address <= 0xC03Fu) {
         speaker_.toggle(accessCycle_);
     }
 }

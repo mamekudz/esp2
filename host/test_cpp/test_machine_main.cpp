@@ -60,11 +60,12 @@ static void testKeyboardSpeaker() {
     Apple2Bus bus;
     bus.keyboard().keyDown('Z');
     expect(bus.read(0xC000) == static_cast<uint8_t>('Z' | 0x80), "kbd latch");
-    bus.read(0xC010);
-    expect(!bus.keyboard().strobePending(), "kbd strobe clear");
+    expect(bus.read(0xC00F) == static_cast<uint8_t>('Z' | 0x80), "kbd latch mirror");
+    bus.read(0xC01F);
+    expect(!bus.keyboard().strobePending(), "kbd strobe clear mirror");
     bus.setAccessCycle(42);
     bus.read(0xC030);
-    bus.read(0xC030);
+    bus.read(0xC03F);
     SpeakerEvent ev[4];
     const size_t n = bus.speaker().consumeEvents(ev, 4);
     expect(n == 2, "speaker events count");
