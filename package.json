@@ -22,6 +22,8 @@
     "backup:nas": "gulp backup",
     "backup:all": "gulp backup:all",
     "test:infra": "node --test dev/tools/infra.test.mjs",
+    "test:host": "node host/test/run.mjs",
+    "fixture:dsk": "node host/tools/gen_blank_dsk.mjs",
     "gulp:tasks": "gulp --tasks"
   },
   "microgulp": {

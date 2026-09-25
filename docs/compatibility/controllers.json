@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "title": "ESP][ controller compatibility",
+  "notes": [
+    "direct = talk to ESP][ firmware over BLE HID",
+    "blueshift = Classic/non-BLE device via separate BlueShift bridge appearing as BLE HID",
+    "VERIFIED requires physical ESP][ test logged here"
+  ],
+  "controllers": [
+    {
+      "id": "8bitdo-sn30-pro",
+      "name": "8BitDo SN30 Pro",
+      "directEspBracket": "incompatible",
+      "reasonDirect": "Classic Bluetooth; ESP32-S3 is BLE-only",
+      "blueshift": "candidate",
+      "evidence": "project milestone / platform constraint"
+    },
+    {
+      "id": "steelseries-nimbus-69070",
+      "name": "SteelSeries Nimbus 69070",
+      "directEspBracket": "incompatible",
+      "reasonDirect": "Not visible in ESP][ BLE scan (physical test)",
+      "blueshift": "candidate",
+      "evidence": "physical BLE scan on Waveshare ESP32-S3"
+    },
+    {
+      "id": "xbox-1697",
+      "name": "Xbox 1697",
+      "directEspBracket": "incompatible",
+      "reasonDirect": "No standard Bluetooth suitable for ESP32-S3 BLE HID",
+      "blueshift": "unknown",
+      "evidence": "platform/product class"
+    },
+    {
+      "id": "vr-park",
+      "name": "VR PARK",
+      "directEspBracket": "experimental",
+      "reasonDirect": "BLE advertising observed at least once; stable connect/HID NOT verified",
+      "blueshift": "n/a",
+      "evidence": "ESP][ BLE scanner; connection diagnosis incomplete"
+    },
+    {
+      "id": "terios-t3-shanwan-bm769",
+      "name": "Terios T3 / ShanWan BM-769",
+      "directEspBracket": "pending",
+      "reasonDirect": "Documented BLE candidate; physical unit ordered, not verified on ESP][",
+      "blueshift": "n/a",
+      "evidence": "community reports / Bluepad32 issue discussions — not ESP][ VERIFIED"
+    }
+  ]
+}

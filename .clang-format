@@ -1,0 +1,10 @@
+# Minimal clang-format for ESP][ (CLAUDE.md engineering standards)
+BasedOnStyle: LLVM
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 100
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: false
+BreakBeforeBraces: Attach
+NamespaceIndentation: None
+SortIncludes: true

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "title": "Demo Cart (synthetic)",
+  "titleI18n": {
+    "en-US": "Demo Cart (synthetic)",
+    "de-DE": "Demo-Modul (synthetisch)"
+  },
+  "publisher": "ESP][ project",
+  "year": 2026,
+  "disks": [
+    {
+      "file": "disk1.dsk.bin",
+      "label": "boot",
+      "writeProtected": true
+    }
+  ],
+  "bootDisk": "disk1.dsk.bin",
+  "defaultDrive1": "disk1.dsk.bin",
+  "defaultDrive2": null,
+  "joystickMode": "none",
+  "videoColorMode": "CompositeColor",
+  "displayEffect": "Sharp",
+  "effectStrength": "Off",
+  "notes": "Synthetic fixture only — not a commercial Apple II title."
+}

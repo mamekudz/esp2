@@ -62,6 +62,10 @@ Arduino_GFX CO5300/QSPI needs Arduino-ESP32 3.x. Stock PlatformIO `espressif32@6
 
 ## Remaining warnings / open items
 
-- Touch FT3168 absent on I2C despite matching official Waveshare pin/address config; needs visual/hardware follow-up (PCB V1 vs V2 silkscreen, factory firmware touch check).
-- No microSD inserted during bring-up.
+> Note: This document captured an **early** bring-up session. Later physical
+> verification established TOUCH / SD / IMU OK. Prefer `docs/BASELINE.md` and
+> the current README status table for the live regression picture.
+
+- Early session: Touch FT3168 absent on I2C (since resolved on hardware).
+- Early session: No microSD inserted (later verified).
 - Board JSON label still says “8MB Flash” for `esp32-s3-devkitc-1`; flash size override is via `board_upload.flash_size=16MB` (esptool confirmed 16MB).

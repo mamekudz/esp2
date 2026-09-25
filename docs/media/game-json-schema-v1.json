@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://esp-bracket.local/schemas/game.v1.json",
+  "title": "ESP][ game.json",
+  "type": "object",
+  "required": ["schemaVersion", "title", "disks"],
+  "properties": {
+    "schemaVersion": { "type": "integer", "const": 1 },
+    "title": { "type": "string" },
+    "titleI18n": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Optional localized titles keyed by locale id (en-US, de-DE)"
+    },
+    "publisher": { "type": "string" },
+    "year": { "type": "integer" },
+    "disks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["file"],
+        "properties": {
+          "file": { "type": "string" },
+          "label": { "type": "string" },
+          "writeProtected": { "type": "boolean", "default": true }
+        }
+      }
+    },
+    "bootDisk": { "type": "string" },
+    "defaultDrive1": { "type": "string" },
+    "defaultDrive2": { "type": ["string", "null"] },
+    "joystickMode": {
+      "type": "string",
+      "enum": ["none", "joystick", "paddles", "auto"]
+    },
+    "videoColorMode": {
+      "type": "string",
+      "enum": ["CompositeColor", "MonochromeWhite", "MonochromeGreen", "MonochromeAmber"]
+    },
+    "displayEffect": {
+      "type": "string",
+      "enum": ["Sharp", "Monitor", "CrtTv"]
+    },
+    "effectStrength": {
+      "type": "string",
+      "enum": ["Off", "Low", "Medium", "High"]
+    },
+    "notes": { "type": "string" },
+    "coverImage": { "type": "string" },
+    "compatibilityOverrides": { "type": "object" }
+  },
+  "additionalProperties": false
+}
