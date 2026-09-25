@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "notes": "User-facing display-power labels for future Control Screen. Machine ids stay English enums.",
+  "strings": {
+    "display.power.screensaver": {
+      "en-US": "Screensaver",
+      "de-DE": "Bildschirmschoner"
+    },
+    "display.power.screen_off": {
+      "en-US": "Screen off",
+      "de-DE": "Display aus"
+    },
+    "display.power.preset.off": {
+      "en-US": "Off",
+      "de-DE": "Aus"
+    },
+    "display.power.preset.never": {
+      "en-US": "Never",
+      "de-DE": "Nie"
+    },
+    "display.power.preset.min1": {
+      "en-US": "1 min",
+      "de-DE": "1 Min."
+    },
+    "display.power.preset.min2": {
+      "en-US": "2 min",
+      "de-DE": "2 Min."
+    },
+    "display.power.preset.min5": {
+      "en-US": "5 min",
+      "de-DE": "5 Min."
+    },
+    "display.power.preset.min10": {
+      "en-US": "10 min",
+      "de-DE": "10 Min."
+    }
+  }
+}

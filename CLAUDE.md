@@ -184,6 +184,26 @@ In enclosure mode:
 Never assume that the complete AMOLED is visible in enclosure mode.
 
 
+## 7b. Display Power / Anti-Burn-In
+
+Diagnostic and future UI firmware must manage AMOLED on-time.
+
+Conceptual states (panel only — not ESP32 deep sleep):
+
+- ACTIVE
+- SCREENSAVER (mostly black + periodically relocating small mark)
+- OFF (CO5300 display-off / sleep sequence)
+
+Default diagnostic timeouts:
+
+- screensaver after ~2 minutes inactivity
+- panel off after ~5 minutes total inactivity
+
+Wake sources call a central activity API (`notifyActivity`). The first
+touch that wakes the panel is consumed and must not activate UI controls.
+See `docs/architecture/display-power.md`.
+
+
 ## 8. Display Modes
 
 Three primary display/UI modes are required.

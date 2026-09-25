@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <stdarg.h>
+#include <string.h>
 #include <Wire.h>
 #include <SPI.h>
 #include <SD.h>
@@ -7,12 +8,16 @@
 #include <Arduino_GFX_Library.h>
 
 #include "board_pins.h"
+#include "display_power.h"
 #include "qmi8658_min.h"
 #include "ble_scan_diag.h"
 #include "ble_vrpark_conn_diag.h"
 
 static Arduino_DataBus *bus = nullptr;
 static Arduino_CO5300 *gfx = nullptr;
+static DisplayPowerManager g_display_power;
+static constexpr uint8_t kDisplayBrightness = 200;
+static char g_ble_status_line[48] = "ready";
 
 static bool g_display_ok = false;
 static bool g_touch_ok = false;
@@ -100,11 +105,71 @@ static bool init_display() {
     return false;
   }
 
-  gfx->setBrightness(200);
+  gfx->setBrightness(kDisplayBrightness);
   logf("DISPLAY", "CO5300 init OK");
   logf("DISPLAY", "%dx%d", gfx->width(), gfx->height());
   logf("DISPLAY", "orientation=PORTRAIT_NATIVE rotation=0");
   return true;
+}
+
+// --- AMOLED power / anti-burn-in (panel only; ESP32 stays awake) ---
+
+static void panel_sleep_co5300() {
+  if (gfx == nullptr) {
+    return;
+  }
+  // Real controller sleep: DISPOFF + SLPIN (Arduino_CO5300::displayOff).
+  gfx->displayOff();
+}
+
+static void panel_wake_co5300() {
+  if (gfx == nullptr) {
+    return;
+  }
+  // Matching wake: DISPON + SLPOUT, then restore brightness.
+  gfx->displayOn();
+  gfx->setBrightness(kDisplayBrightness);
+}
+
+static void draw_amoled_screensaver(uint8_t slot_index) {
+  if (!g_display_ok || gfx == nullptr) {
+    return;
+  }
+  // Mostly black; one small brand mark relocates across 8 slots.
+  // Brand glyph is not an i18x UI string.
+  static const int16_t kSlots[8][2] = {
+      {16, 40},   {160, 70},  {40, 140}, {180, 180},
+      {24, 250},  {150, 290}, {60, 340}, {120, 400},
+  };
+  const uint8_t slot = slot_index % 8;
+  gfx->fillScreen(RGB565_BLACK);
+  gfx->setTextSize(2);
+  gfx->setTextColor(RGB565_DARKGREY, RGB565_BLACK);
+  gfx->setCursor(kSlots[slot][0], kSlots[slot][1]);
+  gfx->print("ESP][");
+}
+
+static void restore_ui_after_wake();
+
+static void display_power_begin_after_ui() {
+  DisplayPowerSettings cfg;
+  cfg.screensaver = ScreensaverTimeout::Min2;
+  cfg.screen_off = ScreenOffTimeout::Min5;
+  cfg.screensaver_move_ms = 8000;
+#if defined(DISPLAY_POWER_TEST_SHORT)
+  // Lab-only short timeouts for physical AMOLED verification.
+  cfg.screensaver_override_ms = 10UL * 1000UL;
+  cfg.screen_off_override_ms = 20UL * 1000UL;
+  cfg.screensaver_move_ms = 3000;
+  logf("DISPLAY-POWER", "TEST_SHORT screensaver=10s off=20s");
+#endif
+  g_display_power.setSettings(cfg);
+  g_display_power.begin(draw_amoled_screensaver, restore_ui_after_wake,
+                        panel_sleep_co5300, panel_wake_co5300);
+  logf("DISPLAY-POWER",
+       "ACTIVE screensaver=%lums off=%lums",
+       (unsigned long)display_power_screensaver_ms(cfg),
+       (unsigned long)display_power_screen_off_ms(cfg));
 }
 
 static void draw_label(int16_t x, int16_t y, uint16_t fg, uint16_t bg, const char *text) {
@@ -307,7 +372,7 @@ static bool init_touch_after_display() {
       if (!gfx->begin()) {
         logf("DISPLAY", "[FAIL] CO5300 re-begin after shared reset");
       } else {
-        gfx->setBrightness(200);
+        gfx->setBrightness(kDisplayBrightness);
         draw_diagnostic_screen();
         logf("DISPLAY", "re-init OK after shared TP/LCD reset");
       }
@@ -731,6 +796,11 @@ static void draw_ble_scan_screen(const BleScanReport *report, const char *status
   gfx->setCursor(16, 48);
   gfx->print(status ? status : "");
 
+  if (status != nullptr) {
+    strncpy(g_ble_status_line, status, sizeof(g_ble_status_line) - 1);
+    g_ble_status_line[sizeof(g_ble_status_line) - 1] = '\0';
+  }
+
   gfx->setTextColor(RGB565_WHITE, RGB565_BLACK);
   if (report == nullptr || report->count <= 0) {
     gfx->setCursor(16, 80);
@@ -783,6 +853,19 @@ static void draw_ble_scan_screen(const BleScanReport *report, const char *status
   gfx->print("SCAN AGAIN");
 
   g_ble_screen_active = true;
+}
+
+static void restore_ui_after_wake() {
+  if (!g_display_ok || gfx == nullptr) {
+    return;
+  }
+  if (g_ble_screen_active) {
+    draw_ble_scan_screen(&g_ble_report, g_ble_status_line);
+  } else {
+    draw_diagnostic_screen();
+    draw_sd_status(g_sd_ok && g_sd_persist_ok);
+    draw_imu_status(g_imu_ok);
+  }
 }
 
 static void draw_vr_diag_screen(const char *status_line) {
@@ -1070,6 +1153,10 @@ void setup() {
     gfx->setCursor(16, 340);
     gfx->print("BLE FAIL");
   }
+
+  if (g_display_ok) {
+    display_power_begin_after_ui();
+  }
 }
 
 void loop() {
@@ -1153,7 +1240,11 @@ void loop() {
         last_logged_x = dx;
         last_logged_y = dy;
 
-        if (g_ble_screen_active && !g_ble_scan_busy && ble_hit_scan_again(dx, dy)) {
+        // Wake consumes this touch so it cannot activate UI underneath.
+        const bool wake_consumed = g_display_power.notifyActivity("touch");
+        if (!wake_consumed && g_display_power.isInteractive() &&
+            g_ble_screen_active && !g_ble_scan_busy &&
+            ble_hit_scan_again(dx, dy)) {
           if (g_vr_diag_done) {
             logf("BLE", "RE-DIAG touched (manual)");
             run_vr_park_conn_diag();
@@ -1169,16 +1260,19 @@ void loop() {
         last_move_log_ms = now;
         last_logged_x = dx;
         last_logged_y = dy;
+        if (g_display_power.isInteractive()) {
+          (void)g_display_power.notifyActivity("touch");
+        }
       }
 
-      if (!g_ble_screen_active) {
+      if (g_display_power.isInteractive() && !g_ble_screen_active) {
         update_touch_marker(dx, dy, true);
       }
       was_pressed = true;
     } else if (was_pressed) {
       Serial.printf("[TOUCH] UP last=%u,%u\n", last_logged_x, last_logged_y);
       Serial.flush();
-      if (!g_ble_screen_active) {
+      if (g_display_power.isInteractive() && !g_ble_screen_active) {
         update_touch_marker(0, 0, false);
       }
       was_pressed = false;
@@ -1188,6 +1282,7 @@ void loop() {
   }
 
   const uint32_t now = millis();
+  g_display_power.update(now);
 
   // Keep IMU acquisition at ~10 Hz; throttle only the serial diagnostic line.
   if (g_imu_ok && (now - last_imu_read_ms) >= 100) {

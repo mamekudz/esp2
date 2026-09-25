@@ -17,6 +17,7 @@ Conceptual regression:
 | IMU QMI8658 byte-wise | OK (orientation mapping pending) |
 | BLE scanner | OK |
 | VR PARK HID | **not verified** |
+| Display power (screensaver / OFF) | see `docs/architecture/display-power.md` |
 
 See `docs/PREPARATION_MILESTONE.md` for host-side work that must not require
 flashing risky integration builds.
