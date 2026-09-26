@@ -12,7 +12,10 @@
 ## ESP][ integration notes
 
 - Do **not** enable `NES_CPU` (Apple II requires BCD for ADC/SBC).
-- `UNDOCUMENTED` may remain defined; Apple II software rarely needs it.
+- `UNDOCUMENTED` may remain defined; Apple II software often needs it.
+- ESP][ patch: opcode `$CB` is NMOS **SBX/AXS** (upstream left it as NOP).
+  Required for some Disk II / DOS boot obfuscation paths.
+- ESP][ patch: `$9C` **SHY** abs,X and `$9E` **SHX** abs,Y (upstream NOP).
 - Access only through `esp_bracket::Cpu6502` — never call `step6502` from app code.
 - Do not clang-format this file.
 - Cycle model: **instruction-level** with base tick table + page-cross /

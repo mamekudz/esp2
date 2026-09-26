@@ -256,6 +256,29 @@ static void testPageCrossCycles() {
     expectEq(cpu.registers().a, 0x99, "LDA abs,X value");
 }
 
+/** NMOS undocumented $CB SBX/AXS — required by some Apple II boot paths. */
+static void testSbxCb() {
+    CpuHarness mem;
+    Cpu6502 cpu;
+    // A=$F0, X=$0F → A&X=$00; SBX #$01 → X=$FF, C=0
+    // A=$80, X=$C0 → A&X=$80; SBX #$10 → X=$70, C=1
+    const uint8_t p[] = {
+        0xA9, 0x80, // LDA #$80
+        0xA2, 0xC0, // LDX #$C0
+        0xCB, 0x10, // SBX #$10
+        0x00,
+    };
+    mem.load(0x8000, p, sizeof(p));
+    mem.setResetVector(0x8000);
+    cpu.setCallbacks(&mem, CpuHarness::harnessRead, CpuHarness::harnessWrite);
+    cpu.reset();
+    cpu.step(); // LDA
+    cpu.step(); // LDX
+    cpu.step(); // SBX
+    expectEq(cpu.registers().x, 0x70, "SBX X result");
+    expect((cpu.registers().status & 0x01) != 0, "SBX carry set");
+}
+
 int main() {
     testReset();
     testLdaSta();
@@ -266,6 +289,7 @@ int main() {
     testFlags();
     testNmiIrq();
     testPageCrossCycles();
+    testSbxCb();
     if (g_failures) {
         std::fprintf(stderr, "\n%d CPU test(s) failed\n", g_failures);
         return 1;

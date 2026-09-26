@@ -928,6 +928,37 @@ static void tya() {
         adc();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
+
+    /* NMOS $CB SBX/AXS: X = (A & X) - #imm; N/Z/C as CMP (A&X) vs imm.
+     * Upstream fake6502 left $CB as NOP; Apple II titles (e.g. DOS boot
+     * obfuscation) require real SBX. ESP][ project patch — keep UNDOCUMENTED. */
+    static void sbx() {
+        value = getvalue();
+        {
+            const uint8 t = (uint8)(a & x);
+            const uint8 immv = (uint8)(value & 0x00FFu);
+            x = (uint8)((t - immv) & 0x00FFu);
+            if (t >= immv) {
+                setcarry();
+            } else {
+                clearcarry();
+            }
+            zerocalc(x);
+            signcalc(x);
+        }
+    }
+
+    /* NMOS $9C SHY abs,X: store Y & (HIBYTE(ea)+1) — unstable but widely used. */
+    static void shy() {
+        const uint8 hb = (uint8)(((ea >> 8) + 1) & 0xFFu);
+        putvalue((ushort)(y & hb));
+    }
+
+    /* NMOS $9E SHX abs,Y: store X & (HIBYTE(ea)+1). */
+    static void shx() {
+        const uint8 hb = (uint8)(((ea >> 8) + 1) & 0xFFu);
+        putvalue((ushort)(x & hb));
+    }
 #else
     #define lax nop
     #define sax nop
@@ -937,6 +968,9 @@ static void tya() {
     #define rla nop
     #define sre nop
     #define rra nop
+    #define sbx nop
+    #define shy nop
+    #define shx nop
 #endif
 
 
@@ -971,10 +1005,10 @@ static void (*optable[256])() = {
 /* 6 */      rts,  adc,  nop,  rra,  nop,  adc,  ror,  rra,  pla,  adc,  ror,  nop,  jmp,  adc,  ror,  rra, /* 6 */
 /* 7 */      bvs,  adc,  nop,  rra,  nop,  adc,  ror,  rra,  sei,  adc,  nop,  rra,  nop,  adc,  ror,  rra, /* 7 */
 /* 8 */      nop,  sta,  nop,  sax,  sty,  sta,  stx,  sax,  dey,  nop,  txa,  nop,  sty,  sta,  stx,  sax, /* 8 */
-/* 9 */      bcc,  sta,  nop,  nop,  sty,  sta,  stx,  sax,  tya,  sta,  txs,  nop,  nop,  sta,  nop,  nop, /* 9 */
+/* 9 */      bcc,  sta,  nop,  nop,  sty,  sta,  stx,  sax,  tya,  sta,  txs,  nop,  shy,  sta,  shx,  nop, /* 9 */
 /* A */      ldy,  lda,  ldx,  lax,  ldy,  lda,  ldx,  lax,  tay,  lda,  tax,  nop,  ldy,  lda,  ldx,  lax, /* A */
 /* B */      bcs,  lda,  nop,  lax,  ldy,  lda,  ldx,  lax,  clv,  lda,  tsx,  lax,  ldy,  lda,  ldx,  lax, /* B */
-/* C */      cpy,  cmp,  nop,  dcp,  cpy,  cmp,  dec,  dcp,  iny,  cmp,  dex,  nop,  cpy,  cmp,  dec,  dcp, /* C */
+/* C */      cpy,  cmp,  nop,  dcp,  cpy,  cmp,  dec,  dcp,  iny,  cmp,  dex,  sbx,  cpy,  cmp,  dec,  dcp, /* C */
 /* D */      bne,  cmp,  nop,  dcp,  nop,  cmp,  dec,  dcp,  cld,  cmp,  nop,  dcp,  nop,  cmp,  dec,  dcp, /* D */
 /* E */      cpx,  sbc,  nop,  isb,  cpx,  sbc,  inc,  isb,  inx,  sbc,  nop,  sbc,  cpx,  sbc,  inc,  isb, /* E */
 /* F */      beq,  sbc,  nop,  isb,  nop,  sbc,  inc,  isb,  sed,  sbc,  nop,  isb,  nop,  sbc,  inc,  isb  /* F */
