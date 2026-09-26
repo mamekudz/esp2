@@ -8,37 +8,34 @@ Target SoC: ESP32-S3, 16 MB flash, 8 MB PSRAM, 240 MHz.
 
 | Bucket | Budget (bytes) | Label | Notes |
 | --- | --- | --- | --- |
-| Internal SRAM (text/video port) | ~130 KiB static / ~210 KiB free heap | ESP32 PHYSICAL MEASURED | Apple II 48K in BSS |
-| PSRAM | 8 MiB | ESP32 PHYSICAL MEASURED | Viewport RGB565 + HGR decode staging |
-| Dirty metadata | **24 bytes** (192-bit scanline set) | ESP32 PHYSICAL MEASURED | `VideoDirtyTracker` |
-| Viewport RGB565 280×192 | 107 520 B | ESP32 PHYSICAL MEASURED | PSRAM |
+| Internal SRAM (text/video/disk port) | ~133 KiB static | ESP32 PHYSICAL MEASURED | Apple II 48K + DiskIIController BSS |
+| PSRAM | 8 MiB | ESP32 PHYSICAL MEASURED | Viewport + HGR + Dos33 image (~157 KiB) + optional NIB |
+| Dirty metadata | **24 bytes** | ESP32 PHYSICAL MEASURED | |
+| Disk track cache | 2 × ≤6656 nibbles | ESP32 PHYSICAL MEASURED | LRU inside Dos33NibbleImage |
 
-## PART B → D display (ESP32 PHYSICAL MEASURED)
+## PART D video (ESP32 PHYSICAL MEASURED)
 
-| Path | Time / notes |
+| Path | Time |
 | --- | --- |
-| PART B text 240×192 full | ~58.9 ms |
-| PART C/D Sharp TEXT full | render ~7.4 ms + xfer ~62.5 ms ≈ **70 ms** |
-| PART D HGR Sharp full | render **7.5 ms** + xfer **62.5 ms** |
-| PART D HGR Artifact full | render **27.0 ms** + xfer **62.4 ms** |
-| PART D HGR Sharp 1 line | render **3.0 ms** + xfer **0.47 ms** (560 B) |
-| PART D HGR Artifact 1 line | render **3.1 ms** + xfer **0.40 ms** (560 B) |
-| PART D HGR Artifact 8 lines | render **4.1 ms** + xfer **2.7 ms** |
-| Artifact stress update rate | max ≈ **12 Hz** (coalesced dirty) |
-| Emulator under artifact stress | throttled ≈ **1.023e6** cps (1× preserved) |
-| Dirty overhead | cps_off≈cps_on ≈ **1.32e6** |
-| HGR clear exact (6502) | **~90 515** host / **92 024** ESP32 cycles; PART C ~8e6 was timeout idle |
+| HGR Sharp full | render ~7.5 ms + xfer ~62.5 ms |
+| HGR Artifact full | render ~27 ms + xfer ~62.4 ms |
+| Artifact stress | max ~12 Hz; emu ~1.023e6 cps |
 
-QSPI remains **40 MHz** quad, DMA chunk ≤1024 px.
+## PART E Disk II (ESP32 PHYSICAL MEASURED)
+
+| Path | Notes |
+| --- | --- |
+| SD read Esp2BootTest.dsk (143360 B) | ~337 ms (`sd_read_us`) once into PSRAM |
+| Track build (cache miss) | ~1.0–1.2 ms |
+| Level-4 boot (rot 0) | ~14.5k cycles / ~18 ms wall; cps during boot ~0.8e6 |
+| Level-4 boot (rot 128/777) | ~190–210k cycles (longer sector search) |
+| Live throttled after boot | ~1.023e6 cps |
+| Storage stall | bounded to track-build time; rotation remains cycle-based |
+
+QSPI remains **40 MHz** quad.
 
 ## Scheduling
 
-- `a2emu` core1 — cycle owner, quantum 2000, ~1.023e6 cps throttled
-- `a2disp` core0 — consumes dirty bitset; never blocks emu on SPI
-- Soft-switch changes mark all scanlines dirty
-- Idle (no dirty): zero viewport transfer
-- Artifact stress: display may fall behind; emulator keeps 1× Apple II cycles
-
-## Host measurements
-
-See `HOST MEASUREMENT` lines from `npm run test:apple2`.
+- `a2emu` core1 — cycles + denibble service + 1× throttle
+- `a2disp` core0 — dirty → render → CO5300; power/touch
+- Disk activity does **not** count as display user activity

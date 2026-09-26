@@ -49,15 +49,28 @@ bool Dos33NibbleImage::readSector(uint16_t track, uint16_t sector, uint8_t *dst2
     return true;
 }
 
+size_t Dos33NibbleImage::cacheBytesUsed() const {
+    size_t n = 0;
+    for (const CacheSlot &s : cache_) {
+        if (s.track >= 0 && s.length > 0) {
+            n += s.length;
+        }
+    }
+    return n;
+}
+
 bool Dos33NibbleImage::buildTrackCached(int wholeTrack) {
     if (wholeTrack < 0 || wholeTrack >= kTracks) {
         return false;
     }
     for (CacheSlot &s : cache_) {
         if (s.track == wholeTrack && s.length > 0) {
+            ++cacheHits_;
             return true;
         }
     }
+    ++cacheMisses_;
+    ++trackBuildCount_;
     // Evict slot 1, promote 0→1, build into 0 (simple 2-slot LRU).
     cache_[1] = cache_[0];
     CacheSlot &slot = cache_[0];

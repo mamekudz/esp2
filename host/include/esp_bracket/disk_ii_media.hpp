@@ -65,6 +65,18 @@ class Dos33NibbleImage : public NibbleTrackMedia, public DiskImage {
         invalidateCache();
     }
 
+    /** Lazy track-cache diagnostics (host + ESP32). */
+    uint32_t cacheHits() const { return cacheHits_; }
+    uint32_t cacheMisses() const { return cacheMisses_; }
+    uint32_t trackBuildCount() const { return trackBuildCount_; }
+    void clearCacheStats() {
+        cacheHits_ = 0;
+        cacheMisses_ = 0;
+        trackBuildCount_ = 0;
+    }
+    /** Approximate bytes held in the 2-slot nibble cache. */
+    size_t cacheBytesUsed() const;
+
   private:
     void invalidateCache();
     bool buildTrackCached(int wholeTrack);
@@ -74,6 +86,9 @@ class Dos33NibbleImage : public NibbleTrackMedia, public DiskImage {
     bool poOrder_ = false;
     bool writeProtected_ = true; // V1 default read-only
     uint8_t volume_ = 254;
+    uint32_t cacheHits_ = 0;
+    uint32_t cacheMisses_ = 0;
+    uint32_t trackBuildCount_ = 0;
 
     struct CacheSlot {
         int track = -1;

@@ -4,6 +4,8 @@
   "readinessLevel": 5,
   "readinessLevelName": "ready_for_real_software_test",
   "readinessLevelPass": false,
+  "level4Host": "HOST_VERIFIED",
+  "level4Esp32": "ESP32_PHYSICALLY_VERIFIED",
   "level5Harness": "READY",
   "esp32PortGate": "see docs/architecture/esp32-port-readiness.md",
   "subsystems": {
@@ -13,14 +15,15 @@
     "keyboard": "PASS",
     "speaker": "PASS",
     "video": "PASS",
-    "disk_ii_level4": "PASS",
+    "disk_ii_level4_host": "PASS",
+    "disk_ii_level4_esp32": "PASS",
     "compatibility_harness": "PASS",
     "real_software_interactive": "SKIPPED_MISSING_USER_ASSETS",
-    "esp32_emulator_integration": "NOT_STARTED"
+    "esp32_emulator_integration": "PASS_DISK_II_PART_E"
   },
   "notes": [
     "Level 5 PASS requires user-supplied ROM/media interactive proof without title-specific hacks.",
     "Host suite remains green without proprietary assets.",
-    "Do not flash ESP32 emulator integration in this preparation milestone."
+    "PART E: project-owned Esp2BootTest.dsk boots on ESP32-S3 from microSD via portable DiskIIController."
   ]
 }
