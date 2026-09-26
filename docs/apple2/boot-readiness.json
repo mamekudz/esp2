@@ -7,6 +7,8 @@
   "level4Host": "HOST_VERIFIED",
   "level4Esp32": "ESP32_PHYSICALLY_VERIFIED",
   "level5Harness": "READY",
+  "realSystemRomEsp32": "NOT_VERIFIED",
+  "realSystemRomBlocker": "SKIPPED_NO_ROM",
   "esp32PortGate": "see docs/architecture/esp32-port-readiness.md",
   "subsystems": {
     "cpu": "PASS",
@@ -19,11 +21,13 @@
     "disk_ii_level4_esp32": "PASS",
     "compatibility_harness": "PASS",
     "real_software_interactive": "SKIPPED_MISSING_USER_ASSETS",
+    "esp32_user_system_rom_f1": "PATH_READY_SKIPPED_NO_ROM",
     "esp32_emulator_integration": "PASS_DISK_II_PART_E"
   },
   "notes": [
     "Level 5 PASS requires user-supplied ROM/media interactive proof without title-specific hacks.",
     "Host suite remains green without proprietary assets.",
-    "PART E: project-owned Esp2BootTest.dsk boots on ESP32-S3 from microSD via portable DiskIIController."
+    "PART E: project-owned Esp2BootTest.dsk boots on ESP32-S3 from microSD via portable DiskIIController.",
+    "PART F1: firmware loads user ROM from /esp2/roms/, real RESET, Slot-6 NONE, keyboard via $C000/$C010; physical REAL_SYSTEM_ROM blocked until SD ROM present."
   ]
 }

@@ -1,6 +1,6 @@
 # ESP32 port readiness gate
 
-Status date: PART E physical (Disk II + microSD Level-4 boot).
+Status date: PART F1 (user system ROM path; physical ROM asset pending).
 
 ## Gate result
 
@@ -12,7 +12,8 @@ Status date: PART E physical (Disk II + microSD Level-4 boot).
 | PART B display decoupling | **PASS** (`08f2ef7`) |
 | PART C dirty video Sharp | **PASS** (`ccbe73c`) |
 | PART D HGR Artifact Color | **PASS** (`4a67d8f`) |
-| PART E Disk II Level-4 | **PASS** (this milestone) |
+| PART E Disk II Level-4 | **PASS** (`85e4207`) |
+| PART F1 user system ROM | **PATH_READY** / `REAL_SYSTEM_ROM=NOT_VERIFIED` (`SKIPPED_NO_ROM`) |
 
 ## Level-4
 
@@ -21,7 +22,17 @@ Status date: PART E physical (Disk II + microSD Level-4 boot).
 | Host clean-room boot | **HOST_VERIFIED** |
 | ESP32 microSD → DiskIIController → CO5300 | **ESP32_PHYSICALLY_VERIFIED** |
 
-Do **not** promote Level 5.
+## Level-5 / REAL_SYSTEM_ROM
+
+| Side | Status |
+| --- | --- |
+| Host Level-3 ROM path | HOST_VERIFIED (with optional local ROM) |
+| ESP32 F1 firmware (SD load, RESET, keyboard) | Implemented |
+| ESP32 F1 with user ROM on microSD | **NOT_VERIFIED** — place `/esp2/roms/system.rom` |
+
+Do **not** promote full Level 5 PASS from F1 alone. F1 success (when ROM present)
+yields `REAL_SYSTEM_ROM=ESP32_PHYSICALLY_VERIFIED` and
+`LEVEL_5=PARTIAL/READY_FOR_REAL_SOFTWARE_TEST` only.
 
 ## Timing ownership
 
@@ -33,10 +44,11 @@ nibble timing.
 
 | Task | Core | Role |
 | --- | --- | --- |
-| `a2emu` | 1 | `runCycles` + clean-room denibble + 1× throttle |
+| `a2boot` | 1 | One-shot F1 bring-up (large stack; avoids loopTask canary) |
+| `a2emu` | 1 | `runCycles` + optional clean-room denibble + 1× throttle |
 | `a2disp` | 0 | dirty video + power/touch |
 
 ## Still out of scope
 
-Apple system/Disk II ROM, Level-5 games, WOZ, disk writes, BLE, audio out,
-BlueShift, CRT/Monitor effects.
+Real commercial software (F2), Disk II ROM testing, WOZ, disk writes, BLE,
+physical audio out, BlueShift, CRT/Monitor effects.

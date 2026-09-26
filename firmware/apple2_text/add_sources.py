@@ -1,4 +1,4 @@
-# Extra script: portable apple2 core for physical video + Disk II port.
+# Extra script: portable apple2 core for physical ROM + Disk II port.
 Import("env")
 
 if env["PIOENV"] != "apple2_text":
@@ -9,7 +9,8 @@ from pathlib import Path
 root = Path(env["PROJECT_DIR"])
 apple2 = root / "host" / "src" / "apple2"
 
-# PART E: include Disk II + SHA-256; exclude host-only / DisplayEffect / Machine host.
+# PART F1: motherboard ROM identity + text screen + key map.
+# Exclude host-only machine / input_script (HostAppleIIMachine).
 env.BuildSources(
     str(Path(env.subst("$BUILD_DIR")) / "apple2_core"),
     str(apple2),
@@ -19,13 +20,10 @@ env.BuildSources(
         "-<apple2_machine.cpp>",
         "-<input_script.cpp>",
         "-<cpu_harness.cpp>",
-        "-<disk_ii_boot.cpp>",  # host sector shortcut — not used on ESP32
+        "-<disk_ii_boot.cpp>",
         "-<gamepad_mapper.cpp>",
-        "-<key_map.cpp>",
-        "-<rom_identity.cpp>",
-        "-<text_screen.cpp>",
         "-<display_effect.cpp>",
     ],
 )
 
-print("[apple2_text] portable core + Disk II + artifact from", apple2)
+print("[apple2_text] portable core + ROM F1 + Disk II from", apple2)

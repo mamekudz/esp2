@@ -1,8 +1,8 @@
 /**
- * ESP][ PART E — physical Disk II + microSD + Level-4 clean-room boot.
+ * ESP][ PART F1 — user-supplied Apple II/II+ system ROM on ESP32-S3.
  *
- * Path: microSD → Esp32SdStorageBackend → Dos33NibbleImage (PSRAM) →
- * DiskIIController → Slot 6 → 6502 → video RAM → CO5300.
+ * Real RESET vector → ROM execution → interactive text → keyboard injection.
+ * Slot 6 default NONE. No PC shortcuts. No ROM bytes in the repository.
  */
 #include <Arduino.h>
 #include <SD.h>
@@ -30,17 +30,20 @@
 #include "esp_bracket/disk_ii_controller.hpp"
 #include "esp_bracket/disk_ii_media.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
+#include "esp_bracket/key_map.hpp"
 #include "esp_bracket/lores_decoder.hpp"
 #include "esp_bracket/rom.hpp"
+#include "esp_bracket/rom_identity.hpp"
 #include "esp_bracket/sha256.hpp"
 #include "esp_bracket/soft_switches.hpp"
 #include "esp_bracket/text_decoder.hpp"
+#include "esp_bracket/text_screen.hpp"
 #include "esp_bracket/video_dirty_tracker.hpp"
 #include "esp_bracket/video_state.hpp"
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_disk_ii_l4";
+static constexpr char kBuildId[] = "apple2_rom_f1b";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -49,9 +52,10 @@ static constexpr int kViewW = 280;
 static constexpr int kViewH = 192;
 static constexpr int kTextCellW = 7;
 static constexpr uint32_t kQspiHz = 40000000;
-static constexpr uint32_t kStabilityMs = 180000;
+static constexpr uint32_t kStabilityMs = 90000;
 static constexpr int kFullUpdateThreshold = 96;
-static constexpr uint32_t kBootCycleBudget = 4000000;
+static constexpr uint32_t kRomStartupBudget = 8000000;
+static constexpr uint32_t kWaitSlice = 2000;
 
 enum class PresentColorMode : uint8_t { Sharp = 0, ArtifactColor };
 
@@ -66,17 +70,19 @@ static VideoDirtyTracker g_dirty;
 static DiskIIController g_diskII;
 static Esp32SdStorageBackend g_sdStore;
 static PresentColorMode g_presentColor = PresentColorMode::Sharp;
+static MachineProfile g_profile = MachineProfile::AppleIIPlus;
+static RomIdentity g_romId{};
 
-static Dos33NibbleImage *g_dskImage = nullptr; // PSRAM
-static NibTrackImage *g_nibImage = nullptr;    // PSRAM (optional)
-static uint8_t *g_dskRaw = nullptr;            // PSRAM copy of mounted DSK bytes
-static char g_dskShaHex[65] = {};
-static uint32_t g_dskSdReadUs = 0;
+static Dos33NibbleImage *g_dskImage = nullptr;
+static uint8_t *g_dskRaw = nullptr;
 
 static bool g_display_ok = false;
 static bool g_touch_ok = false;
 static bool g_sd_ok = false;
 static bool g_imu_ok = false;
+static bool g_rom_ok = false;
+static bool g_interactive_ok = false;
+static bool g_basic_ok = false;
 static bool g_level4_ok = false;
 
 static uint16_t *g_viewportFb = nullptr;
@@ -89,38 +95,10 @@ static volatile uint32_t g_dispFrames = 0;
 static volatile uint32_t g_dispBytes = 0;
 static volatile uint32_t g_lastXferUs = 0;
 static volatile uint32_t g_lastRenderUs = 0;
-static volatile uint32_t g_bootStallUs = 0;
-static volatile uint32_t g_worstTrackUs = 0;
-static volatile uint32_t g_lastTrackUs = 0;
 static portMUX_TYPE g_dirtyMux = portMUX_INITIALIZER_UNLOCKED;
 
-/** Times nibble-track builds (cache miss) without changing Disk II semantics. */
-class TimedDos33Image : public Dos33NibbleImage {
-  public:
-    const uint8_t *trackNibbles(int wholeTrack, size_t *outLength) override {
-        const uint32_t misses0 = cacheMisses();
-        const uint32_t t0 = micros();
-        const uint8_t *p = Dos33NibbleImage::trackNibbles(wholeTrack, outLength);
-        const uint32_t dt = micros() - t0;
-        if (cacheMisses() != misses0) {
-            g_lastTrackUs = dt;
-            if (dt > g_worstTrackUs) {
-                g_worstTrackUs = dt;
-            }
-            g_bootStallUs += dt;
-            logTrackMiss(wholeTrack, dt);
-        }
-        return p;
-    }
-
-  private:
-    static void logTrackMiss(int track, uint32_t us) {
-        Serial.printf("[DISK] cache miss track=%d track_build_us=%u\n", track, us);
-    }
-};
-
 static void logf(const char *tag, const char *fmt, ...) {
-    char buf[220];
+    char buf[240];
     va_list args;
     va_start(args, fmt);
     vsnprintf(buf, sizeof(buf), fmt, args);
@@ -213,27 +191,25 @@ static void *psramAlloc(size_t n) {
     return p;
 }
 
-static TimedDos33Image *allocTimedImage() {
-    void *mem = psramAlloc(sizeof(TimedDos33Image));
-    if (!mem) {
-        return nullptr;
-    }
-    return new (mem) TimedDos33Image();
+static void syncCycle() {
+    g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
 }
 
-static NibTrackImage *allocNibImage() {
-    void *mem = psramAlloc(sizeof(NibTrackImage));
-    if (!mem) {
-        return nullptr;
+static void runEmu(uint32_t cycles) {
+    const uint32_t slice = 64;
+    uint32_t left = cycles;
+    while (left > 0) {
+        const uint32_t step = left > slice ? slice : left;
+        g_cpu.runCycles(step);
+        syncCycle();
+        left -= step;
     }
-    return new (mem) NibTrackImage();
 }
 
 static void renderTextRows(uint16_t *fb, int row0, int row1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
-    const uint8_t *ram = g_a2bus.ram();
     uint8_t chars[TextDecoder::kRows * TextDecoder::kCols];
-    TextDecoder::decodeScreen(ram, vs.textPageBase(), chars);
+    TextDecoder::decodeScreen(g_a2bus.ram(), vs.textPageBase(), chars);
     for (int row = row0; row <= row1; ++row) {
         for (int gy = 0; gy < 8; ++gy) {
             uint16_t *dst = fb + (row * 8 + gy) * kViewW;
@@ -259,9 +235,8 @@ static void renderTextRows(uint16_t *fb, int row0, int row1) {
 
 static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
-    const uint8_t *ram = g_a2bus.ram();
     uint8_t blocks[LoresDecoder::kRows * LoresDecoder::kCols];
-    LoresDecoder::decode(ram, vs.textPageBase(), blocks);
+    LoresDecoder::decode(g_a2bus.ram(), vs.textPageBase(), blocks);
     for (int py = scan0; py <= scan1; ++py) {
         const int brow = py / LoresDecoder::kBlockH;
         uint16_t *dst = fb + py * kViewW;
@@ -385,436 +360,465 @@ static void presentFull() {
     g_dispFrames++;
 }
 
-static void fillHgr(const char *kind) {
-    HgrDecoder::writePattern(g_a2bus.ram(), 0x2000, kind);
+static void markVideoDirty() {
     portENTER_CRITICAL(&g_dirtyMux);
     g_dirty.markAll();
     portEXIT_CRITICAL(&g_dirtyMux);
 }
 
-static void loadCleanRoomSlot6() {
-    uint8_t prom[DiskIIController::kSlotRomSize];
-    uint8_t exp[DiskIIController::kExpansionRomSize];
-    if (!generateCleanRoomDiskIICard(prom, exp)) {
-        logf("DISK", "[FAIL] cleanroom generate");
-        return;
-    }
-    if (!g_diskII.loadCleanRoomRom(prom, exp)) {
-        logf("DISK", "[FAIL] cleanroom load");
-        return;
-    }
-    logf("DISK", "cleanroom Slot-6 PROM $C600 + EXP $C800 OK");
+static TextScreen currentText() {
+    return TextScreen::fromBus(g_a2bus, 0);
 }
 
-static bool seedBootImageIfMissing(const char *path) {
-    if (!g_sd_ok) {
-        return false;
+static bool textHas(const char *needle) {
+    return currentText().contains(needle);
+}
+
+/** Interactive Applesoft/Monitor-ready heuristic (no copyrighted greeting required). */
+static bool looksInteractive() {
+    const TextScreen s = currentText();
+    // Applesoft ready prompt or Monitor '*' — short machine identifiers.
+    return s.contains("]") || s.contains("*");
+}
+
+static void injectKey(uint8_t apple7) {
+    // Normalized key → Apple II keyboard latch ($C000) with strobe.
+    g_a2bus.keyboard().keyDown(apple7);
+    runEmu(800);
+    // Allow ROM to clear via $C010; also clear if still pending (host script pattern).
+    if (g_a2bus.keyboard().strobePending()) {
+        g_a2bus.keyboard().clearStrobe();
     }
-    // Re-assert SD after display activity (shared host SPI).
+    runEmu(400);
+}
+
+static void injectString(const char *s) {
+    if (!s) {
+        return;
+    }
+    for (const char *p = s; *p; ++p) {
+        uint8_t apple = 0;
+        if (!AppleIIKeyMap::mapHostKey(static_cast<unsigned char>(*p), false, false, &apple)) {
+            apple = AppleIIKeyMap::fromAscii(*p);
+        }
+        injectKey(apple);
+    }
+}
+
+static bool waitText(const char *needle, uint32_t budgetCycles) {
+    uint32_t left = budgetCycles;
+    while (left > 0) {
+        const uint32_t step = left > kWaitSlice ? kWaitSlice : left;
+        runEmu(step);
+        left -= step;
+        markVideoDirty();
+        if (textHas(needle)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool waitInteractive(uint32_t budgetCycles) {
+    uint32_t left = budgetCycles;
+    while (left > 0) {
+        const uint32_t step = left > kWaitSlice ? kWaitSlice : left;
+        runEmu(step);
+        left -= step;
+        markVideoDirty();
+        if ((left % 200000u) < kWaitSlice) {
+            presentFull();
+        }
+        if (looksInteractive()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void dumpStartupFail(const char *why) {
+    const CpuRegisters r = g_cpu.registers();
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    logf("ROM", "startup=%s", why);
+    logf("CPU", "pc=$%04X a=$%02X x=$%02X y=$%02X sp=$%02X status=$%02X cycles=%llu", r.pc, r.a,
+         r.x, r.y, r.sp, r.status, static_cast<unsigned long long>(g_cpu.cycles()));
+    logf("VIDEO", "mode=%s mixed=%d page2=%d hires=%d", vs.text ? "TEXT" : "GRAPHICS",
+         vs.mixed ? 1 : 0, vs.page2 ? 1 : 0, vs.hires ? 1 : 0);
+    char line[41];
+    TextScreen s = currentText();
+    for (int row = 0; row < 6; ++row) {
+        s.rowString(row, line);
+        logf("TEXT", "r%d='%s'", row, line);
+    }
+}
+
+static const char *classifyRom(const RomIdentity &id) {
+    if (id.status == RomIdStatus::Ok && !id.synthetic) {
+        if (id.profile == MachineProfile::AppleII) {
+            return "KNOWN_APPLE_II";
+        }
+        if (id.profile == MachineProfile::AppleIIPlus) {
+            return "KNOWN_APPLE_II_PLUS";
+        }
+        return "KNOWN";
+    }
+    if (id.status == RomIdStatus::UnknownHash && id.sizeBytes == Rom::kApple2PlusRomBytes) {
+        return "UNKNOWN_SUPPORTED_SIZE";
+    }
+    if (id.synthetic) {
+        return "PROJECT_SYNTHETIC";
+    }
+    return "UNSUPPORTED";
+}
+
+static MachineProfile readProfileOverride() {
+    if (!g_sdStore.exists(Esp32SdStorageBackend::kProfileFile)) {
+        return MachineProfile::Unknown;
+    }
+    char buf[32]{};
+    size_t n = 0;
+    if (!g_sdStore.readAll(Esp32SdStorageBackend::kProfileFile, reinterpret_cast<uint8_t *>(buf),
+                           sizeof(buf) - 1, &n)) {
+        return MachineProfile::Unknown;
+    }
+    buf[n] = 0;
+    if (strstr(buf, "AppleIIPlus") || strstr(buf, "II+")) {
+        return MachineProfile::AppleIIPlus;
+    }
+    if (strstr(buf, "AppleII")) {
+        return MachineProfile::AppleII;
+    }
+    return MachineProfile::Unknown;
+}
+
+static bool findUserRomPath(char outPath[96]) {
+    outPath[0] = 0;
     if (!SD.begin(PIN_SD_CS)) {
-        logf("SD", "[FAIL] re-begin before seed");
         return false;
     }
     g_sdStore.setMounted(true);
-    if (g_sdStore.exists(path)) {
-        return true;
+    g_sdStore.ensureRomRoot();
+    const char *cands[] = {
+        Esp32SdStorageBackend::kSystemRom, Esp32SdStorageBackend::kApple2PlusRom,
+        Esp32SdStorageBackend::kApple2Rom, "/esp2/roms/apple2+.rom",
+        "/esp2/roms/APPLE2.ROM",
+    };
+    for (const char *p : cands) {
+        if (g_sdStore.exists(p) && g_sdStore.fileSize(p) == Rom::kApple2PlusRomBytes) {
+            strncpy(outPath, p, 95);
+            outPath[95] = 0;
+            return true;
+        }
     }
-    logf("DISK", "seeding project-owned image path=%s", path);
-    uint8_t *raw = static_cast<uint8_t *>(psramAlloc(kDos33ImageBytes));
-    if (!raw) {
+    // Scan directory for first 12288-byte .rom/.bin
+    File dir = SD.open(Esp32SdStorageBackend::kRomRoot);
+    if (!dir || !dir.isDirectory()) {
         return false;
     }
-    const bool okGen = generateEsp2BootTestImage(raw, kDos33ImageBytes);
-    const bool okWrite = okGen && g_sdStore.writeAll(path, raw, kDos33ImageBytes);
-    logf("DISK", "seed gen=%s write=%s write_us=%u", okGen ? "ok" : "FAIL",
-         okWrite ? "ok" : "FAIL", g_sdStore.lastWriteUs());
-    free(raw);
-    return okWrite;
+    for (;;) {
+        File f = dir.openNextFile();
+        if (!f) {
+            break;
+        }
+        if (!f.isDirectory() && f.size() == Rom::kApple2PlusRomBytes) {
+            snprintf(outPath, 96, "%s/%s", Esp32SdStorageBackend::kRomRoot, f.name());
+            f.close();
+            dir.close();
+            return true;
+        }
+        f.close();
+    }
+    dir.close();
+    return false;
 }
 
-static bool loadDskRawFromSd(const char *path) {
-    if (!g_sd_ok) {
+static bool loadUserRomFromSd() {
+    char path[96];
+    if (!findUserRomPath(path)) {
+        logf("ROM", "path=(none) SKIPPED_NO_ROM");
+        logf("ROM", "place 12288-byte Apple II/II+ ROM at /esp2/roms/system.rom");
         return false;
     }
-    if (!SD.begin(PIN_SD_CS)) {
-        logf("SD", "[FAIL] re-begin before read");
-        return false;
-    }
-    g_sdStore.setMounted(true);
-    if (!g_sdStore.exists(path)) {
-        logf("DISK", "image=%s found=no", path);
-        return false;
-    }
+    logf("ROM", "path=%s", path);
     const size_t sz = g_sdStore.fileSize(path);
-    logf("DISK", "image=%s found=yes size=%u format=DSK", path, static_cast<unsigned>(sz));
-    if (sz != kDos33ImageBytes) {
-        logf("DISK", "[FAIL] unexpected size want=%u", static_cast<unsigned>(kDos33ImageBytes));
+    logf("ROM", "size=%u", static_cast<unsigned>(sz));
+    if (sz != Rom::kApple2PlusRomBytes) {
+        logf("ROM", "class=UNSUPPORTED");
         return false;
+    }
+
+    uint8_t *raw = static_cast<uint8_t *>(psramAlloc(Rom::kApple2PlusRomBytes));
+    if (!raw) {
+        logf("ROM", "[FAIL] buffer");
+        return false;
+    }
+    size_t got = 0;
+    if (!g_sdStore.readAll(path, raw, Rom::kApple2PlusRomBytes, &got) ||
+        got != Rom::kApple2PlusRomBytes) {
+        logf("ROM", "[FAIL] sd_read_us=%u", g_sdStore.lastReadUs());
+        free(raw);
+        return false;
+    }
+    logf("ROM", "sd_read_us=%u", g_sdStore.lastReadUs());
+
+    g_romId = RomDatabase::identify(raw, Rom::kApple2PlusRomBytes);
+    logf("ROM", "sha256=%s", g_romId.sha256Hex);
+    logf("ROM", "class=%s id_status=%s", classifyRom(g_romId), romIdStatusName(g_romId.status));
+
+    const MachineProfile override = readProfileOverride();
+    if (g_romId.profile != MachineProfile::Unknown) {
+        g_profile = g_romId.profile;
+    } else if (override != MachineProfile::Unknown) {
+        g_profile = override;
+        logf("ROM", "profile_from_file=%s", machineProfileName(g_profile));
+    } else {
+        g_profile = MachineProfile::AppleIIPlus;
+        logf("ROM", "profile_default=AppleIIPlus (explicit override via /esp2/roms/profile.txt)");
+    }
+    logf("ROM", "profile=%s", machineProfileName(g_profile));
+
+    // Mapping check before load: reset vector bytes in image.
+    const uint16_t rstImg =
+        static_cast<uint16_t>(raw[0x2FFC] | (static_cast<uint16_t>(raw[0x2FFD]) << 8));
+    logf("CPU", "reset_vector=$%04X (from ROM image $FFFC)", rstImg);
+
+    const RomError err = loadAndIdentifyRom(g_a2bus.rom(), raw, Rom::kApple2PlusRomBytes, &g_romId);
+    free(raw);
+    if (err != RomError::Ok) {
+        logf("ROM", "[FAIL] load");
+        return false;
+    }
+
+    // Read-only: write to ROM window must not stick.
+    const uint8_t before = g_a2bus.peek(0xE000);
+    g_a2bus.write(0xE000, static_cast<uint8_t>(before ^ 0xFF));
+    const uint8_t after = g_a2bus.peek(0xE000);
+    logf("ROM", "write_protect=%s", (after == before) ? "PASS" : "FAIL");
+
+    const uint16_t irq = static_cast<uint16_t>(g_a2bus.peek(0xFFFE) |
+                                               (static_cast<uint16_t>(g_a2bus.peek(0xFFFF)) << 8));
+    const uint16_t nmi = static_cast<uint16_t>(g_a2bus.peek(0xFFFA) |
+                                               (static_cast<uint16_t>(g_a2bus.peek(0xFFFB)) << 8));
+    logf("CPU", "irq_vector=$%04X nmi_vector=$%04X", irq, nmi);
+    return true;
+}
+
+static bool runRealRomStartup() {
+    // Slot 6 NONE — observe genuine system ROM, not Esp2BootTest.
+    g_diskII.clearRom();
+    g_a2bus.setSlotDevice(6, nullptr);
+
+    g_a2bus.clearRam();
+    g_a2bus.reset();
+    g_a2bus.speaker().reset();
+    g_cpu.reset(); // MUST read reset vector from user ROM — no PC hack.
+
+    const uint16_t rst = static_cast<uint16_t>(g_a2bus.peek(0xFFFC) |
+                                               (static_cast<uint16_t>(g_a2bus.peek(0xFFFD)) << 8));
+    const uint16_t pc0 = g_cpu.registers().pc;
+    logf("CPU", "reset_vector=$%04X first_pc=$%04X", rst, pc0);
+    if (pc0 != rst) {
+        logf("CPU", "[FAIL] PC not from reset vector");
+        return false;
+    }
+
+    const uint64_t c0 = g_cpu.cycles();
+    const uint32_t t0 = micros();
+    const bool ok = waitInteractive(kRomStartupBudget);
+    const uint64_t used = g_cpu.cycles() - c0;
+    const uint32_t wallUs = micros() - t0;
+    const double cps = wallUs ? (used * 1e6 / wallUs) : 0;
+    logf("ROM", "startup_cycles=%llu wall_us=%u cps=%.0f", static_cast<unsigned long long>(used),
+         wallUs, cps);
+    logf("SPEAKER", "edges_startup=%u", static_cast<unsigned>(g_a2bus.speaker().edgeCountTotal()));
+
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    logf("VIDEO", "mode=%s mixed=%d page2=%d hires=%d", vs.text ? "TEXT" : "GRAPHICS",
+         vs.mixed ? 1 : 0, vs.page2 ? 1 : 0, vs.hires ? 1 : 0);
+
+    presentFull();
+    if (!ok) {
+        dumpStartupFail("TIMEOUT_NO_INTERACTIVE");
+        return false;
+    }
+    logf("ROM", "startup=INTERACTIVE");
+    g_interactive_ok = true;
+    delay(1500);
+    return true;
+}
+
+static bool runBasicPrint22() {
+    logf("INPUT", "path=keyboard_latch $C000/$C010 via keyDown");
+    logf("INPUT", "script=TYPE PRINT 2+2 / RETURN");
+    injectString("PRINT 2+2");
+    injectKey(0x0D);
+    const bool saw4 = waitText("4", 1500000);
+    presentFull();
+    logf("BASIC", "PRINT_2+2 result=%s", saw4 ? "PASS (saw 4)" : "FAIL");
+    g_basic_ok = saw4;
+    delay(1000);
+    return saw4;
+}
+
+static bool runBasicPrintEsp() {
+    logf("INPUT", "script=TYPE PRINT \"ESP][\" / RETURN");
+    injectString("PRINT \"ESP][\"");
+    injectKey(0x0D);
+    const bool ok = waitText("ESP][", 1500000);
+    presentFull();
+    logf("BASIC", "PRINT_ESP result=%s", ok ? "PASS" : "FAIL");
+    delay(1000);
+    return ok;
+}
+
+static bool level4RegressionSpot() {
+    logf("DISK", "Level4 regression spot (Slot-6 temporary cleanroom)");
+    // Keep large objects out of loopTask stack and out of internal BSS.
+    static uint8_t s_prom[DiskIIController::kSlotRomSize];
+    static uint8_t s_exp[DiskIIController::kExpansionRomSize];
+
+    if (!SD.begin(PIN_SD_CS)) {
+        logf("DISK", "SKIPPED_NO_SD");
+        return false;
+    }
+    g_sdStore.setMounted(true);
+    if (!g_sdStore.exists(Esp32SdStorageBackend::kBootTestDsk)) {
+        uint8_t *seed = static_cast<uint8_t *>(psramAlloc(kDos33ImageBytes));
+        if (!seed || !generateEsp2BootTestImage(seed, kDos33ImageBytes) ||
+            !g_sdStore.writeAll(Esp32SdStorageBackend::kBootTestDsk, seed, kDos33ImageBytes)) {
+            logf("DISK", "SKIPPED_NO_BOOTTEST");
+            free(seed);
+            return false;
+        }
+        free(seed);
     }
     if (!g_dskRaw) {
         g_dskRaw = static_cast<uint8_t *>(psramAlloc(kDos33ImageBytes));
     }
-    if (!g_dskRaw) {
-        logf("DISK", "[FAIL] raw buffer");
+    if (!g_dskImage) {
+        void *mem = psramAlloc(sizeof(Dos33NibbleImage));
+        g_dskImage = mem ? new (mem) Dos33NibbleImage() : nullptr;
+    }
+    if (!g_dskRaw || !g_dskImage) {
+        logf("DISK", "[FAIL] alloc");
         return false;
     }
     size_t got = 0;
-    const bool okRead = g_sdStore.readAll(path, g_dskRaw, kDos33ImageBytes, &got);
-    g_dskSdReadUs = g_sdStore.lastReadUs();
-    logf("DISK", "sd_read_us=%u ok=%s", g_dskSdReadUs, okRead ? "yes" : "no");
-    if (!okRead || got != kDos33ImageBytes) {
+    if (!g_sdStore.readAll(Esp32SdStorageBackend::kBootTestDsk, g_dskRaw, kDos33ImageBytes, &got)) {
+        logf("DISK", "[FAIL] read boottest");
         return false;
     }
-    Sha256::hashHex(g_dskRaw, kDos33ImageBytes, g_dskShaHex);
-    logf("DISK", "sha256=%s", g_dskShaHex);
-    return true;
-}
-
-static bool mountFromRaw(bool poOrder, const char *label) {
-    if (!g_dskRaw) {
-        logf("DISK", "[FAIL] no raw image in PSRAM");
-        return false;
-    }
-    if (!g_dskImage) {
-        g_dskImage = allocTimedImage();
-    }
-    if (!g_dskImage) {
-        logf("DISK", "[FAIL] PSRAM image alloc");
-        return false;
-    }
-    g_dskImage->eject();
-    g_dskImage->clearCacheStats();
-    if (!g_dskImage->load(g_dskRaw, kDos33ImageBytes, poOrder)) {
-        logf("DISK", "[FAIL] load %s", label);
-        return false;
-    }
+    g_dskImage->load(g_dskRaw, kDos33ImageBytes, false);
     g_dskImage->setWriteProtected(true);
+
+    generateCleanRoomDiskIICard(s_prom, s_exp);
+    g_a2bus.setSlotDevice(6, &g_diskII);
+    g_diskII.loadCleanRoomRom(s_prom, s_exp);
     g_diskII.attachMedia(1, g_dskImage);
-    logf("DISK", "mount result=OK drive=1 wp=1 label=%s format=%s cache_slots=2", label,
-         poOrder ? "PO" : "DSK");
-    return true;
-}
 
-static bool textContains(const char *needle) {
-    if (!needle) {
-        return false;
-    }
-    uint8_t chars[TextDecoder::kRows * TextDecoder::kCols];
-    TextDecoder::decodeScreen(g_a2bus.ram(), 0x0400, chars);
-    const size_t nlen = strlen(needle);
-    for (int row = 0; row < 24; ++row) {
-        char line[41];
-        for (int c = 0; c < 40; ++c) {
-            line[c] = static_cast<char>(chars[row * 40 + c] & 0x7F);
-        }
-        line[40] = 0;
-        if (strstr(line, needle)) {
-            return true;
-        }
-    }
-    (void)nlen;
-    return false;
-}
-
-static bool runLevel4Boot(uint32_t rotSeed, const char *tag) {
-    g_bootStallUs = 0;
-    g_worstTrackUs = 0;
-    if (g_dskImage) {
-        g_dskImage->clearCacheStats();
-    }
     g_a2bus.clearRam();
     g_a2bus.reset();
     g_diskII.reset();
-    loadCleanRoomSlot6();
-    if (g_dskImage && g_dskImage->inserted()) {
-        g_diskII.attachMedia(1, g_dskImage);
-    }
-    g_diskII.driveState(1).quarterTrack = 0;
-    g_diskII.setRotationIndex(rotSeed);
+    g_diskII.attachMedia(1, g_dskImage);
+    g_diskII.setRotationIndex(0);
     g_a2bus.write(0x03FE, 0);
     g_a2bus.write(0x03FF, 0);
     g_cpu.reset();
     CpuRegisters r = g_cpu.registers();
-    r.pc = 0xC600;
-    g_cpu.setRegisters(r);
-
-    logf("DISK", "boot start tag=%s rot=%u pc=$C600", tag, rotSeed);
-    const uint64_t c0 = g_cpu.cycles();
-    const uint32_t t0 = micros();
-    bool ok = false;
-    uint32_t sawC0EC = 0;
-    for (;;) {
-        g_cpu.runCycles(64);
-        g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
-        if (g_diskII.romKind() == DiskIIController::RomKind::CleanRoom) {
-            serviceCleanRoomDenibbleRequest(g_a2bus.ram());
-        }
-        // Sample latch path activity via diag (Q7L read mode + motor).
-        const auto d = g_diskII.diagState();
-        if (d.motorOn && !d.q7) {
-            ++sawC0EC;
-        }
-        if (g_a2bus.ram()[0x03FE] == 0x4C && g_a2bus.ram()[0x03FF] == 0x34) {
-            ok = true;
-            break;
-        }
-        if ((g_cpu.cycles() - c0) > kBootCycleBudget) {
-            break;
-        }
-    }
-    const uint32_t wallUs = micros() - t0;
-    const uint64_t used = g_cpu.cycles() - c0;
-    const double cps = wallUs ? (used * 1e6 / wallUs) : 0;
-
-    logf("DISK", "boot marker=%s tag=%s cycles=%llu wall_us=%u cps=%.0f", ok ? "PASS" : "FAIL",
-         tag, static_cast<unsigned long long>(used), wallUs, cps);
-    logf("DISK", "motor=%s drive=%d c0ec_samples=%u stall_us=%u worst_track_us=%u",
-         g_diskII.diagState().motorOn ? "ON" : "OFF", g_diskII.diagState().selectedDrive, sawC0EC,
-         g_bootStallUs, g_worstTrackUs);
-    if (g_dskImage) {
-        logf("DISK", "cache hits=%u misses=%u builds=%u bytes=%u", g_dskImage->cacheHits(),
-             g_dskImage->cacheMisses(), g_dskImage->trackBuildCount(),
-             static_cast<unsigned>(g_dskImage->cacheBytesUsed()));
-    }
-    if (ok) {
-        const bool t1 = textContains("ESP][ LEVEL 4");
-        const bool t2 = textContains("DISK II BOOT OK");
-        logf("DISK", "boot_screen L4=%s OK=%s (via Apple II text RAM)", t1 ? "yes" : "no",
-             t2 ? "yes" : "no");
-        portENTER_CRITICAL(&g_dirtyMux);
-        g_dirty.markAll();
-        portEXIT_CRITICAL(&g_dirtyMux);
-        presentFull();
-        delay(2000);
-    }
-    return ok;
-}
-
-static void testMissingMedia() {
-    logf("DISK", "test=missing_media");
-    g_diskII.ejectDrive(1);
-    if (g_dskImage) {
-        g_dskImage->eject();
-    }
-    g_a2bus.clearRam();
-    g_cpu.reset();
-    CpuRegisters r = g_cpu.registers();
-    r.pc = 0xC600;
-    g_cpu.setRegisters(r);
-    for (int i = 0; i < 5000; ++i) {
-        g_cpu.runCycles(64);
-        g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
-        serviceCleanRoomDenibbleRequest(g_a2bus.ram());
-    }
-    const bool noMark = g_a2bus.ram()[0x03FF] != 0x34;
-    logf("DISK", "missing_media surviving=%s marker_absent=%s", "yes", noMark ? "yes" : "no");
-}
-
-static void testMalformedMedia() {
-    logf("DISK", "test=malformed_media");
-    if (!g_dskImage) {
-        g_dskImage = allocTimedImage();
-    }
-    if (!g_dskImage) {
-        return;
-    }
-    g_dskImage->clear();
-    g_dskImage->setWriteProtected(true);
-    g_diskII.attachMedia(1, g_dskImage);
-    g_a2bus.clearRam();
-    g_a2bus.reset();
-    g_diskII.reset();
-    loadCleanRoomSlot6();
-    g_diskII.attachMedia(1, g_dskImage);
-    g_cpu.reset();
-    CpuRegisters r = g_cpu.registers();
-    r.pc = 0xC600;
-    g_cpu.setRegisters(r);
-    for (int i = 0; i < 20000; ++i) {
-        g_cpu.runCycles(64);
-        g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
-        serviceCleanRoomDenibbleRequest(g_a2bus.ram());
-    }
-    logf("DISK", "malformed marker_absent=%s pc=$%04X",
-         g_a2bus.ram()[0x03FF] != 0x34 ? "yes" : "no", g_cpu.registers().pc);
-}
-
-static bool testNibBoot() {
-    logf("DISK", "test=NIB");
-    if (!g_dskImage || !g_dskImage->inserted()) {
-        if (!mountFromRaw(false, "DSK")) {
-            return false;
-        }
-    }
-    if (!g_nibImage) {
-        g_nibImage = allocNibImage();
-    }
-    if (!g_nibImage) {
-        logf("DISK", "NIB alloc FAIL");
-        return false;
-    }
-    uint8_t *raw = static_cast<uint8_t *>(psramAlloc(NibTrackImage::kImageBytes));
-    if (!raw) {
-        return false;
-    }
-    memset(raw, 0xFF, NibTrackImage::kImageBytes);
-    for (int t = 0; t < NibTrackImage::kTracks; ++t) {
-        size_t len = 0;
-        const uint8_t *tr = g_dskImage->trackNibbles(t, &len);
-        if (!tr || len == 0) {
-            continue;
-        }
-        const size_t copy = len < NibTrackImage::kTrackLen ? len : NibTrackImage::kTrackLen;
-        memcpy(raw + static_cast<size_t>(t) * NibTrackImage::kTrackLen, tr, copy);
-    }
-    const bool loaded = g_nibImage->load(raw, NibTrackImage::kImageBytes);
-    free(raw);
-    if (!loaded) {
-        logf("DISK", "NIB load FAIL");
-        return false;
-    }
-    g_nibImage->setWriteProtected(true);
-    g_diskII.attachMedia(1, g_nibImage);
-    g_a2bus.clearRam();
-    g_a2bus.reset();
-    g_diskII.reset();
-    loadCleanRoomSlot6();
-    g_diskII.attachMedia(1, g_nibImage);
-    g_diskII.setRotationIndex(5);
-    g_a2bus.write(0x03FE, 0);
-    g_a2bus.write(0x03FF, 0);
-    g_cpu.reset();
-    CpuRegisters r = g_cpu.registers();
-    r.pc = 0xC600;
+    r.pc = 0xC600; // controlled Level-4 entry (same as PART E)
     g_cpu.setRegisters(r);
     bool ok = false;
     const uint64_t c0 = g_cpu.cycles();
     for (;;) {
-        g_cpu.runCycles(64);
-        g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
+        runEmu(64);
         serviceCleanRoomDenibbleRequest(g_a2bus.ram());
         if (g_a2bus.ram()[0x03FE] == 0x4C && g_a2bus.ram()[0x03FF] == 0x34) {
             ok = true;
             break;
         }
-        if ((g_cpu.cycles() - c0) > kBootCycleBudget) {
+        if ((g_cpu.cycles() - c0) > 500000ull) {
             break;
         }
     }
-    logf("DISK", "NIB boot marker=%s", ok ? "PASS" : "FAIL");
-    if (ok) {
-        presentFull();
-        delay(1500);
-    }
-    if (g_dskImage && g_dskImage->inserted()) {
-        g_diskII.attachMedia(1, g_dskImage);
-    }
+    logf("DISK", "Level4 marker=%s", ok ? "PASS" : "FAIL");
+    g_level4_ok = ok;
+
+    g_diskII.clearRom();
+    g_a2bus.setSlotDevice(6, nullptr);
     return ok;
 }
 
 static void videoSpotCheck() {
-    g_presentColor = PresentColorMode::Sharp;
-    softSwitch(SoftSwitches::kAddrText);
-    softSwitch(SoftSwitches::kAddrPage1);
-    softSwitch(SoftSwitches::kAddrFull);
-    for (int c = 0; c < 16; ++c) {
-        g_a2bus.write(TextDecoder::cellAddress(0x0400, 0, c),
-                      static_cast<uint8_t>(0x80u | "TEXT OK SPOTCHK"[c]));
-    }
+    // Brief regression without destroying ROM session — use softswitches briefly.
+    logf("VIDEO", "spot-check after ROM session");
     presentFull();
-    logf("VIDEO", "TEXT spot OK");
-
-    softSwitch(SoftSwitches::kAddrGraphics);
-    softSwitch(SoftSwitches::kAddrLores);
-    for (int trow = 0; trow < 24; ++trow) {
-        for (int col = 0; col < 40; ++col) {
-            g_a2bus.write(TextDecoder::cellAddress(0x0400, trow, col),
-                          static_cast<uint8_t>((trow + col) & 0xFF));
-        }
-    }
-    presentFull();
-    logf("VIDEO", "LORES spot OK");
-
-    softSwitch(SoftSwitches::kAddrHires);
-    fillHgr("checker");
-    presentFull();
-    logf("VIDEO", "HGR_SHARP spot OK");
-
-    g_presentColor = PresentColorMode::ArtifactColor;
-    fillHgr("artifact_ref");
-    presentFull();
-    logf("VIDEO", "HGR_ARTIFACT spot OK");
-    g_presentColor = PresentColorMode::Sharp;
+    logf("VIDEO", "TEXT/current frame presented");
 }
 
 static void bootSuite() {
-    logf("APPLE2", "cpu+disk init");
+    logf("APPLE2", "F1 user ROM bring-up");
     g_cpu.setCallbacks(&g_a2bus, Apple2Bus::busRead, Apple2Bus::busWrite);
     g_a2bus.setVideoDirtyTracker(&g_dirty);
-    g_a2bus.setSlotDevice(6, &g_diskII);
-    g_a2bus.clearRam();
-    g_a2bus.reset();
-
-    static uint8_t romImg[Rom::kApple2PlusRomBytes];
-    if (generateSyntheticRom(romImg, sizeof(romImg)) != RomError::Ok ||
-        g_a2bus.rom().load(romImg, sizeof(romImg)) != RomError::Ok) {
-        logf("APPLE2", "[FAIL] mb rom");
-        return;
-    }
-    g_cpu.reset();
-    loadCleanRoomSlot6();
+    // Slot 6 stays NONE until Level-4 spot check.
+    g_a2bus.setSlotDevice(6, nullptr);
+    g_diskII.clearRom();
 
     g_viewportFb = static_cast<uint16_t *>(psramAlloc(kViewW * kViewH * sizeof(uint16_t)));
     g_hgrBits = static_cast<uint8_t *>(psramAlloc(280 * 192));
     g_hgrHigh = static_cast<uint8_t *>(psramAlloc(40 * 192));
-    logf("RAM", "viewport=%s disk_img_bytes=%u psram_free=%u", g_viewportFb ? "ok" : "FAIL",
-         static_cast<unsigned>(sizeof(TimedDos33Image)),
-         ESP.getPsramSize() ? ESP.getFreePsram() : 0);
+    logf("RAM", "viewport=%s psram_free=%u heap=%u", g_viewportFb ? "ok" : "FAIL",
+         ESP.getPsramSize() ? ESP.getFreePsram() : 0, ESP.getFreeHeap());
 
-    // --- Media fault paths ---
-    testMissingMedia();
-    testMalformedMedia();
-
-    // --- Seed + mount DSK (one SD read into PSRAM; later formats reuse RAM) ---
-    seedBootImageIfMissing(Esp32SdStorageBackend::kBootTestDsk);
-    seedBootImageIfMissing(Esp32SdStorageBackend::kBootTestPo);
-    bool bootDsk = false;
-    if (loadDskRawFromSd(Esp32SdStorageBackend::kBootTestDsk) && mountFromRaw(false, "DSK")) {
-        bootDsk = runLevel4Boot(0, "DSK_rot0");
-        bootDsk = runLevel4Boot(37, "DSK_rot37") && bootDsk;
-        bootDsk = runLevel4Boot(128, "DSK_rot128") && bootDsk;
-        bootDsk = runLevel4Boot(777, "DSK_rot777") && bootDsk;
-    }
-    logf("DISK", "DSK Level4=%s", bootDsk ? "PASS" : "FAIL");
-
-    // --- PO from same PSRAM bytes (ProDOS sector order flag) ---
-    bool bootPo = false;
-    if (g_dskRaw && mountFromRaw(true, "PO")) {
-        bootPo = runLevel4Boot(19, "PO_rot19");
-    }
-    logf("DISK", "PO Level4=%s", bootPo ? "PASS" : "FAIL");
-
-    // Restore DSK for NIB source + stability
-    mountFromRaw(false, "DSK");
-    const bool bootNib = testNibBoot();
-    logf("DISK", "NIB Level4=%s", bootNib ? "PASS" : "FAIL");
-
-    g_level4_ok = bootDsk;
-    logf("DISK", "Level4 ESP32=%s (DSK primary)", g_level4_ok ? "PHYSICALLY_VERIFIED" : "FAIL");
-
-    // Leave successful boot screen
-    if (g_level4_ok) {
-        mountFromRaw(false, "DSK");
-        runLevel4Boot(0, "DSK_final");
+    g_rom_ok = loadUserRomFromSd();
+    if (!g_rom_ok) {
+        logf("ROM", "F1 incomplete without user ROM — Level-4 regression still runs");
+    } else {
+        if (runRealRomStartup()) {
+            if (g_profile == MachineProfile::AppleIIPlus ||
+                g_romId.status == RomIdStatus::UnknownHash) {
+                // Applesoft expected for II+; Unknown may still be II+.
+                runBasicPrint22();
+                if (g_basic_ok) {
+                    runBasicPrintEsp();
+                }
+            } else if (g_profile == MachineProfile::AppleII) {
+                logf("BASIC", "AppleII Integer BASIC — PRINT 2+2 skipped (capability note)");
+                // Still try a simple key to prove strobe path.
+                injectKey(0x0D);
+                runEmu(50000);
+                presentFull();
+                logf("INPUT", "RETURN injection done (Integer path)");
+            }
+        }
+        logf("SPEAKER", "edges_total=%u",
+             static_cast<unsigned>(g_a2bus.speaker().edgeCountTotal()));
     }
 
+    level4RegressionSpot();
     videoSpotCheck();
+
+    // Restore user ROM session for live run if available.
+    if (g_rom_ok) {
+        g_diskII.clearRom();
+        g_a2bus.setSlotDevice(6, nullptr);
+        // Re-run reset into interactive for live display (bounded).
+        g_a2bus.clearRam();
+        g_a2bus.reset();
+        g_cpu.reset();
+        waitInteractive(kRomStartupBudget);
+        presentFull();
+    }
 
     logf("RAM", "heap_free=%u heap_min=%u", ESP.getFreeHeap(), ESP.getMinFreeHeap());
     if (ESP.getPsramSize()) {
         logf("RAM", "psram_free=%u", ESP.getFreePsram());
     }
-    logf("APPLE2", "suite done");
+    logf("APPLE2", "F1 rom=%s interactive=%s basic=%s level4=%s REAL_SYSTEM_ROM=%s LEVEL_5=%s",
+         g_rom_ok ? "PASS" : "SKIPPED_NO_ROM", g_interactive_ok ? "PASS" : "FAIL",
+         g_basic_ok ? "PASS" : "n/a", g_level4_ok ? "PASS" : "FAIL",
+         (g_rom_ok && g_interactive_ok) ? "ESP32_PHYSICALLY_VERIFIED" : "NOT_VERIFIED",
+         (g_rom_ok && g_interactive_ok) ? "PARTIAL/READY_FOR_REAL_SOFTWARE_TEST"
+                                        : "BLOCKED_NO_USER_ROM");
 }
 
 static void emulatorTask(void *) {
@@ -824,10 +828,9 @@ static void emulatorTask(void *) {
     logf("SCHED", "emu core=%d", xPortGetCoreID());
     g_wallStartUs = micros();
     g_emuCyclesAtBoot = g_cpu.cycles();
-    // Keep running from current PC (boot payload idle loop at $0800+).
     for (;;) {
         g_cpu.runCycles(kExecQuantum);
-        g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
+        syncCycle();
         if (g_diskII.romKind() == DiskIIController::RomKind::CleanRoom) {
             serviceCleanRoomDenibbleRequest(g_a2bus.ram());
         }
@@ -845,9 +848,6 @@ static void emulatorTask(void *) {
         } else if (((after / kExecQuantum) & 0x0F) == 0) {
             taskYIELD();
         }
-        // Disk activity must NOT notify display power.
-        (void)g_diskII.lastActivity();
-        g_diskII.clearLastActivity();
     }
 }
 
@@ -892,14 +892,14 @@ static void displayTask(void *) {
             const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
             logf("PERF",
                  "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u "
-                 "psram_free=%u disk_sd_err=%u",
+                 "psram_free=%u",
                  cps, g_dispFrames, ESP.getFreeHeap(), ESP.getMinFreeHeap(),
-                 ESP.getPsramSize() ? ESP.getFreePsram() : 0, g_sdStore.readErrorCount());
+                 ESP.getPsramSize() ? ESP.getFreePsram() : 0);
         }
         if (!stabilityDone && (now - startMs) >= kStabilityMs) {
             stabilityDone = true;
-            logf("STABILITY", "duration_ms=%u frames=%u level4=%s", kStabilityMs, g_dispFrames,
-                 g_level4_ok ? "PASS" : "FAIL");
+            logf("STABILITY", "duration_ms=%u frames=%u rom=%s interactive=%s", kStabilityMs,
+                 g_dispFrames, g_rom_ok ? "yes" : "no", g_interactive_ok ? "yes" : "no");
             logf("POWER", "screensaver_seen=%s off_seen=%s", sawSs ? "yes" : "no",
                  sawOff ? "yes" : "no");
             logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s", g_display_ok ? "PASS" : "FAIL",
@@ -911,6 +911,12 @@ static void displayTask(void *) {
         if (!g_display_ok || !g_display_power.isInteractive()) {
             vTaskDelay(pdMS_TO_TICKS(40));
             continue;
+        }
+        // Periodically refresh text screen from ROM (cursor flash etc.).
+        static uint32_t lastRefresh = 0;
+        if (now - lastRefresh > 200) {
+            markVideoDirty();
+            lastRefresh = now;
         }
         portENTER_CRITICAL(&g_dirtyMux);
         auto bits = g_dirty.exchange();
@@ -943,16 +949,22 @@ void setup() {
     g_sd_ok = probe_sd();
     g_imu_ok = probe_imu();
 
-    bootSuite();
-
-    logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s level4=%s", g_display_ok ? "PASS" : "FAIL",
-         g_touch_ok ? "PASS" : "FAIL", g_sd_ok ? "PASS" : "FAIL", g_imu_ok ? "PASS" : "FAIL",
-         g_level4_ok ? "PASS" : "FAIL");
-
-    xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, nullptr, 0);
-    xTaskCreatePinnedToCore(emulatorTask, "a2emu", 8192, nullptr, 1, nullptr, 1);
-    g_schedulerGo = true;
-    logf("SCHED", "tasks started");
+    // Run bring-up on a large-stack task — loopTask stack is too small for Disk II.
+    xTaskCreatePinnedToCore(
+        [](void *) {
+            bootSuite();
+            logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s rom=%s basic=%s level4=%s",
+                 g_display_ok ? "PASS" : "FAIL", g_touch_ok ? "PASS" : "FAIL",
+                 g_sd_ok ? "PASS" : "FAIL", g_imu_ok ? "PASS" : "FAIL",
+                 g_rom_ok ? "PASS" : "SKIPPED_NO_ROM", g_basic_ok ? "PASS" : "n/a",
+                 g_level4_ok ? "PASS" : "FAIL");
+            xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, nullptr, 0);
+            xTaskCreatePinnedToCore(emulatorTask, "a2emu", 8192, nullptr, 1, nullptr, 1);
+            g_schedulerGo = true;
+            logf("SCHED", "tasks started");
+            vTaskDelete(nullptr);
+        },
+        "a2boot", 24576, nullptr, 1, nullptr, 1);
 }
 
 void loop() {

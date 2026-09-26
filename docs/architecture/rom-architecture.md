@@ -8,6 +8,18 @@
 
 ## Conceptual layout (SD)
 
+ESP32 PART F1 deterministic root:
+
+```
+/esp2/roms/
+  system.rom              # preferred 12 KiB user motherboard ROM
+  apple2plus.rom          # alternate name
+  apple2.rom              # alternate name
+  profile.txt             # optional AppleII / AppleIIPlus override
+```
+
+Host / library convention (future UI):
+
 ```
 /apple2/roms/
   apple2plus.rom          # user-provided example name

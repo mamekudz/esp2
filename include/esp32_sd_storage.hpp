@@ -17,6 +17,12 @@ class Esp32SdStorageBackend : public StorageBackend {
     static constexpr const char *kBootTestDsk = "/esp2/disks/Esp2BootTest.dsk";
     static constexpr const char *kBootTestPo = "/esp2/disks/Esp2BootTest.po";
     static constexpr const char *kBootTestNib = "/esp2/disks/Esp2BootTest.nib";
+    static constexpr const char *kRomRoot = "/esp2/roms";
+    /** Preferred deterministic system ROM filename (user-supplied, never in Git). */
+    static constexpr const char *kSystemRom = "/esp2/roms/system.rom";
+    static constexpr const char *kApple2PlusRom = "/esp2/roms/apple2plus.rom";
+    static constexpr const char *kApple2Rom = "/esp2/roms/apple2.rom";
+    static constexpr const char *kProfileFile = "/esp2/roms/profile.txt";
 
     bool beginMounted() { return mounted_; }
     void setMounted(bool m) { mounted_ = m; }
@@ -32,6 +38,8 @@ class Esp32SdStorageBackend : public StorageBackend {
 
     /** Ensure /esp2/disks exists. */
     bool ensureDiskRoot();
+    /** Ensure /esp2/roms exists. */
+    bool ensureRomRoot();
 
     uint32_t lastReadUs() const { return lastReadUs_; }
     uint32_t lastWriteUs() const { return lastWriteUs_; }

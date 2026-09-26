@@ -15,6 +15,16 @@ bool Esp32SdStorageBackend::ensureDiskRoot() {
     return SD.mkdir("/esp2") && SD.mkdir(kDiskRoot);
 }
 
+bool Esp32SdStorageBackend::ensureRomRoot() {
+    if (!mounted_) {
+        return false;
+    }
+    if (SD.exists(kRomRoot)) {
+        return true;
+    }
+    return SD.mkdir("/esp2") && SD.mkdir(kRomRoot);
+}
+
 bool Esp32SdStorageBackend::exists(const char *path) const {
     return mounted_ && path && SD.exists(path);
 }

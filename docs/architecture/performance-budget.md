@@ -34,8 +34,23 @@ Target SoC: ESP32-S3, 16 MB flash, 8 MB PSRAM, 240 MHz.
 
 QSPI remains **40 MHz** quad.
 
+## PART F1 system ROM (ESP32 PHYSICAL MEASURED)
+
+| Path | Notes |
+| --- | --- |
+| User ROM on `/esp2/roms/` | **SKIPPED_NO_ROM** on test SD (no asset) |
+| Level-4 spot after F1 path | **PASS** (temporary Slot-6 clean-room) |
+| Live throttled (no ROM / idle) | ~1.023e6 cps |
+| Heap after bring-up | free ~217 KiB; min ~191 KiB |
+| PSRAM free | ~7.88 MiB |
+| Stability 90 s | **PASS** (screensaver seen) |
+
+Disk-II intensive boot still measured ~0.79–0.86e6 cps (PART E); F1 does **not**
+optimize Disk II. Re-measure with user ROM present before F2.
+
 ## Scheduling
 
+- `a2boot` core1 — one-shot F1 bring-up (24 KiB stack)
 - `a2emu` core1 — cycles + denibble service + 1× throttle
 - `a2disp` core0 — dirty → render → CO5300; power/touch
 - Disk activity does **not** count as display user activity
