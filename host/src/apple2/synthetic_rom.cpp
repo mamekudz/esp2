@@ -76,6 +76,23 @@ RomError generateSyntheticRom(uint8_t *dst, size_t dstSize) {
     emit(static_cast<uint8_t>(loopAddr & 0xFF));
     emit(static_cast<uint8_t>((loopAddr >> 8) & 0xFF)); // JMP loop
 
+    // Secondary I/O exercise entry at $E080 (JSR targets / host tests):
+    // BIT $C030; BIT $C010; BIT $C070; LDA $C061; RTS
+    const uint16_t ioEntry = 0xE080;
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, ioEntry, 0x2C); // BIT abs
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 1), 0x30);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 2), 0xC0);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 3), 0x2C);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 4), 0x10);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 5), 0xC0);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 6), 0x2C);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 7), 0x70);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 8), 0xC0);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 9), 0xAD);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 10), 0x61);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 11), 0xC0);
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 12), 0x60); // RTS
+
     // Reset / IRQ / NMI vectors at end of ROM ($FFFA–$FFFF)
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFA, entry); // NMI
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFC, entry); // RESET

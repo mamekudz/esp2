@@ -53,10 +53,29 @@ void HostAppleIIMachine::keyUp(uint8_t normalizedKey) {
 
 void HostAppleIIMachine::setJoystick(const JoystickState& state) {
     joystick_ = state;
+    // Map buttons to PB0/PB1; stick X/Y → paddle 0/1 (0..255 from -32768..32767)
+    bus_.gameIo().setButton(0, state.button0);
+    bus_.gameIo().setButton(1, state.button1);
+    const auto toPdl = [](int16_t v) -> uint8_t {
+        const int scaled = (static_cast<int>(v) + 32768) * 255 / 65535;
+        if (scaled < 0) {
+            return 0;
+        }
+        if (scaled > 255) {
+            return 255;
+        }
+        return static_cast<uint8_t>(scaled);
+    };
+    bus_.gameIo().setPaddle(0, toPdl(state.x));
+    bus_.gameIo().setPaddle(1, toPdl(state.y));
 }
 
 void HostAppleIIMachine::setPaddle(const PaddleState& state) {
     paddle_ = state;
+    bus_.gameIo().setPaddle(0, static_cast<uint8_t>(state.p0 > 255 ? 255 : state.p0));
+    bus_.gameIo().setPaddle(1, static_cast<uint8_t>(state.p1 > 255 ? 255 : state.p1));
+    bus_.gameIo().setButton(0, state.button0);
+    bus_.gameIo().setButton(1, state.button1);
 }
 
 MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char* imageId) {

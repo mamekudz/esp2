@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "machineProfile": "AppleII_Plus",
+  "readinessLevel": 1,
+  "readinessLevelName": "synthetic_esp_test_rom",
+  "subsystems": {
+    "cpu": "PASS",
+    "ram": "PASS",
+    "rom_abstraction": "PASS",
+    "keyboard": "PASS",
+    "keyboard_strobe": "PASS",
+    "speaker": "PASS",
+    "cassette": "PASS",
+    "video_switches": "PASS",
+    "paddles": "PASS",
+    "buttons": "PASS",
+    "annunciators": "PASS",
+    "slot_dispatch": "PASS",
+    "language_card": "DEFERRED",
+    "disk_ii": "DEFERRED",
+    "floating_bus": "APPROXIMATE"
+  },
+  "notes": [
+    "Cassette is logical soft-switch state only; no physical interface.",
+    "Floating bus returns configurable approximation byte (default 0xFF).",
+    "Language Card banking and Disk II controller are intentionally deferred."
+  ]
+}

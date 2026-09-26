@@ -97,4 +97,26 @@ function buildTest(name, mainCpp) {
 buildTest("test_cpu", join(root, "host/test_cpp/test_cpu_main.cpp"));
 buildTest("test_machine", join(root, "host/test_cpp/test_machine_main.cpp"));
 buildTest("test_video", join(root, "host/test_cpp/test_video.cpp"));
+buildTest("test_io_page", join(root, "host/test_cpp/test_io_page.cpp"));
+
+// Build interactive console (do not run — waits for stdin)
+{
+  const mainCpp = join(root, "host/test_cpp/host_console.cpp");
+  const mainObj = join(outDir, "host_console_main.o");
+  run(gpp, [
+    "-std=c++17",
+    "-O2",
+    "-Wall",
+    "-Wextra",
+    "-Ihost/include",
+    "-Ihost/src/apple2",
+    "-c",
+    mainCpp,
+    "-o",
+    mainObj,
+  ]);
+  run(gpp, ["-o", join(outDir, "host_console.exe"), ...objs, mainObj]);
+  console.log("\nBuilt host/.out/host_console.exe (interactive; not auto-run)");
+}
+
 console.log("\nHost Apple II C++ suite OK");
