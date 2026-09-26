@@ -15,20 +15,51 @@ HostAppleIIMachine::HostAppleIIMachine() {
 
 void HostAppleIIMachine::wireDiskII() {
     bus_.setSlotDevice(6, &diskII_);
-    uint8_t slotRom[DiskIIController::kSlotRomSize];
-    if (generateSyntheticDiskIISlotRom(slotRom, sizeof(slotRom)) ==
-        DiskIIController::kSlotRomSize) {
-        diskII_.loadSyntheticRom(slotRom, sizeof(slotRom));
+    // Default: no Slot-6 ROM so Autostart/user ROM is not diverted to synthetic boot.
+    diskII_.clearRom();
+    slot6RomMode_ = Slot6RomMode::None;
+}
+
+void HostAppleIIMachine::applySlot6RomMode() {
+    switch (slot6RomMode_) {
+    case Slot6RomMode::None:
+        diskII_.clearRom();
+        break;
+    case Slot6RomMode::Synthetic: {
+        uint8_t slotRom[DiskIIController::kSlotRomSize];
+        if (generateSyntheticDiskIISlotRom(slotRom, sizeof(slotRom)) ==
+            DiskIIController::kSlotRomSize) {
+            diskII_.loadSyntheticRom(slotRom, sizeof(slotRom));
+        }
+        break;
     }
+    case Slot6RomMode::UserSupplied:
+        // Caller already loaded via diskII().loadUserRom
+        break;
+    }
+}
+
+void HostAppleIIMachine::setSlot6RomMode(Slot6RomMode mode) {
+    slot6RomMode_ = mode;
+    applySlot6RomMode();
 }
 
 void HostAppleIIMachine::syncBusCycle() {
     bus_.setAccessCycle(static_cast<uint32_t>(cpu_.cycles() & 0xFFFFFFFFu));
 }
 
+void HostAppleIIMachine::powerOn(RamInitMode ramInit) {
+    if (ramInit == RamInitMode::Zero) {
+        bus_.clearRam();
+    } else if (ramInit == RamInitMode::Ones) {
+        std::memset(bus_.ram(), 0xFF, Apple2Bus::kRamBytes);
+    }
+    reset();
+}
+
 void HostAppleIIMachine::reset() {
     // Apple II reset: soft switches / keyboard / speaker / CPU.
-    // Disks remain mounted. ROM image remains loaded.
+    // Disks remain mounted. ROM image remains loaded. Slot ROM mode retained.
     const VirtualDriveState d1 = drive1_.state();
     const VirtualDriveState d2 = drive2_.state();
     bus_.reset();
@@ -38,6 +69,7 @@ void HostAppleIIMachine::reset() {
     if (d2.inserted) {
         drive2_.mount(d2.imageId, d2.format);
     }
+    applySlot6RomMode();
     syncBusCycle();
     cpu_.reset();
 }
@@ -63,7 +95,6 @@ void HostAppleIIMachine::keyUp(uint8_t normalizedKey) {
 
 void HostAppleIIMachine::setJoystick(const JoystickState &state) {
     joystick_ = state;
-    // Map buttons to PB0/PB1; stick X/Y → paddle 0/1 (0..255 from -32768..32767)
     bus_.gameIo().setButton(0, state.button0);
     bus_.gameIo().setButton(1, state.button1);
     const auto toPdl = [](int16_t v) -> uint8_t {
@@ -106,10 +137,11 @@ MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
         }
         img.setWriteProtected(true);
         diskII_.attachMedia(driveNo, &img);
+        // Disk boot path needs synthetic Slot-6 ROM.
+        setSlot6RomMode(Slot6RomMode::Synthetic);
         return drive(id).mount(imageId, DiskFormat::Dsk);
     }
 
-    // Unknown id: metadata-only mount (no nibble media).
     diskII_.ejectDrive(driveNo);
     return drive(id).mount(imageId, DiskFormat::Unknown);
 }
@@ -130,11 +162,58 @@ size_t HostAppleIIMachine::consumeAudioEvents(SpeakerEvent *out, size_t max) {
 }
 
 RomError HostAppleIIMachine::loadSyntheticRom() {
-    return bus_.rom().loadSynthetic();
+    const RomError err = bus_.rom().loadSynthetic();
+    if (err == RomError::Ok) {
+        romIdentity_ = RomDatabase::identify(bus_.rom().data(), bus_.rom().size());
+        if (romIdentity_.profile != MachineProfile::Unknown) {
+            profile_ = romIdentity_.profile;
+        }
+    }
+    return err;
 }
 
 RomError HostAppleIIMachine::loadRom(const uint8_t *data, size_t size) {
-    return bus_.rom().load(data, size);
+    return loadRomIdentified(data, size, nullptr);
+}
+
+RomError HostAppleIIMachine::loadRomIdentified(const uint8_t *data, size_t size,
+                                               RomIdentity *outId) {
+    RomIdentity id{};
+    const RomError err = loadAndIdentifyRom(bus_.rom(), data, size, &id);
+    romIdentity_ = id;
+    if (outId) {
+        *outId = id;
+    }
+    if (err == RomError::Ok) {
+        if (id.profile != MachineProfile::Unknown) {
+            profile_ = id.profile;
+        }
+        // Unknown hash: leave profile as previously set / Unknown — caller selects.
+    }
+    return err;
+}
+
+HostMachineSnapshot HostAppleIIMachine::snapshot() const {
+    HostMachineSnapshot s{};
+    const CpuRegisters r = cpu_.registers();
+    s.pc = r.pc;
+    s.a = r.a;
+    s.x = r.x;
+    s.y = r.y;
+    s.sp = r.sp;
+    s.status = r.status;
+    s.cycles = cpu_.cycles();
+    s.text = bus_.softSwitches().isText();
+    s.mixed = bus_.softSwitches().isMixed();
+    s.page2 = bus_.softSwitches().isPage2();
+    s.hires = bus_.softSwitches().isHires();
+    s.kbdLatch = bus_.keyboard().latch();
+    const DiskIIDiagState d = diskII_.diagState();
+    s.motorOn = d.motorOn;
+    s.selectedDrive = d.selectedDrive;
+    s.slot6RomMode = static_cast<int>(slot6RomMode_);
+    s.profile = profile_;
+    return s;
 }
 
 DiagReport HostAppleIIMachine::runSelfTest() {
@@ -149,14 +228,11 @@ DiagReport HostAppleIIMachine::runSelfTest() {
     r.lores = DiagResult::NotTested;
     r.hgr = DiagResult::NotTested;
 
-    // ROM
     r.rom = bus_.rom().isLoaded() ? DiagResult::Pass : DiagResult::Fail;
 
-    // RAM poke
     bus_.write(0x0300, 0xA5);
     r.ram = (bus_.read(0x0300) == 0xA5) ? DiagResult::Pass : DiagResult::Fail;
 
-    // Soft switches
     bus_.softSwitches().reset();
     bus_.write(0xC050, 0);
     const bool graphics = bus_.softSwitches().isGraphics();
@@ -164,14 +240,12 @@ DiagReport HostAppleIIMachine::runSelfTest() {
     const bool text = bus_.softSwitches().isText();
     r.softswitch = (graphics && text) ? DiagResult::Pass : DiagResult::Fail;
 
-    // Keyboard
     bus_.keyboard().reset();
     bus_.keyboard().keyDown('A');
     const bool strobe = bus_.keyboard().strobePending();
     bus_.keyboard().clearStrobe();
     r.keyboard = (strobe && !bus_.keyboard().strobePending()) ? DiagResult::Pass : DiagResult::Fail;
 
-    // Speaker
     bus_.speaker().reset();
     bus_.setAccessCycle(100);
     bus_.read(0xC030);
@@ -180,24 +254,20 @@ DiagReport HostAppleIIMachine::runSelfTest() {
     const size_t n = bus_.speaker().consumeEvents(ev, 4);
     r.speaker = (n == 2 && ev[0].level != ev[1].level) ? DiagResult::Pass : DiagResult::Fail;
 
-    // Text mapping
     TextDecoder::writeTextScreen(bus_.ram(), 0x0400, "ESP][", 0, 0);
     uint8_t chars[40 * 24];
     TextDecoder::decodeScreen(bus_.ram(), 0x0400, chars);
     r.text = ((chars[0] & 0x7F) == 'E') ? DiagResult::Pass : DiagResult::Fail;
 
-    // LoRes
     LoresDecoder::writeTestPattern(bus_.ram(), 0x0400);
     uint8_t blocks[40 * 48];
     LoresDecoder::decode(bus_.ram(), 0x0400, blocks);
     r.lores = (blocks[0] <= 15) ? DiagResult::Pass : DiagResult::Fail;
 
-    // HGR line address non-linear check: y=0 and y=1 differ by 0x400
     const uint16_t a0 = HgrDecoder::lineAddress(0x2000, 0);
     const uint16_t a1 = HgrDecoder::lineAddress(0x2000, 1);
     r.hgr = (a0 == 0x2000 && a1 == 0x2400) ? DiagResult::Pass : DiagResult::Fail;
 
-    // CPU: step a NOP after synthetic reset if ROM loaded
     if (bus_.rom().isLoaded()) {
         cpu_.reset();
         const uint32_t ticks = cpu_.step();

@@ -99,25 +99,33 @@ buildTest("test_machine", join(root, "host/test_cpp/test_machine_main.cpp"));
 buildTest("test_video", join(root, "host/test_cpp/test_video.cpp"));
 buildTest("test_io_page", join(root, "host/test_cpp/test_io_page.cpp"));
 buildTest("test_disk_ii", join(root, "host/test_cpp/test_disk_ii.cpp"));
+buildTest("test_level3", join(root, "host/test_cpp/test_level3.cpp"));
 
-// Build interactive console (do not run — waits for stdin)
+// Build interactive console + esp2_host (do not run — waits for stdin)
 {
-  const mainCpp = join(root, "host/test_cpp/host_console.cpp");
-  const mainObj = join(outDir, "host_console_main.o");
-  run(gpp, [
-    "-std=c++17",
-    "-O2",
-    "-Wall",
-    "-Wextra",
-    "-Ihost/include",
-    "-Ihost/src/apple2",
-    "-c",
-    mainCpp,
-    "-o",
-    mainObj,
-  ]);
-  run(gpp, ["-o", join(outDir, "host_console.exe"), ...objs, mainObj]);
-  console.log("\nBuilt host/.out/host_console.exe (interactive; not auto-run)");
+  const mains = [
+    ["host_console", join(root, "host/test_cpp/host_console.cpp")],
+    ["esp2_host", join(root, "host/test_cpp/esp2_host.cpp")],
+  ];
+  for (const [name, mainCpp] of mains) {
+    if (!existsSync(mainCpp)) continue;
+    const mainObj = join(outDir, `${name}_main.o`);
+    run(gpp, [
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Ihost/include",
+      "-Ihost/src/apple2",
+      "-c",
+      mainCpp,
+      "-o",
+      mainObj,
+    ]);
+    run(gpp, ["-o", join(outDir, `${name}.exe`), ...objs, mainObj]);
+    console.log(`\nBuilt host/.out/${name}.exe`);
+  }
 }
+
 
 console.log("\nHost Apple II C++ suite OK");

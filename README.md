@@ -75,8 +75,8 @@ Keep these levels distinct:
 ### HOST_VERIFIED (host tooling / host machine only)
 
 - Media import / catalog / provenance gates (`media:import`, apple2js catalog)
-- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color (`npm run test:apple2`)
-- Synthetic test ROM / no Apple ROMs in the repository
+- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (synthetic boot), user-ROM loader (`npm run test:apple2`)
+- Synthetic test ROM / no Apple ROMs in the repository (optional local user ROM via `local/roms/`)
 
 ### PLANNED
 
@@ -108,11 +108,11 @@ Planned additional hardware: piezo / local speaker, physical reset / control but
 
 ### Apple II emulation
 
-Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED**. Firmware integration on the ESP32: **not yet**. No Apple ROMs in the repo (synthetic test ROM only).
+Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED** (boot readiness Level 3 architecture: interactive text path; optional user-supplied II/II+ ROM). Firmware integration on the ESP32: **not yet**. No Apple ROMs in the repo (synthetic test ROM only). See `docs/apple2/roms.md`.
 
 ### Virtual Disk II / media layer
 
-Separated from the core: Disk II controller → virtual disk → Drive 1/2 → image on microSD. Formats introduced incrementally (DSK, PO, NIB, WOZ). Host import tooling exists; Disk II controller **PLANNED.** No embedded commercial disk images in the repository.
+Separated from the core: Disk II controller → virtual disk → Drive 1/2 → image on microSD. Host Disk II + DSK/PO nibble path **HOST_VERIFIED** (synthetic); WOZ / full write path **PLANNED**. No embedded commercial disk images in the repository.
 
 ### Touch UI
 

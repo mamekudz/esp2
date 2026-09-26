@@ -794,10 +794,66 @@ _Tag(sdPrepare, {
   µExecutionConcurrency: false,
 });
 
-gulp.task("apple2js:sync", apple2jsSync);
-gulp.task("apple2js:catalog", apple2jsCatalog);
-gulp.task("apple2js:audit", apple2jsAudit);
-gulp.task("media:identify", mediaIdentify);
-gulp.task("media:import", mediaImport);
-gulp.task("media:inspect", mediaInspect);
-gulp.task("sd:prepare", sdPrepare);
+export async function apple2RomIdentify() {
+  ReportProgress(0, "apple2-rom-identify");
+  const rom = GetParameter("rom") || "";
+  const args = ["--identify-only"];
+  if (rom) args.push("--rom", rom);
+  runNodeCli("host/tools/rom_test.mjs", args, "apple2:rom-identify");
+  ReportProgress(1, "apple2-rom-identify");
+}
+_Tag(apple2RomIdentify, {
+  gulpName: "apple2:rom-identify",
+  µDisplayName: 'Apple II ROM Identify<context="µDisplayName"/>',
+  µDescription:
+    'Hash/identify a user-supplied motherboard ROM (no download). SKIPPED_NO_ROM if absent.<context="µDescription"/>',
+  µGroup: 'Apple II Host<context="µGroup"/>',
+  µOrder: 50,
+  µParameters: [{ name: "rom", type: "string", optional: true }],
+});
+
+export async function apple2RomTest() {
+  ReportProgress(0, "apple2-rom-test");
+  const rom = GetParameter("rom") || "";
+  const args = [];
+  if (rom) args.push("--rom", rom);
+  runNodeCli("host/tools/rom_test.mjs", args, "apple2:rom-test");
+  ReportProgress(1, "apple2-rom-test");
+}
+_Tag(apple2RomTest, {
+  gulpName: "apple2:rom-test",
+  µDisplayName: 'Apple II ROM Test<context="µDisplayName"/>',
+  µDescription:
+    'Optional bounded host run with user ROM; SKIPPED_NO_ROM without local ROM.<context="µDescription"/>',
+  µGroup: 'Apple II Host<context="µGroup"/>',
+  µOrder: 51,
+  µParameters: [{ name: "rom", type: "string", optional: true }],
+});
+
+export async function apple2Host() {
+  ReportProgress(0, "apple2-host");
+  const rom = GetParameter("rom") || "";
+  // Ensure built
+  runNodeCli("host/tools/build_and_test_apple2.mjs", [], "apple2:host-build");
+  const exe = join(rootDir, "host/.out/esp2_host.exe");
+  const args = ["--diagnostics", "--text", "--batch", "--cycles", "100000"];
+  if (rom) args.push("--rom", rom);
+  const r = spawnSync(exe, args, { cwd: rootDir, encoding: "utf8", shell: false });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.status !== 0) throw new Error(`apple2:host failed (${r.status})`);
+  ReportProgress(1, "apple2-host");
+}
+_Tag(apple2Host, {
+  gulpName: "apple2:host",
+  µDisplayName: 'Apple II Host Runner<context="µDisplayName"/>',
+  µDescription:
+    'Build and batch-run esp2_host (synthetic ROM unless --rom given).<context="µDescription"/>',
+  µGroup: 'Apple II Host<context="µGroup"/>',
+  µOrder: 52,
+  µParameters: [{ name: "rom", type: "string", optional: true }],
+});
+
+gulp.task("apple2:rom-identify", apple2RomIdentify);
+gulp.task("apple2:rom-test", apple2RomTest);
+gulp.task("apple2:host", apple2Host);

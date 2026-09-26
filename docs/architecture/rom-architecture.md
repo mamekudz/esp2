@@ -16,20 +16,12 @@
   synthetic_reset.rom     # project-generated test stub (non-Apple)
 ```
 
-## Loader API (planned)
+## Loader API (host)
 
-```
-enum class RomKind { AutostartMonitor, Applesoft, IntegerBasic, TestStub };
+See `docs/apple2/roms.md`. Host loader validates size (12 KiB), computes SHA-256,
+looks up metadata-only DB (`host/data/rom_database.json`), and loads into `Rom`.
 
-struct RomImage {
-  RomKind kind;
-  uint32_t size;
-  uint32_t crc32;   // optional
-  const uint8_t* bytes; // mapped from flash/SD/PSRAM
-};
-
-RomLoadResult loadRom(StorageBackend&, const char* path, RomImage* out);
-```
+Unknown hashes remain loadable (user-supplied); profile may be selected explicitly.
 
 ## Validation
 

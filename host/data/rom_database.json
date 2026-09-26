@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "description": "Metadata-only Apple II / II+ ROM identification. No ROM bytes.",
+  "notes": [
+    "Only include SHA-256 hashes with reliable provenance.",
+    "If provenance is uncertain, omit the entry (UNKNOWN_ROM).",
+    "Do not invent commercial Apple ROM hashes.",
+    "Project synthetic ROMs are identified in C++ by structure, not this file."
+  ],
+  "entries": []
+}

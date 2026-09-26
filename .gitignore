@@ -67,6 +67,14 @@ __pycache__/
 !fixtures/synthetic/**
 !fixtures/redistributable/**
 
+# User-supplied motherboard / slot ROMs (local only)
+local/roms/**
+!local/roms/README.md
+
+# Local ROM path config (personal)
+config/roms.local.json
+
+
 # User-imported library media (local only)
 library/user/
 

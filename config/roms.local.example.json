@@ -1,0 +1,6 @@
+{
+  "motherboardRom": "local/roms/apple2plus.rom",
+  "machine": "AppleIIPlus",
+  "slot6Rom": null,
+  "notes": "Copy to config/roms.local.json and set paths to YOUR legally obtained ROMs. Never commit roms.local.json."
+}

@@ -17,8 +17,8 @@ This is the V1 soft-switch and I/O decode target for ESP][.
 | Auxiliary memory / ALTZP / 80STORE / PAGE2 aux | IIe | NOT_IMPLEMENTED |
 | Double Hi-Res | IIe | NOT_IMPLEMENTED |
 | Built-in mouse / SmartPort | //c / GS | NOT_IMPLEMENTED |
-| Language Card banking (`$C080–$C08F` full model) | II+ option | DEFERRED (slot-0 dispatch ready) |
-| Disk II controller | Slot 6 card | DEFERRED (slot routing HOST_VERIFIED) |
+| Language Card banking (`$C080–$C08F` full model) | II+ option | DEFERRED (not required for Level-3 Applesoft-in-ROM) |
+| Disk II controller | Slot 6 card | HOST_VERIFIED (synthetic); WOZ/RWTS DEFERRED |
 
 Where II/II+ and IIe differ, ESP][ implements **II/II+** behavior unless a
 future `MachineProfile::AppleIIe` is selected explicitly.
@@ -47,9 +47,9 @@ future `MachineProfile::AppleIIe` is selected explicitly.
 | --- | --- |
 | 0 | Synthetic CPU tests only |
 | 1 | Synthetic ESP][ test ROM |
-| 2 | Real Apple II/II+ ROM can be loaded/executed |
-| 3 | BASIC/text interaction viable |
-| 4 | Disk II boot path available |
+| 2 | Disk II synthetic boot |
+| 3 | User-supplied II/II+ ROM + interactive text |
+| 4 | Broader disk authenticity |
 | 5 | Target games boot/run |
 
-Current level after I/O audit: see `docs/apple2/boot-readiness.md`.
+Current level: see `docs/apple2/boot-readiness.md`.

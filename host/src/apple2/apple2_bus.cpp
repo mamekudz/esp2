@@ -9,7 +9,7 @@ Apple2Bus::Apple2Bus() {
 }
 
 void Apple2Bus::reset() {
-    std::memset(ram_, 0x00, sizeof(ram_));
+    // Soft switches / peripherals only — Apple II RESET does not wipe RAM.
     softSwitches_.reset();
     keyboard_.reset();
     speaker_.reset();
@@ -17,6 +17,10 @@ void Apple2Bus::reset() {
     // ROM + slot device pointers retained across Apple II reset.
     accessCycle_ = 0;
     expansionRomSlot_ = -1;
+}
+
+void Apple2Bus::clearRam() {
+    std::memset(ram_, 0x00, sizeof(ram_));
 }
 
 void Apple2Bus::setSlotDevice(int slot, SlotDevice *device) {

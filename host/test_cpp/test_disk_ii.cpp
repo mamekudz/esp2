@@ -202,6 +202,8 @@ static void testInsertEjectReset() {
 
 static void testSlotRomDecode() {
     HostAppleIIMachine m;
+    expect(m.slot6RomMode() == Slot6RomMode::None, "default no slot6 rom");
+    m.setSlot6RomMode(Slot6RomMode::Synthetic);
     expect(m.diskII().romKind() == DiskIIController::RomKind::Synthetic, "synthetic slot rom");
     expect(m.bus().read(0xC600) != 0xFF, "C600 rom byte");
     // Neighbor: slot 5 empty
