@@ -19,20 +19,20 @@ void Apple2Bus::reset() {
     expansionRomSlot_ = -1;
 }
 
-void Apple2Bus::setSlotDevice(int slot, SlotDevice* device) {
+void Apple2Bus::setSlotDevice(int slot, SlotDevice *device) {
     if (slot >= 0 && slot < kSlotCount) {
         slots_[slot] = device;
     }
 }
 
-SlotDevice* Apple2Bus::slotDevice(int slot) const {
+SlotDevice *Apple2Bus::slotDevice(int slot) const {
     if (slot < 0 || slot >= kSlotCount) {
         return nullptr;
     }
     return slots_[slot];
 }
 
-void Apple2Bus::setIoTrace(IoTraceFn fn, void* ctx) {
+void Apple2Bus::setIoTrace(IoTraceFn fn, void *ctx) {
     traceFn_ = fn;
     traceCtx_ = ctx;
 }
@@ -42,8 +42,7 @@ void Apple2Bus::clearIoTrace() {
     traceCtx_ = nullptr;
 }
 
-void Apple2Bus::trace(bool isWrite, uint16_t address, uint8_t value,
-                      const char* tag) {
+void Apple2Bus::trace(bool isWrite, uint16_t address, uint8_t value, const char *tag) {
     if (!traceFn_) {
         return;
     }
@@ -94,7 +93,7 @@ uint8_t Apple2Bus::peek(uint16_t address) const {
     }
     if (address <= 0xC0FFu) {
         // Const path: duplicate decode without mutation via const_cast helper
-        return const_cast<Apple2Bus*>(this)->handleIoRead(address, false);
+        return const_cast<Apple2Bus *>(this)->handleIoRead(address, false);
     }
     if (address >= 0xC100u && address <= 0xC7FFu) {
         return handleSlotRomRead(address, false);
@@ -115,13 +114,13 @@ uint8_t Apple2Bus::handleSlotRomRead(uint16_t address, bool sideEffects) const {
         return floatingBusApprox_;
     }
     const uint16_t offset = static_cast<uint16_t>(address & 0xFFu);
-    SlotDevice* dev = slots_[slot];
+    SlotDevice *dev = slots_[slot];
     if (!dev) {
         return floatingBusApprox_;
     }
     // Real bus access selects $C800 expansion ROM for that slot; peek must not.
     if (sideEffects) {
-        const_cast<Apple2Bus*>(this)->expansionRomSlot_ = slot;
+        const_cast<Apple2Bus *>(this)->expansionRomSlot_ = slot;
     }
     return dev->romRead(offset);
 }
@@ -217,9 +216,9 @@ uint8_t Apple2Bus::handleIoRead(uint16_t address, bool sideEffects) {
     if (pageOff >= 0x80) {
         const int slot = (pageOff >> 4) & 0x07;
         const uint8_t off = static_cast<uint8_t>(pageOff & 0x0Fu);
-        SlotDevice* dev = slots_[slot];
+        SlotDevice *dev = slots_[slot];
         if (dev) {
-            const uint8_t v = sideEffects ? dev->ioRead(off, accessCycle_) : 0xFF;
+            const uint8_t v = sideEffects ? dev->ioRead(off, accessCycle_) : dev->ioPeek(off);
             if (sideEffects) {
                 trace(false, address, v, "slot-io");
             }
@@ -297,7 +296,7 @@ void Apple2Bus::handleIoWrite(uint16_t address, uint8_t value, bool sideEffects)
     if (pageOff >= 0x80) {
         const int slot = (pageOff >> 4) & 0x07;
         const uint8_t off = static_cast<uint8_t>(pageOff & 0x0Fu);
-        SlotDevice* dev = slots_[slot];
+        SlotDevice *dev = slots_[slot];
         if (dev) {
             dev->ioWrite(off, value, accessCycle_);
             trace(true, address, value, "slot-io");
@@ -307,12 +306,12 @@ void Apple2Bus::handleIoWrite(uint16_t address, uint8_t value, bool sideEffects)
     }
 }
 
-uint8_t Apple2Bus::busRead(void* ctx, uint16_t address) {
-    return static_cast<Apple2Bus*>(ctx)->read(address);
+uint8_t Apple2Bus::busRead(void *ctx, uint16_t address) {
+    return static_cast<Apple2Bus *>(ctx)->read(address);
 }
 
-void Apple2Bus::busWrite(void* ctx, uint16_t address, uint8_t value) {
-    static_cast<Apple2Bus*>(ctx)->write(address, value);
+void Apple2Bus::busWrite(void *ctx, uint16_t address, uint8_t value) {
+    static_cast<Apple2Bus *>(ctx)->write(address, value);
 }
 
 } // namespace esp_bracket

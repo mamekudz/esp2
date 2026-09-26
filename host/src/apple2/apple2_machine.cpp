@@ -10,6 +10,16 @@ namespace esp_bracket {
 
 HostAppleIIMachine::HostAppleIIMachine() {
     cpu_.setCallbacks(&bus_, Apple2Bus::busRead, Apple2Bus::busWrite);
+    wireDiskII();
+}
+
+void HostAppleIIMachine::wireDiskII() {
+    bus_.setSlotDevice(6, &diskII_);
+    uint8_t slotRom[DiskIIController::kSlotRomSize];
+    if (generateSyntheticDiskIISlotRom(slotRom, sizeof(slotRom)) ==
+        DiskIIController::kSlotRomSize) {
+        diskII_.loadSyntheticRom(slotRom, sizeof(slotRom));
+    }
 }
 
 void HostAppleIIMachine::syncBusCycle() {
@@ -51,7 +61,7 @@ void HostAppleIIMachine::keyUp(uint8_t normalizedKey) {
     bus_.keyboard().keyUp(normalizedKey);
 }
 
-void HostAppleIIMachine::setJoystick(const JoystickState& state) {
+void HostAppleIIMachine::setJoystick(const JoystickState &state) {
     joystick_ = state;
     // Map buttons to PB0/PB1; stick X/Y → paddle 0/1 (0..255 from -32768..32767)
     bus_.gameIo().setButton(0, state.button0);
@@ -70,7 +80,7 @@ void HostAppleIIMachine::setJoystick(const JoystickState& state) {
     bus_.gameIo().setPaddle(1, toPdl(state.y));
 }
 
-void HostAppleIIMachine::setPaddle(const PaddleState& state) {
+void HostAppleIIMachine::setPaddle(const PaddleState &state) {
     paddle_ = state;
     bus_.gameIo().setPaddle(0, static_cast<uint8_t>(state.p0 > 255 ? 255 : state.p0));
     bus_.gameIo().setPaddle(1, static_cast<uint8_t>(state.p1 > 255 ? 255 : state.p1));
@@ -78,20 +88,44 @@ void HostAppleIIMachine::setPaddle(const PaddleState& state) {
     bus_.gameIo().setButton(1, state.button1);
 }
 
-MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char* imageId) {
-    return drive(id).mount(imageId);
+MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
+    if (!imageId || !imageId[0]) {
+        return MediaResult::InvalidImage;
+    }
+    Dos33NibbleImage &img = diskImage(id);
+    const int driveNo = (id == DriveId::Drive2) ? 2 : 1;
+
+    if (std::strcmp(imageId, "Esp2DiskTest") == 0 ||
+        std::strcmp(imageId, "Esp2DiskTest.dsk") == 0) {
+        uint8_t raw[kDos33ImageBytes];
+        if (!generateEsp2DiskTestImage(raw, sizeof(raw))) {
+            return MediaResult::InvalidImage;
+        }
+        if (!img.load(raw, sizeof(raw), false)) {
+            return MediaResult::InvalidImage;
+        }
+        img.setWriteProtected(true);
+        diskII_.attachMedia(driveNo, &img);
+        return drive(id).mount(imageId, DiskFormat::Dsk);
+    }
+
+    // Unknown id: metadata-only mount (no nibble media).
+    diskII_.ejectDrive(driveNo);
+    return drive(id).mount(imageId, DiskFormat::Unknown);
 }
 
 MediaResult HostAppleIIMachine::unmountDisk(DriveId id) {
+    const int driveNo = (id == DriveId::Drive2) ? 2 : 1;
+    diskII_.ejectDrive(driveNo);
+    diskImage(id).eject();
     return drive(id).unmount();
 }
 
 VideoFrameState HostAppleIIMachine::getVideoState() const {
-    return toVideoFrameState(videoStateFromSoftSwitches(bus_.softSwitches()),
-                             colorMode_);
+    return toVideoFrameState(videoStateFromSoftSwitches(bus_.softSwitches()), colorMode_);
 }
 
-size_t HostAppleIIMachine::consumeAudioEvents(SpeakerEvent* out, size_t max) {
+size_t HostAppleIIMachine::consumeAudioEvents(SpeakerEvent *out, size_t max) {
     return bus_.speaker().consumeEvents(out, max);
 }
 
@@ -99,7 +133,7 @@ RomError HostAppleIIMachine::loadSyntheticRom() {
     return bus_.rom().loadSynthetic();
 }
 
-RomError HostAppleIIMachine::loadRom(const uint8_t* data, size_t size) {
+RomError HostAppleIIMachine::loadRom(const uint8_t *data, size_t size) {
     return bus_.rom().load(data, size);
 }
 
@@ -135,8 +169,7 @@ DiagReport HostAppleIIMachine::runSelfTest() {
     bus_.keyboard().keyDown('A');
     const bool strobe = bus_.keyboard().strobePending();
     bus_.keyboard().clearStrobe();
-    r.keyboard = (strobe && !bus_.keyboard().strobePending()) ? DiagResult::Pass
-                                                              : DiagResult::Fail;
+    r.keyboard = (strobe && !bus_.keyboard().strobePending()) ? DiagResult::Pass : DiagResult::Fail;
 
     // Speaker
     bus_.speaker().reset();
@@ -145,8 +178,7 @@ DiagReport HostAppleIIMachine::runSelfTest() {
     bus_.read(0xC030);
     SpeakerEvent ev[4];
     const size_t n = bus_.speaker().consumeEvents(ev, 4);
-    r.speaker = (n == 2 && ev[0].level != ev[1].level) ? DiagResult::Pass
-                                                       : DiagResult::Fail;
+    r.speaker = (n == 2 && ev[0].level != ev[1].level) ? DiagResult::Pass : DiagResult::Fail;
 
     // Text mapping
     TextDecoder::writeTextScreen(bus_.ram(), 0x0400, "ESP][", 0, 0);

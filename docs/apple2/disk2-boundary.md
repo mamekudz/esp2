@@ -1,52 +1,36 @@
-# Disk II controller boundary (NEXT milestone)
+# Disk II controller boundary
 
-Status: **BOUNDARY ONLY** — not implemented in the host-machine milestone.
+Status: **HOST_VERIFIED** for Slot-6 Disk II + DSK/PO nibble path + synthetic boot.
+Authoritative design notes: `docs/apple2/disk-ii.md`.
 
 ## Slot integration
 
 - Typical Disk II card in **Slot 6**.
-- Soft switches in `$C0x0–$C0xF` window for slot `x` (slot 6 → `$C0E0–$C0EF`).
-- Card ROM often `$C600–$C6FF` (slot 6 PROM) + optional expansion.
+- Soft switches `$C0E0–$C0EF`.
+- Card ROM `$C600–$C6FF` (synthetic or user-supplied — never Apple firmware in-repo).
 
-ESP][ must keep Disk II behind a controller abstraction — the CPU bus
+ESP][ keeps Disk II behind `DiskIIController` (`SlotDevice`) — the CPU bus
 dispatches I/O; the core must not open files.
 
-## ROM requirements
+## Implemented (host)
 
-- Card PROM (user-supplied or synthetic stub) — **never** commit Apple firmware.
-- Machine language boot relies on PROM + DOS image content.
+- Soft switches, stepper (quarter-tracks), motor, drive select, Q6/Q7, latch
+- Cycle-based rotation (~32 cycles/nibble, APPROXIMATE)
+- 6-and-2 + address fields + DOS 3.3 track builder
+- DSK/DO and floppy-sized PO → nibble tracks (lazy 2-slot cache)
+- Optional NIB track image load
+- Synthetic Slot-6 ROM + `Esp2DiskTest.dsk` → `ESP][ DISK BOOT OK`
 
-## Timing / cycle requirements
+## Deferred
 
-- Motor spin-up delay (~1 s real time).
-- Nibble read rate tied to disk rotation (~4 µs/bit class timing).
-- WOZ / NIB need finer than instruction-level CPU for copy protection.
-- Current fake6502 is **instruction-level** — Disk II accuracy may need
-  cycle hooks or a dedicated disk timing co-model later.
-
-## Drive state (conceptual)
-
-| State | Notes |
-| --- | --- |
-| Motor on/off | Soft switch |
-| Phase magnets 0–3 | Stepper head |
-| Track position | Quarter-tracks for WOZ |
-| Shift / data latch | Read/write nibble path |
-| Write protect | From image / virtual drive |
-
-## Image formats
-
-| Format | Controller needs |
-| --- | --- |
-| DSK/PO | Sector rebuild → nibble stream (or high-level路径 for early bring-up) |
-| NIB | Raw track nibbles |
-| WOZ | Flux/nibble + timing + metadata |
-
-Early ESP][ path: DSK/PO via VirtualDrive; NIB/WOZ after research
-(`docs/apple2/nib-woz-research.md`).
+- Full 6502 RWTS inside Slot ROM
+- WOZ bitstream backend
+- Write path mutating media
+- Motor spin-up delay realism
 
 ## What NOT to do
 
 - Do not implement a fake “load DOS file” API inside the CPU bus.
 - Do not block the 6502 step loop on FAT/SD I/O — use bounded queues.
 - Do not assume one title == one file (multi-disk already in media tooling).
+- Do not commit Apple Disk II ROM or DOS system tracks.

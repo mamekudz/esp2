@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "machineProfile": "AppleII_Plus",
-  "readinessLevel": 1,
-  "readinessLevelName": "synthetic_esp_test_rom",
+  "readinessLevel": 2,
+  "readinessLevelName": "disk_ii_synthetic_boot",
   "subsystems": {
     "cpu": "PASS",
     "ram": "PASS",
@@ -16,13 +16,22 @@
     "buttons": "PASS",
     "annunciators": "PASS",
     "slot_dispatch": "PASS",
+    "slot6_rom_decode": "PASS",
     "language_card": "DEFERRED",
-    "disk_ii": "DEFERRED",
+    "disk_ii": "PASS",
+    "disk_ii_6and2": "PASS",
+    "disk_ii_dsk_boot": "PASS",
+    "disk_ii_woz": "DEFERRED",
+    "disk_ii_6502_rwts": "DEFERRED",
     "floating_bus": "APPROXIMATE"
   },
   "notes": [
     "Cassette is logical soft-switch state only; no physical interface.",
     "Floating bus returns configurable approximation byte (default 0xFF).",
-    "Language Card banking and Disk II controller are intentionally deferred."
+    "Language Card banking remains deferred.",
+    "Disk II: Slot-6 controller, 6-and-2, DSK/PO nibble tracks, synthetic Slot ROM, Esp2DiskTest boot.",
+    "6502 RWTS decode in Slot ROM is deferred; host boot loader reads via Disk II latch.",
+    "WOZ bitstream backend deferred; NIB host load supported.",
+    "Apple Disk II ROM / DOS 3.3 not included."
   ]
 }

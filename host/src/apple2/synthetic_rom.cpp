@@ -93,6 +93,22 @@ RomError generateSyntheticRom(uint8_t *dst, size_t dstSize) {
     writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 11), 0xC0);
     writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(ioEntry + 12), 0x60); // RTS
 
+    // Disk-boot continuation at $E200 (entered via synthetic Slot-6 ROM JMP).
+    // Marker $03FE=$EB then idle — host test completes sector load via Disk II latch.
+    {
+        const uint16_t diskBoot = 0xE200;
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, diskBoot, 0xA9); // LDA #$EB
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 1), 0xEB);
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 2),
+                     0x8D); // STA $03FE
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 3), 0xFE);
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 4), 0x03);
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 5),
+                     0x4C); // JMP $E205
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 6), 0x05);
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(diskBoot + 7), 0xE2);
+    }
+
     // Reset / IRQ / NMI vectors at end of ROM ($FFFA–$FFFF)
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFA, entry); // NMI
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFC, entry); // RESET

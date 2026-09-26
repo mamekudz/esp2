@@ -98,6 +98,7 @@ buildTest("test_cpu", join(root, "host/test_cpp/test_cpu_main.cpp"));
 buildTest("test_machine", join(root, "host/test_cpp/test_machine_main.cpp"));
 buildTest("test_video", join(root, "host/test_cpp/test_video.cpp"));
 buildTest("test_io_page", join(root, "host/test_cpp/test_io_page.cpp"));
+buildTest("test_disk_ii", join(root, "host/test_cpp/test_disk_ii.cpp"));
 
 // Build interactive console (do not run — waits for stdin)
 {

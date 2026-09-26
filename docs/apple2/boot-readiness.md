@@ -7,10 +7,10 @@ Machine-readable companion: `boot-readiness.json`
 | Level | Meaning | Current |
 | --- | --- | --- |
 | 0 | Synthetic CPU tests | met |
-| 1 | Synthetic ESP][ test ROM | **CURRENT** |
-| 2 | Real Apple II/II+ ROM load/execute | not claimed |
-| 3 | BASIC/text interaction | not claimed |
-| 4 | Disk II boot | DEFERRED |
+| 1 | Synthetic ESP][ test ROM | met |
+| 2 | Disk II synthetic boot (no Apple ROM/DOS) | **CURRENT** |
+| 3 | Real Apple II/II+ ROM load/execute | not claimed |
+| 4 | BASIC/text interaction | not claimed |
 | 5 | Target games | DEFERRED |
 
 ## Subsystem gate
@@ -29,8 +29,12 @@ Machine-readable companion: `boot-readiness.json`
 | buttons | PASS |
 | annunciators | PASS |
 | slot dispatch | PASS |
+| Slot-6 ROM decode | PASS |
 | language card | DEFERRED |
-| Disk II | DEFERRED |
+| Disk II controller | PASS (see `disk-ii.md`) |
+| Disk II 6-and-2 / DSK boot | PASS |
+| Disk II 6502 RWTS in Slot ROM | DEFERRED |
+| Disk II WOZ | DEFERRED |
 | floating bus | APPROXIMATE |
 
 Labels are **HOST_VERIFIED** for PASS rows — not PHYSICALLY_VERIFIED.
