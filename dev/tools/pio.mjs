@@ -9,9 +9,29 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import { Log, Warn, RequestForm } from "gulp-mu-gulp-api";
 
-/** PlatformIO env from platformio.ini (do not change board config here). */
-export const PIO_ENV = "bringup";
+/** PlatformIO env from platformio.ini / ESP2_PIO_ENV (do not invent board config). */
+export const PIO_ENV_DEFAULT = "bringup";
+
+/** Known envs declared in platformio.ini (keep in sync when adding envs). */
+export const PIO_ENVS = Object.freeze(["bringup", "core_smoke", "apple2_text"]);
+
+/**
+ * Resolve active PlatformIO env.
+ * Priority: explicit arg → ESP2_PIO_ENV → default_envs (bringup).
+ * @param {string} [_override]
+ */
+export function ResolvePioEnv(_override) {
+  const fromArg = String(_override ?? "").trim();
+  if (fromArg) return fromArg;
+  const fromEnv = String(process.env.ESP2_PIO_ENV ?? "").trim();
+  if (fromEnv) return fromEnv;
+  return PIO_ENV_DEFAULT;
+}
+
+/** @deprecated use ResolvePioEnv() — kept for callers that import PIO_ENV */
+export const PIO_ENV = PIO_ENV_DEFAULT;
 export const MONITOR_BAUD = 115200;
+
 
 /**
  * @returns {string}
@@ -157,9 +177,11 @@ export async function AskPort(_cwd, _title = "ESP][ serial port") {
 
 /**
  * @param {string|null} _port
+ * @param {string} [_env]
  */
-export function UploadArgs(_port) {
-  const args = ["run", "-e", PIO_ENV, "-t", "upload"];
+export function UploadArgs(_port, _env) {
+  const env = ResolvePioEnv(_env);
+  const args = ["run", "-e", env, "-t", "upload"];
   if (_port) args.push("--upload-port", _port);
   return args;
 }

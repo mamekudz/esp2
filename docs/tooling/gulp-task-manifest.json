@@ -1,0 +1,81 @@
+{
+  "$schemaComment": "Canonical first-party µGulp task inventory for ESP][. Used by mugulp-task-catalog.test.mjs to detect accidental task loss. Not executable.",
+  "project": "esp2",
+  "product": "ESP][",
+  "version": 1,
+  "groups": [
+    "Firmware",
+    "Tests",
+    "Tools",
+    "Docs",
+    "Git",
+    "Backup",
+    "Media / apple2js",
+    "Apple II/Media",
+    "Apple II/Emulator",
+    "Apple II/Compatibility",
+    "Apple II/Device",
+    "Device Storage"
+  ],
+  "tasks": [
+    { "id": "firmware:env", "group": "Firmware", "i18x": true },
+    { "id": "build", "group": "Firmware", "i18x": true },
+    { "id": "rebuild", "group": "Firmware", "i18x": true },
+    { "id": "flash", "group": "Firmware", "i18x": true },
+    { "id": "upload", "group": "Firmware", "i18x": true },
+    { "id": "size", "group": "Firmware", "i18x": true },
+    { "id": "clean", "group": "Firmware", "i18x": true },
+
+    { "id": "test:infra", "group": "Tests", "i18x": true },
+    { "id": "test:mugulp-catalog", "group": "Tests", "i18x": true },
+    { "id": "test:host", "group": "Tests", "i18x": true },
+
+    { "id": "devices", "group": "Tools", "i18x": true },
+    { "id": "monitor", "group": "Tools", "i18x": true },
+    { "id": "format:check", "group": "Tools", "i18x": true },
+    { "id": "i18x:gulp", "group": "Tools", "i18x": true },
+
+    { "id": "docs", "group": "Docs", "i18x": true },
+    { "id": "docs:en-US", "group": "Docs", "i18x": true },
+    { "id": "docs:de-DE", "group": "Docs", "i18x": true },
+
+    { "id": "git:status", "group": "Git", "i18x": true },
+    { "id": "backup:git", "group": "Git", "i18x": true },
+    { "id": "git:commit", "group": "Git", "i18x": true },
+    { "id": "git:push", "group": "Git", "i18x": true },
+
+    { "id": "backup", "group": "Backup", "i18x": true },
+    { "id": "backup:nas", "group": "Backup", "i18x": true },
+    { "id": "backup:list", "group": "Backup", "i18x": true },
+    { "id": "backup:verify", "group": "Backup", "i18x": true },
+    { "id": "backup:all", "group": "Backup", "i18x": true },
+
+    { "id": "apple2js:sync", "group": "Media / apple2js", "i18x": true },
+    { "id": "apple2js:catalog", "group": "Media / apple2js", "i18x": true },
+    { "id": "apple2js:audit", "group": "Media / apple2js", "i18x": true },
+    { "id": "media:identify", "group": "Media / apple2js", "i18x": true },
+    { "id": "media:import", "group": "Media / apple2js", "i18x": true },
+    { "id": "media:inspect", "group": "Media / apple2js", "i18x": true },
+    { "id": "sd:prepare", "group": "Media / apple2js", "i18x": true },
+
+    { "id": "apple2:rom:sync", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:sync", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:prepare", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:status", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:list", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:audit", "group": "Apple II/Media", "i18x": true },
+    { "id": "apple2:media:clean", "group": "Apple II/Media", "i18x": true },
+
+    { "id": "apple2:rom-identify", "group": "Apple II/Emulator", "i18x": true },
+    { "id": "apple2:rom-test", "group": "Apple II/Emulator", "i18x": true },
+    { "id": "apple2:host", "group": "Apple II/Emulator", "i18x": true },
+    { "id": "apple2:disk-test", "group": "Apple II/Emulator", "i18x": true },
+
+    { "id": "apple2:compat", "group": "Apple II/Compatibility", "i18x": true },
+
+    { "id": "apple2:device:sync", "group": "Apple II/Device", "i18x": true },
+
+    { "id": "device:upload", "group": "Device Storage", "i18x": true },
+    { "id": "device:usb-storage", "group": "Device Storage", "i18x": true }
+  ]
+}

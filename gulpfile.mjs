@@ -3,11 +3,10 @@
 // © 2026 Meinolf Amekudzi
 //
 // Groups:
-//   Firmware     — build / flash / upload / clean / size
-//   Tools        — devices / monitor
-//   Docs & Backup — docs / backup:git / backup / backup:all
+//   Firmware / Tests / Tools / Docs / Git / Backup
+//   Media / apple2js / Apple II/* / Device Storage
 //
-// NAS form = microGulp BACKUP_TO_NAS / Watchy pattern (destination1..3).
+// Classic CLI also: git:status | backup:nas | backup:list | backup:verify
 // No help clutter. Default = docs (safe).
 //================================================================
 
@@ -52,6 +51,8 @@ import {
   MonitorArgs,
   Pio,
   PIO_ENV,
+  PIO_ENVS,
+  ResolvePioEnv,
   UploadArgs,
 } from "./dev/tools/pio.mjs";
 import { syncApple2js } from "./dev/tools/apple2js/sync.mjs";
@@ -69,8 +70,11 @@ export const µGroups = {
   collapsed: false,
   groups: {
     'Firmware<context="µGroup"/>': "open",
+    'Tests<context="µGroup"/>': "collapsed",
     'Tools<context="µGroup"/>': "open",
-    'Docs & Backup<context="µGroup"/>': "collapsed",
+    'Docs<context="µGroup"/>': "collapsed",
+    'Git<context="µGroup"/>': "open",
+    'Backup<context="µGroup"/>': "open",
     'Media / apple2js<context="µGroup"/>': "collapsed",
     'Apple II/Media<context="µGroup"/>': "open",
     'Apple II/Emulator<context="µGroup"/>': "collapsed",
@@ -108,12 +112,23 @@ function _Tag(_task, _meta) {
 // Firmware
 //================================================================
 
+function firmwareEnv() {
+  try {
+    const p = GetParameter("env");
+    if (p) return ResolvePioEnv(String(p));
+  } catch {
+    /* parameter API may be unavailable outside µGulp */
+  }
+  return ResolvePioEnv();
+}
+
+
 export async function build() {
   ReportProgress(0, "build");
   Log('Building ESP][ firmware (env <env/>)…<context="task log"/>', {
-    env: PIO_ENV,
+    env: firmwareEnv(),
   });
-  await Pio(rootDir, ["run", "-e", PIO_ENV], "pio build");
+  await Pio(rootDir, ["run", "-e", firmwareEnv()], "pio build");
   ReportProgress(1, "build");
   Log('Build OK.<context="task log"/>');
   PlaySignal("success");
@@ -122,7 +137,7 @@ _Tag(build, {
   gulpName: "build",
   µDisplayName: 'Build Firmware<context="µDisplayName"/>',
   µDescription:
-    'Compiles ESP][ with PlatformIO (env: bringup). Does not change board config.<context="µDescription"/>',
+    'Compiles ESP][ with PlatformIO. Default env from platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).<context="µDescription"/>',
   µIcon: "\u2692",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 10,
@@ -135,9 +150,9 @@ export async function flash() {
   Log('Build + upload → <port/><context="task log"/>…', {
     port: port ?? "auto/ini",
   });
-  await Pio(rootDir, ["run", "-e", PIO_ENV], "pio build");
+  await Pio(rootDir, ["run", "-e", firmwareEnv()], "pio build");
   ReportProgress(0.55, "flash-upload");
-  await Pio(rootDir, UploadArgs(port), "pio upload");
+  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload");
   ReportProgress(1, "flash-upload");
   Log('Flash finished.<context="task log"/>');
   PlaySignal("success");
@@ -162,7 +177,7 @@ export async function upload() {
   Log('Uploading → <port/><context="task log"/>…', {
     port: port ?? "auto/ini",
   });
-  await Pio(rootDir, UploadArgs(port), "pio upload");
+  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload");
   ReportProgress(1, "upload");
   Log('Upload finished.<context="task log"/>');
   PlaySignal("success");
@@ -183,7 +198,7 @@ _Tag(upload, {
 
 export async function size() {
   ReportProgress(0, "size");
-  await Pio(rootDir, ["run", "-e", PIO_ENV, "-t", "size"], "pio size");
+  await Pio(rootDir, ["run", "-e", firmwareEnv(), "-t", "size"], "pio size");
   ReportProgress(1, "size");
 }
 _Tag(size, {
@@ -199,7 +214,7 @@ _Tag(size, {
 
 export async function clean() {
   ReportProgress(0, "clean");
-  await Pio(rootDir, ["run", "-e", PIO_ENV, "-t", "clean"], "pio clean");
+  await Pio(rootDir, ["run", "-e", firmwareEnv(), "-t", "clean"], "pio clean");
   ReportProgress(1, "clean");
   Log('Build artefacts removed.<context="task log"/>');
 }
@@ -207,7 +222,7 @@ _Tag(clean, {
   gulpName: "clean",
   µDisplayName: 'Clean Build<context="µDisplayName"/>',
   µDescription:
-    'Removes .pio/build artefacts for env bringup.<context="µDescription"/>',
+    'Removes .pio/build artefacts for the active PlatformIO env (ESP2_PIO_ENV / default bringup).<context="µDescription"/>',
   µIcon: "\u239A",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 40,
@@ -218,7 +233,7 @@ export const rebuild = gulp.series(clean, build);
 _Tag(rebuild, {
   gulpName: "rebuild",
   µDisplayName: 'Rebuild Firmware<context="µDisplayName"/>',
-  µDescription: 'clean → build (PlatformIO env bringup).<context="µDescription"/>',
+  µDescription: 'clean → build for the active PlatformIO env.<context="µDescription"/>',
   µIcon: "\u21BB",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 12,
@@ -490,7 +505,7 @@ _Tag(docs, {
   µDisplayName: 'Compose READMEs<context="µDisplayName"/>',
   µDescription:
     'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 10,
   µExecutionConcurrency: false,
@@ -513,7 +528,7 @@ _Tag(docsEnUS, {
   µDisplayName: 'Compose README (en-US)<context="µDisplayName"/>',
   µDescription:
     'Generates README.md from dev/docs/readme/en-US.src.md.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 11,
   µExecutionConcurrency: false,
@@ -536,7 +551,7 @@ _Tag(docsDeDE, {
   µDisplayName: 'Compose README (de-DE)<context="µDisplayName"/>',
   µDescription:
     'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 12,
   µExecutionConcurrency: false,
@@ -563,12 +578,12 @@ export async function BACKUP_GIT() {
 }
 _Tag(BACKUP_GIT, {
   gulpName: "backup:git",
-  µDisplayName: 'Git backup checkpoint<context="µDisplayName"/>',
+  µDisplayName: 'Git Checkpoint Commit<context="µDisplayName"/>',
   µDescription:
     'Checkpoint commit including CLAUDE.md. Pushes when a remote exists. Never force-pushes.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Git<context="µGroup"/>',
   µIcon: "\uE902",
-  µOrder: 20,
+  µOrder: 10,
   µExecutionConcurrency: false,
 });
 
@@ -582,9 +597,9 @@ _Tag(backup, {
     'Copies non-reproducible ESP][ files to up to three NAS folders. Form picks destinations (remembered). Skips node_modules, .pio, secrets.<context="µDescription"/>',
   µTooltip:
     'Form: Destination 1–3 + dry-run. Or NAS_TARGET_1..3 / config/nas.targets.local.<context="µTooltip"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Backup<context="µGroup"/>',
   µIcon: "\uE902",
-  µOrder: 30,
+  µOrder: 10,
   µExecutionConcurrency: false,
   µParameters: _NasBackupParameters(),
 });
@@ -601,29 +616,13 @@ export async function BACKUP_ALL() {
 }
 _Tag(BACKUP_ALL, {
   gulpName: "backup:all",
-  µDisplayName: 'Backup all (docs + Git + NAS)<context="µDisplayName"/>',
+  µDisplayName: 'Backup All (Docs + Git + NAS)<context="µDisplayName"/>',
   µDescription: 'Runs docs, backup:git, then backup (NAS form).<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µGroup: 'Backup<context="µGroup"/>',
   µIcon: "\uE902",
   µOrder: 40,
   µExecutionConcurrency: false,
 });
-
-//================================================================
-// Discovery
-//================================================================
-
-export default docs;
-
-gulp.task("backup:git", BACKUP_GIT);
-gulp.task("backup:all", BACKUP_ALL);
-gulp.task("docs:en-US", docsEnUS);
-gulp.task("docs:de-DE", docsDeDE);
-// npm script backup:nas → gulp backup (no second dashboard entry)
-
-//================================================================
-// apple2js / media (developer; network only for :sync)
-//================================================================
 
 function runNodeCli(relScript, args, label) {
   const script = join(rootDir, relScript);
@@ -638,6 +637,333 @@ function runNodeCli(relScript, args, label) {
     throw new Error(`${label} failed (exit ${r.status})`);
   }
 }
+
+function runNodeTest(relScript, label) {
+  const script = join(rootDir, relScript);
+  const r = spawnSync(process.execPath, ["--test", script], {
+    cwd: rootDir,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.status !== 0) {
+    throw new Error(`${label} failed (exit ${r.status})`);
+  }
+}
+
+//================================================================
+// Discovery
+//================================================================
+
+export default docs;
+
+gulp.task("backup:git", BACKUP_GIT);
+gulp.task("backup:all", BACKUP_ALL);
+gulp.task("docs:en-US", docsEnUS);
+gulp.task("docs:de-DE", docsDeDE);
+// backup:nas is a first-party alias task (see catalog recovery block)
+
+
+//===== CATALOG_RECOVERY_START =====
+//================================================================
+// Catalog recovery — Git / Backup / Firmware env / Tests / Format
+//================================================================
+
+export async function firmwareEnvTask() {
+  ReportProgress(0, "firmware-env");
+  const env = firmwareEnv();
+  Log('Active PlatformIO env: <env/><context="task log"/>', { env });
+  Log('Available envs: <list/><context="task log"/>', {
+    list: PIO_ENVS.join(", "),
+  });
+  Log('Override via ESP2_PIO_ENV or µGulp parameter env.<context="task log"/>');
+  ReportProgress(1, "firmware-env");
+  PlaySignal("success");
+  return { env, available: [...PIO_ENVS] };
+}
+_Tag(firmwareEnvTask, {
+  gulpName: "firmware:env",
+  µDisplayName: 'Show Firmware Env<context="µDisplayName"/>',
+  µDescription:
+    'Prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>',
+  µGroup: 'Firmware<context="µGroup"/>',
+  µIcon: "\u2398",
+  µOrder: 5,
+  µExecutionConcurrency: true,
+});
+
+export async function gitStatus() {
+  ReportProgress(0, "git-status");
+  const result = await RunGitBackup(rootDir, {
+    dryRun: true,
+    push: false,
+    log: (m) => Log(m + '<context="task log"/>'),
+    warn: (m) => Warn(m + '<context="task warning"/>'),
+  });
+  ReportProgress(1, "git-status");
+  if (result.ok || result.reason === "clean" || result.dryRun) PlaySignal("success");
+  else PlaySignal("warning");
+  return result;
+}
+_Tag(gitStatus, {
+  gulpName: "git:status",
+  µDisplayName: 'Git Status (Dry-Run)<context="µDisplayName"/>',
+  µDescription:
+    'Shows Git status and would-be checkpoint paths. Never commits or pushes. Respects GIT_BACKUP_NEVER_STAGE / local media exclusions.<context="µDescription"/>',
+  µGroup: 'Git<context="µGroup"/>',
+  µIcon: "\u2398",
+  µOrder: 5,
+  µExecutionConcurrency: true,
+});
+
+export async function gitCommit() {
+  ReportProgress(0, "git-commit");
+  const result = await RunGitBackup(rootDir, {
+    dryRun: false,
+    push: false,
+    log: (m) => Log(m + '<context="task log"/>'),
+    warn: (m) => Warn(m + '<context="task warning"/>'),
+  });
+  ReportProgress(1, "git-commit");
+  if (result.ok) PlaySignal("success");
+  else PlaySignal("warning");
+  return result;
+}
+_Tag(gitCommit, {
+  gulpName: "git:commit",
+  µDisplayName: 'Git Commit Checkpoint<context="µDisplayName"/>',
+  µDescription:
+    'Creates a local Git checkpoint commit (same rules as backup:git) without pushing. Never stages local/apple2, proprietary media, or secrets.<context="µDescription"/>',
+  µGroup: 'Git<context="µGroup"/>',
+  µIcon: "\uE902",
+  µOrder: 15,
+  µExecutionConcurrency: false,
+});
+
+export async function gitPush() {
+  ReportProgress(0, "git-push");
+  const r = spawnSync("git", ["push"], {
+    cwd: rootDir,
+    encoding: "utf8",
+    shell: false,
+  });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.status !== 0) {
+    throw new Error(`git:push failed (exit ${r.status})`);
+  }
+  Log('git push OK.<context="task log"/>');
+  ReportProgress(1, "git-push");
+  PlaySignal("success");
+}
+_Tag(gitPush, {
+  gulpName: "git:push",
+  µDisplayName: 'Git Push<context="µDisplayName"/>',
+  µDescription:
+    'Pushes the current branch to its upstream remote. Does not stage or commit.<context="µDescription"/>',
+  µGroup: 'Git<context="µGroup"/>',
+  µIcon: "\u2191",
+  µOrder: 20,
+  µExecutionConcurrency: false,
+});
+
+export async function backupNas() {
+  return backup();
+}
+_Tag(backupNas, {
+  gulpName: "backup:nas",
+  µDisplayName: 'Backup to NAS (alias)<context="µDisplayName"/>',
+  µDescription:
+    'Alias of backup — NAS form / NAS_TARGET_1..3. Excludes local/apple2 and regenerable trees.<context="µDescription"/>',
+  µGroup: 'Backup<context="µGroup"/>',
+  µIcon: "\uE902",
+  µOrder: 11,
+  µExecutionConcurrency: false,
+  µParameters: _NasBackupParameters(),
+});
+
+export async function backupList() {
+  ReportProgress(0, "backup-list");
+  const resolved = await _ResolveNasForRun();
+  if (!resolved.destinations.length) {
+    Warn('No NAS destinations configured.<context="task log"/>');
+    ReportProgress(1, "backup-list");
+    return { destinations: [] };
+  }
+  Log('Configured NAS destination(s):<context="task log"/>');
+  const rows = [];
+  for (const dest of resolved.destinations) {
+    if (!existsSync(dest)) {
+      Warn('  missing: <path/><context="task log"/>', { path: dest });
+      rows.push({ path: dest, ok: false, missing: ["(unreachable)"] });
+      continue;
+    }
+    const check = VerifyBackupContents(dest);
+    Log('  <path/> essential=<ok/><context="task log"/>', {
+      path: dest,
+      ok: check.ok ? "OK" : "missing:" + check.missing.join(","),
+    });
+    rows.push({ path: dest, ok: check.ok, missing: check.missing });
+  }
+  ReportProgress(1, "backup-list");
+  PlaySignal("success");
+  return { destinations: rows };
+}
+_Tag(backupList, {
+  gulpName: "backup:list",
+  µDisplayName: 'List NAS Backups<context="µDisplayName"/>',
+  µDescription:
+    'Shows configured NAS destinations and whether essential restore files are present. Read-only.<context="µDescription"/>',
+  µGroup: 'Backup<context="µGroup"/>',
+  µIcon: "\u2398",
+  µOrder: 20,
+  µExecutionConcurrency: true,
+});
+
+export async function backupVerify() {
+  ReportProgress(0, "backup-verify");
+  const resolved = await _ResolveNasForRun();
+  const primary = resolved.destinations[0];
+  if (!primary) {
+    throw new Error("backup:verify — no NAS destination configured");
+  }
+  AssertNasBackupTarget(primary, rootDir);
+  if (!existsSync(primary)) {
+    throw new Error("backup:verify — destination not reachable: " + primary);
+  }
+  const check = VerifyBackupContents(primary);
+  Log('Backup target: <path/><context="task log"/>', { path: primary });
+  if (!check.ok) {
+    throw new Error("backup:verify failed — missing: " + check.missing.join(", "));
+  }
+  Log('backup:verify OK — essential files present.<context="task log"/>');
+  ReportProgress(1, "backup-verify");
+  PlaySignal("success");
+  return check;
+}
+_Tag(backupVerify, {
+  gulpName: "backup:verify",
+  µDisplayName: 'Verify NAS Backup<context="µDisplayName"/>',
+  µDescription:
+    'Checks primary NAS destination reachability and essential restore files. Read-only; never restores.<context="µDescription"/>',
+  µGroup: 'Backup<context="µGroup"/>',
+  µIcon: "\u2713",
+  µOrder: 30,
+  µExecutionConcurrency: true,
+});
+
+export async function testInfraTask() {
+  ReportProgress(0, "test-infra");
+  runNodeTest("dev/tools/infra.test.mjs", "test:infra");
+  ReportProgress(1, "test-infra");
+  PlaySignal("success");
+}
+_Tag(testInfraTask, {
+  gulpName: "test:infra",
+  µDisplayName: 'Run Infrastructure Tests<context="µDisplayName"/>',
+  µDescription:
+    'Runs node:test for NAS/Git/docs infrastructure helpers (no real NAS write / no Git commit).<context="µDescription"/>',
+  µGroup: 'Tests<context="µGroup"/>',
+  µIcon: "\u2713",
+  µOrder: 10,
+  µExecutionConcurrency: false,
+});
+
+export async function testMugulpCatalog() {
+  ReportProgress(0, "test-mugulp");
+  runNodeTest("dev/tools/mugulp-task-catalog.test.mjs", "test:mugulp-catalog");
+  ReportProgress(1, "test-mugulp");
+  PlaySignal("success");
+}
+_Tag(testMugulpCatalog, {
+  gulpName: "test:mugulp-catalog",
+  µDisplayName: 'Run µGulp Catalog Tests<context="µDisplayName"/>',
+  µDescription:
+    'Regression tests for first-party task catalog, metadata, and UTF-8 integrity.<context="µDescription"/>',
+  µGroup: 'Tests<context="µGroup"/>',
+  µIcon: "\u2713",
+  µOrder: 20,
+  µExecutionConcurrency: false,
+});
+
+export async function testHost() {
+  ReportProgress(0, "test-host");
+  runNodeCli("host/test/run.mjs", [], "test:host");
+  ReportProgress(1, "test-host");
+  PlaySignal("success");
+}
+_Tag(testHost, {
+  gulpName: "test:host",
+  µDisplayName: 'Run Host Apple II Tests<context="µDisplayName"/>',
+  µDescription:
+    'Runs host-side Apple II JS test suite (no proprietary media required).<context="µDescription"/>',
+  µGroup: 'Tests<context="µGroup"/>',
+  µIcon: "\u2713",
+  µOrder: 30,
+  µExecutionConcurrency: false,
+});
+
+export async function formatCheck() {
+  ReportProgress(0, "format-check");
+  const r = spawnSync("clang-format", ["--version"], {
+    cwd: rootDir,
+    encoding: "utf8",
+    shell: true,
+  });
+  if (r.status !== 0) {
+    Warn('clang-format not available — format:check skipped.<context="task warning"/>');
+  } else {
+    Log('clang-format available — project uses .clang-format for C/C++.<context="task log"/>');
+  }
+  ReportProgress(1, "format-check");
+  PlaySignal("success");
+}
+_Tag(formatCheck, {
+  gulpName: "format:check",
+  µDisplayName: 'Format Check<context="µDisplayName"/>',
+  µDescription:
+    'Reports clang-format availability for project-owned C/C++ (.clang-format). Does not rewrite files.<context="µDescription"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µIcon: "\u270E",
+  µOrder: 30,
+  µExecutionConcurrency: true,
+});
+
+export async function i18xGulp() {
+  ReportProgress(0, "i18x-gulp");
+  runNodeCli("dev/tools/build-i18x-gulp.mjs", [], "i18x:gulp");
+  ReportProgress(1, "i18x-gulp");
+  PlaySignal("success");
+}
+_Tag(i18xGulp, {
+  gulpName: "i18x:gulp",
+  µDisplayName: 'Rebuild Gulp i18x Dictionaries<context="µDisplayName"/>',
+  µDescription:
+    'Regenerates i18x/gulp en-US and de-DE dictionaries from build-i18x-gulp.mjs.<context="µDescription"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µIcon: "\uE915",
+  µOrder: 40,
+  µExecutionConcurrency: false,
+});
+
+gulp.task("firmware:env", firmwareEnvTask);
+gulp.task("git:status", gitStatus);
+gulp.task("git:commit", gitCommit);
+gulp.task("git:push", gitPush);
+gulp.task("backup:nas", backupNas);
+gulp.task("backup:list", backupList);
+gulp.task("backup:verify", backupVerify);
+gulp.task("test:infra", testInfraTask);
+gulp.task("test:mugulp-catalog", testMugulpCatalog);
+gulp.task("test:host", testHost);
+gulp.task("format:check", formatCheck);
+gulp.task("i18x:gulp", i18xGulp);
+//===== CATALOG_RECOVERY_END =====
+
+//================================================================
+// apple2js / media (developer; network only for :sync)
+//================================================================
 
 export async function apple2jsSync() {
   ReportProgress(0, "apple2js-sync");

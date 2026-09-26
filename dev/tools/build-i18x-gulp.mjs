@@ -16,7 +16,11 @@ mkdirSync(outDir, { recursive: true });
 const de = {
   // Groups
   'Firmware<context="µGroup"/>': "Firmware",
+  'Tests<context="µGroup"/>': "Tests",
   'Tools<context="µGroup"/>': "Werkzeuge",
+  'Docs<context="µGroup"/>': "Docs",
+  'Git<context="µGroup"/>': "Git",
+  'Backup<context="µGroup"/>': "Backup",
   'Docs & Backup<context="µGroup"/>': "Docs & Backup",
   'Media / apple2js<context="µGroup"/>': "Medien / apple2js",
   'Apple II/Media<context="µGroup"/>': "Apple II/Medien",
@@ -31,6 +35,11 @@ const de = {
   'Build Firmware<context="µDisplayName"/>': "Firmware bauen",
   'Compiles ESP][ with PlatformIO (env: bringup). Does not change board config.<context="µDescription"/>':
     "Kompiliert ESP][ mit PlatformIO (Umgebung: bringup). Ändert die Board-Konfiguration nicht.",
+  'Compiles ESP][ with PlatformIO. Default env from platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).<context="µDescription"/>':
+    "Kompiliert ESP][ mit PlatformIO. Standard-Umgebung aus platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).",
+  'Show Firmware Env<context="µDisplayName"/>': "Firmware-Umgebung anzeigen",
+  'Prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>':
+    "Zeigt die aktive PlatformIO-Umgebung und bekannte Envs aus platformio.ini.",
   'Build & Upload<context="µDisplayName"/>': "Bauen & hochladen",
   'Rebuilds and flashes ESP][ firmware in one step.<context="µDescription"/>':
     "Baut die ESP][-Firmware neu und flasht sie in einem Schritt.",
@@ -39,20 +48,66 @@ const de = {
   'Upload Firmware<context="µDisplayName"/>': "Firmware hochladen",
   'Memory Size<context="µDisplayName"/>': "Speicherbelegung",
   'Clean Build<context="µDisplayName"/>': "Build bereinigen",
+  'Removes .pio/build artefacts for the active PlatformIO env (ESP2_PIO_ENV / default bringup).<context="µDescription"/>':
+    "Entfernt .pio/build-Artefakte der aktiven PlatformIO-Umgebung (ESP2_PIO_ENV / Standard bringup).",
   'Rebuild Firmware<context="µDisplayName"/>': "Firmware neu bauen",
+  'clean → build for the active PlatformIO env.<context="µDescription"/>':
+    "clean → build für die aktive PlatformIO-Umgebung.",
 
   // Tools
   'List Devices<context="µDisplayName"/>': "Geräte auflisten",
   'Serial Monitor<context="µDisplayName"/>': "Seriellmonitor",
+  'Format Check<context="µDisplayName"/>': "Formatprüfung",
+  'Reports clang-format availability for project-owned C/C++ (.clang-format). Does not rewrite files.<context="µDescription"/>':
+    "Meldet die Verfügbarkeit von clang-format für projekteigene C/C++ (.clang-format). Schreibt keine Dateien um.",
+  'Rebuild Gulp i18x Dictionaries<context="µDisplayName"/>':
+    "Gulp-i18x-Wörterbücher neu erzeugen",
+  'Regenerates i18x/gulp en-US and de-DE dictionaries from build-i18x-gulp.mjs.<context="µDescription"/>':
+    "Erzeugt i18x/gulp en-US- und de-DE-Wörterbücher aus build-i18x-gulp.mjs neu.",
 
-  // Docs & Backup
+  // Docs / Git / Backup
   'Compose READMEs<context="µDisplayName"/>': "READMEs erzeugen",
   'Compose README (en-US)<context="µDisplayName"/>': "README erzeugen (en-US)",
   'Compose README (de-DE)<context="µDisplayName"/>': "README erzeugen (de-DE)",
   'Git backup checkpoint<context="µDisplayName"/>': "Git-Backup-Checkpoint",
+  'Git Checkpoint Commit<context="µDisplayName"/>': "Git-Checkpoint-Commit",
+  'Git Status (Dry-Run)<context="µDisplayName"/>': "Git-Status (Dry-Run)",
+  'Shows Git status and would-be checkpoint paths. Never commits or pushes. Respects GIT_BACKUP_NEVER_STAGE / local media exclusions.<context="µDescription"/>':
+    "Zeigt Git-Status und geplante Checkpoint-Pfade. Commitet und pusht nie. Beachtet GIT_BACKUP_NEVER_STAGE / lokale Medienausschlüsse.",
+  'Git Commit Checkpoint<context="µDisplayName"/>': "Git-Commit-Checkpoint",
+  'Creates a local Git checkpoint commit (same rules as backup:git) without pushing. Never stages local/apple2, proprietary media, or secrets.<context="µDescription"/>':
+    "Erstellt einen lokalen Git-Checkpoint-Commit (gleiche Regeln wie backup:git) ohne Push. Stagt nie local/apple2, proprietäre Medien oder Secrets.",
+  'Git Push<context="µDisplayName"/>': "Git Push",
+  'Pushes the current branch to its upstream remote. Does not stage or commit.<context="µDescription"/>':
+    "Pusht den aktuellen Branch zum Upstream-Remote. Stagt und commitet nicht.",
   'Backup to NAS<context="µDisplayName"/>': "NAS-Backup",
+  'Backup to NAS (alias)<context="µDisplayName"/>': "NAS-Backup (Alias)",
+  'Alias of backup — NAS form / NAS_TARGET_1..3. Excludes local/apple2 and regenerable trees.<context="µDescription"/>':
+    "Alias von backup — NAS-Formular / NAS_TARGET_1..3. Schließt local/apple2 und regenerierbare Bäume aus.",
+  'List NAS Backups<context="µDisplayName"/>': "NAS-Backups auflisten",
+  'Shows configured NAS destinations and whether essential restore files are present. Read-only.<context="µDescription"/>':
+    "Zeigt konfigurierte NAS-Ziele und ob essenzielle Restore-Dateien vorhanden sind. Nur Lesen.",
+  'Verify NAS Backup<context="µDisplayName"/>': "NAS-Backup prüfen",
+  'Checks primary NAS destination reachability and essential restore files. Read-only; never restores.<context="µDescription"/>':
+    "Prüft Erreichbarkeit des primären NAS-Ziels und essenzielle Restore-Dateien. Nur Lesen; stellt nie wieder her.",
   'Backup all (docs + Git + NAS)<context="µDisplayName"/>':
     "Alles sichern (Docs + Git + NAS)",
+  'Backup All (Docs + Git + NAS)<context="µDisplayName"/>':
+    "Alles sichern (Docs + Git + NAS)",
+
+  // Tests
+  'Run Infrastructure Tests<context="µDisplayName"/>':
+    "Infrastruktur-Tests ausführen",
+  'Runs node:test for NAS/Git/docs infrastructure helpers (no real NAS write / no Git commit).<context="µDescription"/>':
+    "Führt node:test für NAS/Git/Docs-Infrastrukturhelfer aus (kein echtes NAS-Schreiben / kein Git-Commit).",
+  'Run µGulp Catalog Tests<context="µDisplayName"/>':
+    "µGulp-Katalog-Tests ausführen",
+  'Regression tests for first-party task catalog, metadata, and UTF-8 integrity.<context="µDescription"/>':
+    "Regressionstests für First-Party-Task-Katalog, Metadaten und UTF-8-Integrität.",
+  'Run Host Apple II Tests<context="µDisplayName"/>':
+    "Host-Apple-II-Tests ausführen",
+  'Runs host-side Apple II JS test suite (no proprietary media required).<context="µDescription"/>':
+    "Führt die Host-seitige Apple-II-JS-Testsuite aus (keine proprietären Medien nötig).",
   'NAS backup destinations<context="task parameter"/>': "NAS-Backup-Ziele",
   'Start backup<context="button text"/>': "Backup starten",
   'Destination 1 (NAS_TARGET_1)<context="task parameter"/>':
