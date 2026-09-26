@@ -21,7 +21,15 @@
 #include "board_pins.h"
 #include "display_power.h"
 #include "esp32_sd_storage.hpp"
+#include "i18x_fw.hpp"
 #include "qmi8658_min.h"
+#include "sd_ownership.hpp"
+#include "serial_media_upload.hpp"
+#include "usb_storage_mode.hpp"
+
+#if !ARDUINO_USB_MODE
+#include "USB.h"
+#endif
 
 #include "esp_bracket/apple2_bus.hpp"
 #include "esp_bracket/artifact_renderer.hpp"
@@ -43,7 +51,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_rom_f1b";
+static constexpr char kBuildId[] = "apple2_usb_storage";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -69,6 +77,9 @@ static Cpu6502 g_cpu;
 static VideoDirtyTracker g_dirty;
 static DiskIIController g_diskII;
 static Esp32SdStorageBackend g_sdStore;
+static SdOwnership g_sdOwner;
+static UsbStorageMode g_usbStorage(g_sdOwner);
+static bool g_usbStorageUi = false;
 static PresentColorMode g_presentColor = PresentColorMode::Sharp;
 static MachineProfile g_profile = MachineProfile::AppleIIPlus;
 static RomIdentity g_romId{};
@@ -158,7 +169,13 @@ static bool probe_touch() {
     logf("TOUCH", "FT3168 OK");
     return true;
 }
+static void *psramAlloc(size_t n);
+
 static bool probe_sd() {
+    if (!g_sdOwner.esp2MayUseFat()) {
+        logf("SD", "blocked owner=%s", sdOwnerStateName(g_sdOwner.state()));
+        return false;
+    }
     SPI.begin(PIN_SD_SCLK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
     if (!SD.begin(PIN_SD_CS)) {
         logf("SD", "[FAIL]");
@@ -166,8 +183,153 @@ static bool probe_sd() {
         return false;
     }
     g_sdStore.setMounted(true);
-    logf("SD", "mounted");
+    logf("SD", "mounted owner=%s", sdOwnerStateName(g_sdOwner.state()));
     return true;
+}
+
+static void drawUsbStorageScreen() {
+    if (!g_gfx || !g_display_ok) {
+        return;
+    }
+    g_gfx->fillScreen(0x0000);
+    g_gfx->setTextColor(0xFFFF);
+    g_gfx->setTextSize(2);
+    g_gfx->setCursor(16, 80);
+    g_gfx->print(esp2_i18x::t("usb_storage.title"));
+    g_gfx->setTextSize(1);
+    g_gfx->setCursor(16, 130);
+    g_gfx->print(esp2_i18x::t("usb_storage.mounted"));
+    g_gfx->setCursor(16, 150);
+    g_gfx->print(esp2_i18x::t("usb_storage.on_computer"));
+    g_gfx->setCursor(16, 190);
+    g_gfx->print(esp2_i18x::t("usb_storage.eject_hint"));
+    g_gfx->setCursor(16, 210);
+    g_gfx->print(esp2_i18x::t("usb_storage.before_return"));
+}
+
+static void pauseMediaForUsb() {
+    g_diskII.clearRom();
+    g_a2bus.setSlotDevice(6, nullptr);
+    g_dskImage = nullptr; // stale nibble image invalid across ownership change
+}
+
+static bool prepareEsp2Tree() {
+    if (!g_sdOwner.esp2MayUseFat() || !g_sdStore.beginMounted()) {
+        return false;
+    }
+    g_sdStore.ensureDiskRoot();
+    g_sdStore.ensureRomRoot();
+    if (!SD.exists("/esp2/config")) {
+        SD.mkdir("/esp2/config");
+    }
+    if (!SD.exists("/esp2/diagnostics")) {
+        SD.mkdir("/esp2/diagnostics");
+    }
+    // Seed project-owned Esp2BootTest if missing.
+    if (!g_sdStore.exists(Esp32SdStorageBackend::kBootTestDsk)) {
+        uint8_t *seed = static_cast<uint8_t *>(psramAlloc(kDos33ImageBytes));
+        if (seed && generateEsp2BootTestImage(seed, kDos33ImageBytes)) {
+            g_sdStore.writeAll(Esp32SdStorageBackend::kBootTestDsk, seed, kDos33ImageBytes);
+            logf("SD", "wrote project Esp2BootTest.dsk");
+        }
+        free(seed);
+    }
+    // Lightweight manifest (metadata only).
+    const char *manifest =
+        "{\n"
+        "  \"schemaVersion\": 1,\n"
+        "  \"root\": \"/esp2\",\n"
+        "  \"note\": \"Generated runtime manifest — not authoritative\",\n"
+        "  \"entries\": [\n"
+        "    {\"path\":\"/esp2/disks/Esp2BootTest.dsk\",\"category\":\"PROJECT_OWNED\"},\n"
+        "    {\"path\":\"/esp2/roms/system.rom\",\"category\":\"USER_SUPPLIED\"}\n"
+        "  ]\n"
+        "}\n";
+    g_sdStore.writeAll("/esp2/diagnostics/storage-manifest.json",
+                       reinterpret_cast<const uint8_t *>(manifest), strlen(manifest));
+    logf("SD", "tree prepared + manifest");
+    return true;
+}
+
+static bool enterUsbStorageMode() {
+    if (!UsbStorageMode::isSupported()) {
+        logf("USB", "MSC unsupported (need TinyUSB / USB_MODE=0)");
+        return false;
+    }
+    if (!g_sdOwner.esp2MayUseFat()) {
+        logf("USB", "enter denied owner=%s", sdOwnerStateName(g_sdOwner.state()));
+        return false;
+    }
+    pauseMediaForUsb();
+    if (!g_usbStorage.enter()) {
+        logf("USB", "enter FAIL err=%s", g_sdOwner.lastError());
+        return false;
+    }
+    g_sdStore.setMounted(false);
+    g_usbStorageUi = true;
+    drawUsbStorageScreen();
+    logf("USB", "MSC active sectors=%u size=%u owner=%s", g_usbStorage.sectorCount(),
+         g_usbStorage.sectorSize(), sdOwnerStateName(g_sdOwner.state()));
+    Serial.println("#ESP2USBMSC READY");
+    return true;
+}
+
+static bool leaveUsbStorageMode(bool unsafe) {
+    if (!g_usbStorage.leave(unsafe)) {
+        logf("USB", "leave FAIL err=%s", g_sdOwner.lastError());
+        return false;
+    }
+    g_sdStore.setMounted(true);
+    g_usbStorageUi = false;
+    prepareEsp2Tree();
+    logf("USB", "FAT remounted owner=%s unsafe=%d", sdOwnerStateName(g_sdOwner.state()),
+         unsafe ? 1 : 0);
+    Serial.println("#ESP2USBMSC LEFT");
+    return true;
+}
+
+static void serviceDevSerialCommands() {
+    // Non-blocking peek for development commands (not during upload framing).
+    static char line[48];
+    static size_t len = 0;
+    while (Serial.available()) {
+        const int b = Serial.read();
+        if (b < 0) {
+            break;
+        }
+        if (b == '\n' || b == '\r') {
+            if (len == 0) {
+                continue;
+            }
+            line[len] = 0;
+            len = 0;
+            if (strcmp(line, "#ESP2USBMSC") == 0) {
+                enterUsbStorageMode();
+            } else if (strcmp(line, "#ESP2USBMSC LEAVE") == 0) {
+                leaveUsbStorageMode(false);
+            } else             if (strcmp(line, "#ESP2UPLOAD") == 0 || strcmp(line, "#ESP2UPLOAD\r") == 0) {
+                logf("UPLOAD", "enter");
+                g_display_power.notifyActivity("upload");
+                if (!g_sdOwner.esp2MayUseFat()) {
+                    Serial.println("#NAK owner");
+                } else {
+                    pauseMediaForUsb();
+                    g_sdStore.setMounted(true);
+                    esp2_upload::runSessionNow();
+                }
+            }
+            continue;
+        }
+        if (len + 1 < sizeof(line)) {
+            line[len++] = static_cast<char>(b);
+        } else {
+            len = 0;
+        }
+    }
+    if (g_usbStorage.active() && g_usbStorage.ejectRequested()) {
+        g_usbStorage.clearEjectRequest();
+        leaveUsbStorageMode(false);
+    }
 }
 static Qmi8658Min g_imu_probe;
 static bool probe_imu() {
@@ -864,6 +1026,12 @@ static void displayTask(void *) {
 
     for (;;) {
         const uint32_t now = millis();
+        serviceDevSerialCommands();
+        if (g_usbStorageUi || g_usbStorage.active()) {
+            drawUsbStorageScreen();
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
         g_display_power.update(now);
         const auto st = g_display_power.state();
         if (static_cast<uint32_t>(st) != lastPower) {
@@ -931,10 +1099,27 @@ static void displayTask(void *) {
 }
 
 void setup() {
+    // TinyUSB OTG: USB stack before CDC traffic (composite CDC+MSC later).
+#if !ARDUINO_USB_MODE
+    USB.begin();
+#endif
     Serial.begin(115200);
-    delay(1500);
+    Serial.setTxTimeoutMs(0);
+    const uint32_t serialWait = millis();
+    while (!Serial && (millis() - serialWait) < 3000) {
+        delay(10);
+    }
+    delay(200);
     logf("ESP2", "build=%s", kBuildId);
+    logf("ESP2", "usb_mode=%s msc=%s", ARDUINO_USB_MODE ? "HW_CDC" : "TinyUSB_OTG",
+         UsbStorageMode::isSupported() ? "yes" : "no");
     logf("ESP2", "psram=%u heap=%u", ESP.getPsramSize(), ESP.getFreeHeap());
+    logf("SD", "owner=%s", sdOwnerStateName(g_sdOwner.state()));
+
+    // Short upload listen (host may already have the port open).
+    if (esp2_upload::pollAndRunSession(12000)) {
+        logf("UPLOAD", "session finished — continuing boot");
+    }
 
     g_display_ok = init_display();
     g_display_power.begin(draw_screensaver_stub, restore_ui_stub, panel_sleep_co5300,
@@ -947,19 +1132,33 @@ void setup() {
 
     g_touch_ok = probe_touch();
     g_sd_ok = probe_sd();
+    if (g_sd_ok) {
+        prepareEsp2Tree();
+    }
     g_imu_ok = probe_imu();
 
-    // Run bring-up on a large-stack task — loopTask stack is too small for Disk II.
     xTaskCreatePinnedToCore(
         [](void *) {
-            bootSuite();
-            logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s rom=%s basic=%s level4=%s",
+            if (g_sdOwner.esp2MayUseFat()) {
+                bootSuite();
+            } else {
+                logf("APPLE2", "bootSuite skipped — SD not owned by ESP2");
+            }
+            logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s rom=%s basic=%s level4=%s owner=%s",
                  g_display_ok ? "PASS" : "FAIL", g_touch_ok ? "PASS" : "FAIL",
                  g_sd_ok ? "PASS" : "FAIL", g_imu_ok ? "PASS" : "FAIL",
                  g_rom_ok ? "PASS" : "SKIPPED_NO_ROM", g_basic_ok ? "PASS" : "n/a",
-                 g_level4_ok ? "PASS" : "FAIL");
+                 g_level4_ok ? "PASS" : "FAIL", sdOwnerStateName(g_sdOwner.state()));
             xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, nullptr, 0);
             xTaskCreatePinnedToCore(emulatorTask, "a2emu", 8192, nullptr, 1, nullptr, 1);
+            xTaskCreatePinnedToCore(
+                [](void *) {
+                    for (;;) {
+                        serviceDevSerialCommands();
+                        vTaskDelay(pdMS_TO_TICKS(10));
+                    }
+                },
+                "a2ser", 8192, nullptr, 3, nullptr, 0);
             g_schedulerGo = true;
             logf("SCHED", "tasks started");
             vTaskDelete(nullptr);
@@ -968,5 +1167,5 @@ void setup() {
 }
 
 void loop() {
-    delay(100);
+    delay(200);
 }

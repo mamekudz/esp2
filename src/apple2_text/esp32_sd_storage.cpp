@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 #include <SD.h>
+#include <cstdio>
+#include <cstring>
 
 namespace esp_bracket {
 
@@ -90,8 +92,26 @@ bool Esp32SdStorageBackend::writeAll(const char *path, const uint8_t *src, size_
     if (!mounted_ || !path || !src || size == 0) {
         return false;
     }
-    if (!ensureDiskRoot()) {
+    if (strncmp(path, kRomRoot, strlen(kRomRoot)) == 0) {
+        if (!ensureRomRoot()) {
+            return false;
+        }
+    } else if (!ensureDiskRoot()) {
         return false;
+    }
+    // Ensure parent for /esp2/diagnostics etc.
+    if (strncmp(path, "/esp2/", 6) == 0) {
+        char tmp[96];
+        snprintf(tmp, sizeof(tmp), "%s", path);
+        for (char *p = tmp + 6; *p; ++p) {
+            if (*p == '/') {
+                *p = 0;
+                if (!SD.exists(tmp)) {
+                    SD.mkdir(tmp);
+                }
+                *p = '/';
+            }
+        }
     }
     const uint32_t t0 = micros();
     if (SD.exists(path)) {

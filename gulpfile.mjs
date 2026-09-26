@@ -936,3 +936,71 @@ _Tag(apple2Compat, {
 });
 
 gulp.task("apple2:compat", apple2Compat);
+//================================================================
+// Device media transfer (development)
+//================================================================
+
+export async function deviceUpload() {
+  ReportProgress(0, "device-upload");
+  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const file = GetParameter("file") || "";
+  const target = GetParameter("target") || "";
+  const verify = GetParameter("verify") || "";
+  if (!port) {
+    throw new Error("device:upload requires --port COMx (no arbitrary auto-pick)");
+  }
+  const args = ["dev/tools/esp2-upload.mjs", "--port", port];
+  if (verify) {
+    args.push("--verify", verify);
+  } else {
+    if (!file || !target) {
+      throw new Error("device:upload requires --file and --target (or --verify)");
+    }
+    args.push("--file", file, "--target", target);
+  }
+  runNodeCli(args[0], args.slice(1), "device:upload");
+  ReportProgress(1, "device-upload");
+}
+_Tag(deviceUpload, {
+  gulpName: "device:upload",
+  µDisplayName: 'Device Serial Upload<context="µDisplayName"/>',
+  µDescription:
+    'Upload a local file to /esp2/... via framed serial protocol (dev only).<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 70,
+  µParameters: [
+    { name: "port", type: "string", optional: false },
+    { name: "file", type: "string", optional: true },
+    { name: "target", type: "string", optional: true },
+    { name: "verify", type: "string", optional: true },
+  ],
+});
+
+export async function deviceUsbStorage() {
+  ReportProgress(0, "device-usb-storage");
+  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const leave = GetParameter("leave") === true || GetParameter("leave") === "true";
+  if (!port) {
+    throw new Error("device:usb-storage requires --port COMx");
+  }
+  const args = leave
+    ? ["--port", port, "--leave-usb-storage"]
+    : ["--port", port, "--enter-usb-storage"];
+  runNodeCli("dev/tools/esp2-upload.mjs", args, "device:usb-storage");
+  ReportProgress(1, "device-usb-storage");
+}
+_Tag(deviceUsbStorage, {
+  gulpName: "device:usb-storage",
+  µDisplayName: 'Device USB Storage Mode<context="µDisplayName"/>',
+  µDescription:
+    'Enter or leave USB MSC ownership of the microSD (TinyUSB OTG).<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 71,
+  µParameters: [
+    { name: "port", type: "string", optional: false },
+    { name: "leave", type: "boolean", optional: true },
+  ],
+});
+
+gulp.task("device:upload", deviceUpload);
+gulp.task("device:usb-storage", deviceUsbStorage);

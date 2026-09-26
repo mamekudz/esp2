@@ -31,13 +31,17 @@
     "test:apple2": "node host/tools/build_and_test_apple2.mjs",
     "apple2:rom-test": "node host/tools/rom_test.mjs",
     "apple2:rom-identify": "node host/tools/rom_test.mjs --identify-only",
-    "gulp:tasks": "gulp --tasks"
+    "gulp:tasks": "gulp --tasks",
+    "device:upload": "gulp device:upload",
+    "device:usb-storage": "gulp device:usb-storage",
+    "test:upload": "node --test dev/tools/esp2-upload.test.mjs"
   },
   "microgulp": {
     "ready": true
   },
   "devDependencies": {
     "gulp": "^5.0.0",
-    "gulp-mu-gulp-api": "^0.5.0"
+    "gulp-mu-gulp-api": "^0.5.0",
+    "serialport": "^13.0.0"
   }
 }
