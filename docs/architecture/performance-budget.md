@@ -1,36 +1,67 @@
-# Performance budget (host baseline + ESP32 targets)
+# Performance budget
 
-Host numbers are **HOST MEASUREMENT** only. Do not equate host milliseconds to ESP32.
+Labels: **HOST MEASURED**, **ESP32 ESTIMATE**, **ESP32 MEASURED**, **UNKNOWN**.
 
-## Apple II timing model
+Target SoC: ESP32-S3, 16 MB flash, 8 MB PSRAM, 240 MHz.
 
-- Nominal CPU class: Apple II / II+ (~1.023 MHz).
-- Emulated cycles are the common timeline.
-- Real-time target: approximately **1×** original speed via periodic wall-clock sync.
+## Memory
 
-## Host benchmarks
+| Bucket | Budget (bytes) | Label | Notes |
+| --- | --- | --- | --- |
+| Internal SRAM free after bring-up | ~240–280 KiB typical free heap | ESP32 MEASURED* | BLE + display reduce free heap; see serial `[RAM]` |
+| PSRAM | 8 MiB | ESP32 MEASURED | Present on target board |
+| 6502 core state | <1 KiB | ESP32 ESTIMATE | fake6502 globals + wrapper |
+| Apple II main RAM (48K II+) | 48 KiB | ESP32 ESTIMATE | PSRAM-friendly |
+| Aux / language card (later) | +64 KiB | ESP32 ESTIMATE | Not in host baseline |
+| ROM (user-provided) | 12 KiB typical ][+ | ESP32 ESTIMATE | Flash or PSRAM; never commit proprietary ROM |
+| Video state / soft switches | <1 KiB | ESP32 ESTIMATE | |
+| HGR bitplane decode | 280×192 ≈ 52.5 KiB bits + 7.5 KiB highbits | ESP32 ESTIMATE | Prefer line buffers on device |
+| Output RGB line/frame | 280×192×2 ≈ 105 KiB RGB565 frame optional | ESP32 ESTIMATE | Prefer scanline push to CO5300 |
+| Disk buffers | 4–64 KiB | ESP32 ESTIMATE | Stream WOZ later |
+| Speaker event ring | ~16–32 KiB host; 2–8 KiB device | HOST / ESTIMATE | Bounded ring in `Speaker` |
+| BLE / NimBLE | tens of KiB | UNKNOWN | Measure with keyboard+gamepad |
+| UI / Control Screen | 32–128 KiB | ESP32 ESTIMATE | Avoid second full framebuffer |
+| Stacks / FreeRTOS | 8–24 KiB total | ESP32 ESTIMATE | Few tasks |
 
-Produced by `test_perf` / existing suites (`npm run test:apple2`):
+\*Bring-up logs previously showed ~242 KiB free heap after BLE init — re-measure after each subsystem.
 
-| Metric | Role |
+## Host measurements
+
+Run `node host/tools/build_and_test_apple2.mjs` and read lines prefixed
+`HOST MEASUREMENT`. These are **not** ESP32 performance.
+
+| Metric | Label |
 | --- | --- |
-| `cpu_emu_cycles_per_s` | Bare CPU+bus host throughput |
-| `machine_2e6_cycles_ms` | CPU+DiskII+softswitches |
-| `text_decode_200_ms` | Text path |
-| `hgr_decode_50_ms` | HGR logical |
-| `artifact_50_ms` | Artifact RGB |
-| `dsk_nibble_35tracks_ms` | Track build/cache |
-| `encode_decode_1000_ms` | 6-and-2 |
-| `speaker_pcm_100ms_ms` | Historical ~0.06 ms class on host |
+| `cpu_1e6_cycles_ms` | HOST MEASURED |
+| `cpu_emu_cycles_per_s` | HOST MEASURED (`test_perf`) |
+| `machine_2e6_cycles_ms` | HOST MEASURED (`test_perf`) |
+| `text_decode_200_ms` | HOST MEASURED (`test_perf`) |
+| `hgr_decode_50_ms` | HOST MEASURED |
+| `artifact_50_ms` | HOST MEASURED |
+| `dsk_nibble_35tracks_ms` | HOST MEASURED (`test_perf`) |
+| `encode_decode_1000_ms` | HOST MEASURED (`test_perf`) |
+| `speaker_pcm_100ms_ms` | HOST MEASURED (~0.06 ms class historically) |
 
-## Display refresh (provisional)
+## Level-5 timing / throttle notes
 
-Evaluate 30 FPS and 60 FPS CO5300 update later on hardware. Dirty flags only if
-cheaper than full scanline render.
+- Emulated 6502 cycles are the Apple II timeline (speaker, paddles, Disk II).
+- Wall-clock sync targets ~1× original II/II+ speed in batches — not per instruction.
+- If late: correctness > input > audio > display > cosmetics; never skip Disk II cycles for FPS.
+- First ESP32 visual priority: **Sharp**; CRT cosmetics deferrable.
 
-## First ESP32 visual priority
+## CPU / timing (ESP32 targets)
 
-1. Sharp
-2. Correct video mode/page
-3. Artifact color (when budget allows)
-4. Monitor/CrtTv cosmetics (deferrable)
+| Concern | Target | Label |
+| --- | --- | --- |
+| Apple II effective speed | ≥ 1.0× real-time preferred | UNKNOWN |
+| Display refresh | ≥ 30 FPS readable; 60 ideal | UNKNOWN |
+| Audio latency local | < 40 ms | UNKNOWN |
+| SD disk latency | must not stall CPU mid-instruction batch | ESP32 ESTIMATE |
+
+## Design implications
+
+1. Prefer **scanline / tile** video over dual full RGB framebuffers.
+2. Keep Disk II I/O on a worker with bounded queues; never block the 6502
+   step loop on FAT.
+3. Measure before optimizing (`CLAUDE.md` §32).
+4. No repeated heap allocation in CPU/bus/video hot paths.
