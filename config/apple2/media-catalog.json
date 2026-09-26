@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "description": "Metadata-only catalog of Apple II titles for local compatibility testing. No disk payloads or base64.",
+  "notes": [
+    "SHA-256 fields are filled after local sync/prepare; null until verified.",
+    "Downloading never upgrades provenance.",
+    "LOCAL_TEST_ONLY unless redistribution is REDISTRIBUTABLE."
+  ],
+  "titles": [
+    {
+      "id": "galaxian",
+      "title": "Galaxian",
+      "catalogId": "galaxian",
+      "apple2jsBasename": "galaxian",
+      "apple2jsFilename": "json/disks/galaxian.json",
+      "source": "apple2js-website",
+      "sourceUrl": "https://www.scullinsteel.com/apple2/json/disks/galaxian.json",
+      "expectedFormat": "dsk",
+      "provenance": "USER_SUPPLIED_ONLY",
+      "evidence": "Commercial/entertainment title on Apple ][js website catalog. Website availability is not redistribution permission. LOCAL_TEST_ONLY.",
+      "localTestOnly": true,
+      "defaultRomId": "appleiigo",
+      "slot6Mode": "cleanroom",
+      "deviceDiskName": "Galaxian.dsk",
+      "devicePath": "/esp2/disks/Galaxian.dsk",
+      "sourceSha256": "6e823ae61e2d3ea57447d22ccdd77f75750742fee695681073685bfaea0c446d",
+      "runtimeSha256": "b1e85b78b689a64c5787893c4954d309a8d20e4d1d4a551dc4d9cb5dc132c2d1",
+      "runtimeFormat": "dsk"
+    }
+  ]
+}

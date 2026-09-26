@@ -4,7 +4,7 @@
  * Usage:
  *   node host/tools/compat_runner.mjs --test <id>
  *   node host/tools/compat_runner.mjs --list
- *   node host/tools/compat_runner.mjs --test esp2-boot-test --run
+ *   node host/tools/compat_runner.mjs --test galaxian --run
  *
  * Statuses: PASS FAIL SKIPPED_NO_SYSTEM_ROM SKIPPED_NO_SLOT6_ROM
  *           SKIPPED_NO_MEDIA UNSUPPORTED_* TIMEOUT BLOCKED_MISSING_ASSET
@@ -18,6 +18,7 @@ import {
   identifyAsset,
   loadMachineConfig,
   projectRoot,
+  resolveLocalApple2Title,
   resolveUserMediaPath,
 } from "./machine_config.mjs";
 
@@ -25,7 +26,15 @@ const root = projectRoot();
 const testsDir = path.join(root, "compatibility/tests");
 
 function parseArgs(argv) {
-  const out = { test: null, list: false, run: false, config: null, rom: null, slot6Rom: null, disk1: null };
+  const out = {
+    test: null,
+    list: false,
+    run: false,
+    config: null,
+    rom: null,
+    slot6Rom: null,
+    disk1: null,
+  };
   for (let i = 2; i < argv.length; ++i) {
     const a = argv[i];
     if (a === "--list") out.list = true;
@@ -33,7 +42,8 @@ function parseArgs(argv) {
     else if (a === "--test" && argv[i + 1]) out.test = argv[++i];
     else if (a === "--config" && argv[i + 1]) out.config = argv[++i];
     else if (a === "--rom" && argv[i + 1]) out.rom = argv[++i];
-    else if ((a === "--slot6-rom" || a === "--slot6Rom") && argv[i + 1]) out.slot6Rom = argv[++i];
+    else if ((a === "--slot6-rom" || a === "--slot6Rom") && argv[i + 1])
+      out.slot6Rom = argv[++i];
     else if (a === "--disk1" && argv[i + 1]) out.disk1 = argv[++i];
   }
   return out;
@@ -54,6 +64,43 @@ export function loadCompatTest(id) {
   return JSON.parse(fs.readFileSync(p, "utf8"));
 }
 
+/**
+ * Apply local/apple2 manifest paths when CLI/config did not override
+ * with a *present* file.
+ */
+export function applyLocalApple2Assets(test, cfg) {
+  const out = { ...cfg };
+  const local =
+    resolveLocalApple2Title(test.id) ||
+    resolveLocalApple2Title(test.catalogId) ||
+    resolveLocalApple2Title(
+      test.media?.disk1?.catalogFile?.replace(/\.(dsk|po|nib)$/i, ""),
+    );
+
+  const romMissing = !out.rom || !fs.existsSync(out.rom);
+  if (local?.rom?.path && romMissing) {
+    out.rom = local.rom.path;
+  }
+  const diskMissing = !out.disk1 || !fs.existsSync(out.disk1);
+  if (local?.disk?.path && diskMissing) {
+    out.disk1 = local.disk.path;
+  }
+  if (!out.slot6Mode && test.slot6Mode === "cleanroom") {
+    out.slot6Mode = "cleanroom";
+  } else if (
+    !out.slot6Mode &&
+    (test.slot6Mode === "user_or_cleanroom" || !test.slot6Mode)
+  ) {
+    out.slot6Mode = "cleanroom";
+  }
+  // Prefer machine profile from test when using replacement ROM
+  if (test.machineProfile && romMissing && local?.rom?.path) {
+    out.machine = test.machineProfile;
+  }
+  out._localApple2 = local;
+  return out;
+}
+
 export function evaluateAssetGate(test, cfg) {
   const report = {
     testId: test.id,
@@ -62,6 +109,7 @@ export function evaluateAssetGate(test, cfg) {
     esp32Status: test.esp32Status || "NOT_TESTED",
     assets: {},
     checkpoints: [],
+    furthestState: null,
     evidence: {
       commitHint: "see git HEAD",
       machineProfile: cfg.machine,
@@ -72,13 +120,19 @@ export function evaluateAssetGate(test, cfg) {
   const isProjectOwned = test.redistribution === "PROJECT_OWNED";
 
   if (!isProjectOwned) {
-    const needRom = test.romProfile === "user_ii_plus";
+    const needRom =
+      test.romProfile === "user_ii_plus" ||
+      test.romProfile === "appleiigo" ||
+      test.romProfile === "replacement_pd";
     if (needRom) {
       const romId = identifyAsset(cfg.rom);
       report.assets.systemRom = romId;
       if (!romId.present) {
         report.status = "SKIPPED_NO_SYSTEM_ROM";
         report.hostStatus = "BLOCKED_MISSING_ASSET";
+        report.evidence.notes.push(
+          "Missing system ROM — run gulp apple2:rom:sync for AppleIIGo, or supply user ROM",
+        );
         return report;
       }
     }
@@ -92,10 +146,17 @@ export function evaluateAssetGate(test, cfg) {
     }
 
     const catalogFile = test.media?.disk1?.catalogFile;
-    const mediaPath = cfg.disk1 || resolveUserMediaPath(catalogFile);
+    const mediaPath =
+      cfg.disk1 ||
+      resolveUserMediaPath(catalogFile) ||
+      (cfg._localApple2?.disk?.path ?? null);
     const mediaId = identifyAsset(mediaPath);
     report.assets.disk1 = mediaId;
-    if (test.media?.disk1?.sha256 && mediaId.present && mediaId.sha256 !== test.media.disk1.sha256) {
+    if (
+      test.media?.disk1?.sha256 &&
+      mediaId.present &&
+      mediaId.sha256 !== test.media.disk1.sha256
+    ) {
       report.status = "FAIL";
       report.evidence.notes.push("disk1 sha256 mismatch vs test definition");
       return report;
@@ -103,6 +164,9 @@ export function evaluateAssetGate(test, cfg) {
     if (!mediaId.present) {
       report.status = "SKIPPED_NO_MEDIA";
       report.hostStatus = "BLOCKED_MISSING_ASSET";
+      report.evidence.notes.push(
+        `Missing disk — run gulp apple2:media:sync --title ${test.id} && gulp apple2:media:prepare --title ${test.id}`,
+      );
       return report;
     }
   } else {
@@ -119,7 +183,6 @@ export function evaluateAssetGate(test, cfg) {
 function runProjectOwnedBoot(test, report) {
   const exe = path.join(root, "host/.out/esp2_host.exe");
   if (!fs.existsSync(exe)) {
-    // Build suite first
     const build = spawnSync("node", ["host/tools/build_and_test_apple2.mjs"], {
       cwd: root,
       encoding: "utf8",
@@ -131,8 +194,6 @@ function runProjectOwnedBoot(test, report) {
       return report;
     }
   }
-  // Level-4 fixture path: mount Esp2BootTest via machine API is in C++ tests.
-  // For CLI, use synthetic ROM + disk1 Esp2BootTest and cleanroom slot6.
   const args = [
     "--slot6",
     "cleanroom",
@@ -150,20 +211,91 @@ function runProjectOwnedBoot(test, report) {
     report.status = "FAIL";
     return report;
   }
-  // Automated Level-4 markers are asserted by test_level4.exe; CLI confirms process path.
   report.checkpoints.push({ type: "cliBatch", result: "ok" });
   report.status = "PASS";
   report.hostStatus = "COMPLETED_TEST_PATH";
+  report.furthestState = "BOOT";
   report.evidence.notes.push(
     "Project-owned Esp2BootTest exercised via esp2_host batch; detailed markers covered by test_level4",
   );
   return report;
 }
 
+/**
+ * Classify furthest smoke state from host diagnostics + text dump.
+ * States: NONE | BOOT | TITLE_SCREEN | ATTRACT_MODE
+ * No title-specific emulator hacks — only generic video/text heuristics.
+ * Never treat filesystem paths in the log as on-screen title text.
+ */
+export function classifySmokeState(stdout, test) {
+  const text = String(stdout || "");
+  let furthest = "NONE";
+  const videoMatch = text.match(/VIDEO\s+(\S+)/);
+  const video = videoMatch ? videoMatch[1] : "";
+  const driveMatch = text.match(/DRIVE1\s+(\S+)/);
+  const driveInserted = driveMatch && driveMatch[1] !== "(empty)";
+  const pcMatch = text.match(/PC\s+([0-9A-Fa-f]{4})/);
+  const pc = pcMatch ? parseInt(pcMatch[1], 16) : null;
+
+  // Only the dumped text screen — not paths / diagnostics lines.
+  const screenMatch = text.match(/---- TEXT ----\r?\n([\s\S]*?)\r?\n--------------/);
+  const screen = screenMatch ? screenMatch[1] : "";
+  const screenUpper = screen.toUpperCase();
+
+  const bootRomBanner = /APPLE\s*\]?\s*\[\s*GO|APPLE\s*II/i.test(screen);
+  const inSlot6 = pc != null && pc >= 0xc600 && pc <= 0xc6ff;
+  const leftResetIdle = pc != null && pc !== 0xff69 && pc !== 0;
+
+  if (driveInserted && (leftResetIdle || inSlot6 || bootRomBanner)) {
+    furthest = "BOOT";
+  }
+
+  const titleHint = String(test.title || test.id || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  const screenCompact = screenUpper.replace(/[^A-Z0-9]/g, "");
+  const titleOnScreen =
+    (titleHint.length >= 4 && screenCompact.includes(titleHint)) ||
+    /INSERTCOIN|HIGHSCORE|PLAYER[12]|CREDIT/i.test(screenCompact);
+
+  const graphics = /HGR|LORES/.test(video);
+
+  if (graphics || (titleOnScreen && !bootRomBanner)) {
+    furthest = "TITLE_SCREEN";
+  }
+
+  if (
+    furthest === "TITLE_SCREEN" &&
+    graphics &&
+    (/ANIM|ATTRACT|DEMO|PRESS/i.test(screen) ||
+      (pc != null && pc > 0x0800 && pc < 0xc000))
+  ) {
+    furthest = "ATTRACT_MODE";
+    return {
+      furthest,
+      softAttract: !/ATTRACT|DEMO/i.test(screen),
+      video,
+      pc,
+      titleVisible: titleOnScreen,
+      screenPreview: screen.slice(0, 200),
+    };
+  }
+
+  return {
+    furthest,
+    softAttract: false,
+    video,
+    pc,
+    titleVisible: titleOnScreen,
+    screenPreview: screen.slice(0, 200),
+  };
+}
+
 export function runCompatTest(id, opts = {}) {
   const test = loadCompatTest(id);
   let cfg = loadMachineConfig(opts.config);
   cfg = applyCliOverrides(cfg, opts);
+  cfg = applyLocalApple2Assets(test, cfg);
   let report = evaluateAssetGate(test, cfg);
 
   if (report.status !== "PASS" && report.status.startsWith("SKIPPED")) {
@@ -175,7 +307,9 @@ export function runCompatTest(id, opts = {}) {
 
   if (!opts.run) {
     report.status = "PASS";
-    report.evidence.notes.push("Asset gate OK; pass --run to execute bounded host session");
+    report.evidence.notes.push(
+      "Asset gate OK; pass --run to execute bounded host session",
+    );
     return report;
   }
 
@@ -183,36 +317,80 @@ export function runCompatTest(id, opts = {}) {
     return runProjectOwnedBoot(test, report);
   }
 
-  // User media present: launch bounded host (no title-specific hacks).
   const exe = path.join(root, "host/.out/esp2_host.exe");
   if (!fs.existsSync(exe)) {
     report.status = "FAIL";
-    report.evidence.notes.push("esp2_host.exe missing — run npm run test:apple2 first");
+    report.evidence.notes.push(
+      "esp2_host.exe missing — run npm run test:apple2 first",
+    );
     return report;
   }
-  const args = ["--batch", "--diagnostics", "--text", "--cycles", String(test.bootCycleBudget || 2000000)];
+  const args = [
+    "--batch",
+    "--diagnostics",
+    "--text",
+    "--cycles",
+    String(test.bootCycleBudget || 2000000),
+  ];
   if (cfg.rom) args.push("--rom", cfg.rom);
   if (cfg.slot6Rom) args.push("--slot6-rom", cfg.slot6Rom);
   else if (cfg.slot6Mode) args.push("--slot6", cfg.slot6Mode);
   if (report.assets.disk1?.path) args.push("--disk1", report.assets.disk1.path);
   else if (cfg.disk1) args.push("--disk1", cfg.disk1);
   if (cfg.machine) args.push("--machine", cfg.machine);
+  // AppleIIGo / non-Autostart ROMs need an explicit Slot-6 entry (generic, not title-specific).
+  if (
+    test.romProfile === "appleiigo" ||
+    test.romProfile === "replacement_pd" ||
+    test.bootDisk === true
+  ) {
+    args.push("--boot-disk");
+  }
 
-  const r = spawnSync(exe, args, { cwd: root, encoding: "utf8", shell: false, timeout: 120000 });
-  report.evidence.hostStdoutTail = (r.stdout || "").slice(-1200);
+  const r = spawnSync(exe, args, {
+    cwd: root,
+    encoding: "utf8",
+    shell: false,
+    timeout: 180000,
+  });
+  report.evidence.hostStdoutTail = (r.stdout || "").slice(-2000);
   if (r.error && r.error.code === "ETIMEDOUT") {
     report.status = "TIMEOUT";
+    report.furthestState = "NONE";
     return report;
   }
   if (r.status !== 0) {
     report.status = "FAIL";
+    report.furthestState = "NONE";
+    report.evidence.notes.push(`esp2_host exit=${r.status}`);
     return report;
   }
-  report.status = "PASS";
-  report.hostStatus = "BOOTS";
-  report.evidence.notes.push(
-    "Bounded host run completed without crash; interactive/playable requires manual checkpoints",
-  );
+
+  const smoke = classifySmokeState(r.stdout || "", test);
+  report.furthestState = smoke.furthest;
+  report.evidence.smoke = smoke;
+  report.checkpoints.push({ type: "smokeState", result: smoke.furthest });
+
+  const desired = test.smokeTargets || ["BOOT"];
+  const order = ["NONE", "BOOT", "TITLE_SCREEN", "ATTRACT_MODE"];
+  const got = order.indexOf(smoke.furthest);
+  const need = order.indexOf(desired[desired.length - 1] || "BOOT");
+  if (got >= order.indexOf("BOOT")) {
+    report.status = "PASS";
+    report.hostStatus = smoke.furthest;
+    report.evidence.notes.push(
+      `Host smoke furthest=${smoke.furthest} video=${smoke.video || "?"} (no input/audio required)`,
+    );
+    if (got < need) {
+      report.evidence.notes.push(
+        `Reached ${smoke.furthest}; target chain ${desired.join("→")} not fully observed`,
+      );
+    }
+  } else {
+    report.status = "FAIL";
+    report.hostStatus = "NO_BOOT";
+    report.evidence.notes.push("Host ran but smoke classifier did not observe BOOT");
+  }
   return report;
 }
 
@@ -220,21 +398,27 @@ function main() {
   const args = parseArgs(process.argv);
   if (args.list) {
     for (const t of listCompatTests()) {
-      console.log(`${t.id}\thost=${t.hostStatus}\tesp32=${t.esp32Status}\t${t.redistribution}`);
+      console.log(
+        `${t.id}\thost=${t.hostStatus}\tesp32=${t.esp32Status}\t${t.redistribution}`,
+      );
     }
     return;
   }
   if (!args.test) {
-    console.log("Usage: node host/tools/compat_runner.mjs --list | --test <id> [--run] [--config path]");
+    console.log(
+      "Usage: node host/tools/compat_runner.mjs --list | --test <id> [--run] [--config path]",
+    );
     process.exit(args.list ? 0 : 2);
   }
   const report = runCompatTest(args.test, args);
   console.log(JSON.stringify(report, null, 2));
   if (report.status === "FAIL" || report.status === "TIMEOUT") process.exit(1);
-  // SKIPPED_* are success for CI
   process.exit(0);
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   main();
 }

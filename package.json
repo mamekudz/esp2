@@ -22,6 +22,7 @@
     "backup:nas": "gulp backup",
     "backup:all": "gulp backup:all",
     "test:infra": "node --test dev/tools/infra.test.mjs",
+    "test:apple2-local": "node --test dev/tools/apple2-local/apple2-local.test.mjs",
     "test:host": "node host/test/run.mjs",
     "fixture:dsk": "node host/tools/gen_blank_dsk.mjs",
     "apple2js:sync": "gulp apple2js:sync",

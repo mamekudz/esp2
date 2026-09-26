@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "id": "galaxian",
+  "catalogId": "galaxian",
+  "title": "Galaxian",
+  "redistribution": "USER_SUPPLIED_ONLY",
+  "localTestOnly": true,
+  "machineProfile": "AppleII",
+  "romProfile": "appleiigo",
+  "slot6Mode": "cleanroom",
+  "media": {
+    "disk1": {
+      "catalogFile": "Galaxian.dsk",
+      "format": "dsk",
+      "sha256": "b1e85b78b689a64c5787893c4954d309a8d20e4d1d4a551dc4d9cb5dc132c2d1",
+      "note": "Resolved from gitignored local/apple2/disks via apple2:media:prepare; LOCAL_TEST_ONLY"
+    }
+  },
+  "bootCycleBudget": 80000000,
+  "sustainedCycleBudget": 40000000,
+  "stages": ["boot", "title_or_start", "attract"],
+  "smokeTargets": ["BOOT", "TITLE_SCREEN", "ATTRACT_MODE"],
+  "checkpoints": [
+    { "type": "surviveCycles", "cycles": 2000000, "phase": "boot" },
+    { "type": "videoModeAny", "modes": ["TEXT", "HGR", "MIXED", "LORES"], "phase": "title_or_start" }
+  ],
+  "manualSteps": [
+    "Confirm title/attract presentation without title-specific emulator hacks",
+    "Input/audio success not required for this smoke milestone"
+  ],
+  "knownIssues": [
+    "AppleIIGo ROM lacks Applesoft; titles requiring Applesoft need a user-supplied II+ ROM",
+    "Attract-mode detection is heuristic from host diagnostics/text dump"
+  ],
+  "hostStatus": "BOOT",
+  "esp32Status": "NOT_TESTED",
+  "notes": "Commercial title. Local apple2js cache is LOCAL_TEST_ONLY. Downloaded ≠ redistributable. Do not commit media payloads. Host smoke with AppleIIGo+cleanroom reaches BOOT (Slot-6 entry) but not TITLE_SCREEN/ATTRACT — Apple proprietary II+ Autostart ROM likely required for full disk boot of this title."
+}

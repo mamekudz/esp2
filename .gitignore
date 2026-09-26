@@ -71,6 +71,10 @@ __pycache__/
 local/roms/**
 !local/roms/README.md
 
+# Local Apple II media root (downloads + runtime — never commit payloads)
+/local/apple2/**
+!/local/apple2/README.md
+
 # Local ROM path config (personal)
 config/roms.local.json
 

@@ -202,6 +202,18 @@ async function readUntilAck(port, timeoutMs, prefix = "#ACK") {
   });
 }
 
+function writeAndDrain(port, buf) {
+  return new Promise((resolve, reject) => {
+    port.write(buf, (err) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      port.drain((err2) => (err2 ? reject(err2) : resolve()));
+    });
+  });
+}
+
 async function uploadFile(port, filePath, targetPath, chunkSize) {
   const abs = resolve(filePath);
   if (!existsSync(abs)) {
@@ -224,9 +236,11 @@ async function uploadFile(port, filePath, targetPath, chunkSize) {
     sha,
     u32(chunkSize),
   ]);
-  port.write(begin);
+  await writeAndDrain(port, begin);
   const beginAck = await readUntilAck(port, 15000, "#ACK BEGIN");
   console.log(beginAck);
+  // Give FAT/SD staging time before binary DATA frames (CDC drop risk).
+  await new Promise((r) => setTimeout(r, 400));
 
   let offset = 0;
   let seq = 0;
@@ -238,16 +252,17 @@ async function uploadFile(port, filePath, targetPath, chunkSize) {
       u32(slice.length),
       slice,
     ]);
-    port.write(frame);
+    await writeAndDrain(port, frame);
     const ack = await readUntilAck(port, 30000, "#ACK DATA");
     if (!ack.includes(`seq=${seq}`)) {
       throw new Error(`unexpected data ack: ${ack}`);
     }
     offset += slice.length;
     seq++;
+    await new Promise((r) => setTimeout(r, 20));
   }
 
-  port.write(frameHeader(FrameType.End));
+  await writeAndDrain(port, frameHeader(FrameType.End));
   const endAck = await readUntilAck(port, 30000, "#ACK END");
   console.log(endAck);
   const ms = Date.now() - t0;
@@ -309,14 +324,16 @@ async function main() {
     }
 
     await waitReady(port, args.listenMs, "#ESP2UPLOAD", "#ESP2UPLOAD READY");
-    await new Promise((r) => setTimeout(r, 250));
+    await new Promise((r) => setTimeout(r, 400));
     port.removeAllListeners("data");
     try {
-      const leftover = port.read(port.readableLength || 0);
-      void leftover;
+      while (port.readableLength > 0) {
+        port.read(port.readableLength);
+      }
     } catch (_) {
       /* ignore */
     }
+    await new Promise((r) => setTimeout(r, 100));
 
     if (args.verify) {
       await verifyRemote(port, args.verify);
@@ -325,7 +342,12 @@ async function main() {
     if (!args.file || !args.target) {
       throw new Error("--file and --target required for upload");
     }
-    const result = await uploadFile(port, args.file, args.target, args.chunk || DEFAULT_CHUNK);
+    const result = await uploadFile(
+      port,
+      args.file,
+      args.target,
+      args.chunk || 512,
+    );
     console.log(
       JSON.stringify(
         {

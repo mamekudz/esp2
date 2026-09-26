@@ -11,12 +11,20 @@ ESP][ **does not ship Apple ROMs**. The repository stays ROM-free.
 ## Local layout (host)
 
 ```
-local/roms/           # gitignored except README
-  apple2plus.rom      # example name — your 12 KiB motherboard ROM
+local/roms/           # gitignored except README — user-supplied proprietary ROMs
+  apple2plus.rom
+
+local/apple2/         # gitignored except README — acquisition workflow root
+  roms/appleiigo.rom  # public-domain replacement via gulp apple2:rom:sync
+  disks/              # prepared runtime images
+  cache/              # downloaded apple2js sources (LOCAL_TEST_ONLY)
 
 config/roms.local.example.json
 config/roms.local.json   # gitignored — your paths
 ```
+
+See `docs/media/local-apple2-workflow.md` for the µGulp acquisition tasks.
+Do **not** commit ROM/disk payloads under `local/apple2/`.
 
 ## microSD layout (ESP32 PART F1)
 

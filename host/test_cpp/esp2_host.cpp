@@ -96,6 +96,9 @@ int main(int argc, char **argv) {
     bool showText = false;
     bool diagnostics = false;
     bool interactive = true;
+    bool bootDisk = false;
+    uint16_t entryPc = 0;
+    bool haveEntry = false;
 
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--rom") == 0 && i + 1 < argc) {
@@ -120,10 +123,18 @@ int main(int argc, char **argv) {
             videoDump = argv[++i];
         } else if (std::strcmp(argv[i], "--batch") == 0) {
             interactive = false;
+        } else if (std::strcmp(argv[i], "--boot-disk") == 0) {
+            // Generic: after power-on, enter Slot-6 Disk II ROM at $C600
+            // (needed for ROMs without Autostart, e.g. AppleIIGo PD replacement).
+            bootDisk = true;
+        } else if (std::strcmp(argv[i], "--entry") == 0 && i + 1 < argc) {
+            entryPc = static_cast<uint16_t>(std::strtoul(argv[++i], nullptr, 16));
+            haveEntry = true;
         } else if (std::strcmp(argv[i], "--help") == 0) {
             std::printf("esp2_host [--rom path] [--machine AppleII|AppleIIPlus] "
                         "[--slot6 none|synthetic|cleanroom|<path>] [--slot6-rom path] "
-                        "[--disk1 Esp2BootTest|Esp2DiskTest] "
+                        "[--disk1 Esp2BootTest|Esp2DiskTest|<path.dsk>] "
+                        "[--boot-disk] [--entry hex] "
                         "[--cycles N] [--text] [--diagnostics] [--batch]\n");
             return 0;
         }
@@ -196,6 +207,12 @@ int main(int argc, char **argv) {
     }
 
     m.powerOn(RamInitMode::Zero);
+    if (bootDisk || haveEntry) {
+        CpuRegisters r = m.cpu().registers();
+        r.pc = haveEntry ? entryPc : 0xC600;
+        m.cpu().setRegisters(r);
+        std::printf("ENTRY pc=%04X (%s)\n", r.pc, bootDisk ? "boot-disk" : "entry");
+    }
     m.runCycles(bootCycles);
 
     if (diagnostics) {

@@ -1,0 +1,29 @@
+{
+  "schemaVersion": 1,
+  "description": "Metadata-only catalog of ROMs with independently verified redistribution permission. No ROM bytes.",
+  "notes": [
+    "apple2:rom:sync downloads ONLY entries listed here.",
+    "Never add proprietary Apple motherboard ROMs.",
+    "Downloading must never upgrade provenance."
+  ],
+  "roms": [
+    {
+      "id": "appleiigo",
+      "filename": "appleiigo.rom",
+      "title": "Apple][Go replacement ROM",
+      "author": "Marc Ressl",
+      "year": 2006,
+      "license": "public-domain",
+      "provenance": "REDISTRIBUTABLE",
+      "evidence": "Documented on AppleIIGo ROMs page as a public-domain Apple ][ replacement ROM written in 2006 by Marc Ressl for the Apple][Go emulator. Capable of running most games not requiring Applesoft.",
+      "sourceUrl": "https://a2go.applearchives.com/roms/appleiigo.rom",
+      "sourcePage": "https://a2go.applearchives.com/roms/",
+      "expectedSize": 12288,
+      "expectedSha256": "6cb7e317e0036e4e006bc1c32fa79858d6d5c030a31a52d76a301c71020a10dd",
+      "mapping": "$D000-$FFFF",
+      "profile": "AppleII",
+      "devicePath": "/esp2/roms/appleiigo.rom",
+      "notes": "Not an Apple proprietary ROM. Games requiring Applesoft may need a user-supplied II+ ROM instead."
+    }
+  ]
+}

@@ -28,6 +28,10 @@ export const GIT_BACKUP_NEVER_STAGE = Object.freeze([
   "node_modules",
   ".pio",
   "compile_commands.json",
+  // Downloaded / runtime Apple II media (also gitignored under /local/apple2/**)
+  "local/apple2",
+  "local/roms",
+  "library/user",
 ]);
 
 /**

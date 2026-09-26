@@ -70,6 +70,12 @@ test('CLAUDE.md is in Git ensure + NAS include lists', () => {
 test('NAS excludes regenerable trees', () => {
 	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('node_modules'));
 	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('.pio'));
+	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('local'));
+});
+
+test('Git backup never stages local Apple II media', () => {
+	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/apple2'));
+	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('library/user'));
 });
 
 test('checkpoint message format', () => {

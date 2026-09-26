@@ -45,6 +45,9 @@ export const NAS_BACKUP_EXCLUDE_DIRS = Object.freeze([
   "_refs",
   "tmp",
   "temp",
+  // Third-party / user-supplied Apple II media — never silently NAS-backup.
+  // Opt-in archival is a separate future task (not part of backup / backup:all).
+  "local",
 ]);
 
 export const NAS_BACKUP_EXCLUDE_FILES = Object.freeze([

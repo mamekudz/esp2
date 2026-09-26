@@ -6,6 +6,9 @@
 #include "esp_bracket/text_decoder.hpp"
 
 #include <cstring>
+#include <fstream>
+#include <string>
+#include <vector>
 
 namespace esp_bracket {
 
@@ -210,6 +213,42 @@ MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
         // Disk boot path needs synthetic Slot-6 ROM.
         setSlot6RomMode(Slot6RomMode::Synthetic);
         return drive(id).mount(imageId, DiskFormat::Dsk);
+    }
+
+    // Host path: load a local .dsk / .do / .po image from the filesystem.
+    // Used by apple2:compat with gitignored local/apple2/disks/ media.
+    {
+        std::ifstream in(imageId, std::ios::binary);
+        if (in) {
+            in.seekg(0, std::ios::end);
+            const std::streamoff len = in.tellg();
+            in.seekg(0, std::ios::beg);
+            if (len == static_cast<std::streamoff>(kDos33ImageBytes)) {
+                std::vector<uint8_t> raw(static_cast<size_t>(len));
+                if (in.read(reinterpret_cast<char *>(raw.data()), len)) {
+                    std::string path(imageId);
+                    for (char &c : path) {
+                        if (c >= 'A' && c <= 'Z') {
+                            c = static_cast<char>(c - 'A' + 'a');
+                        }
+                    }
+                    const bool poOrder =
+                        path.size() >= 3 &&
+                        path.compare(path.size() - 3, 3, ".po") == 0;
+                    if (!img.load(raw.data(), raw.size(), poOrder)) {
+                        return MediaResult::InvalidImage;
+                    }
+                    img.setWriteProtected(true);
+                    diskII_.attachMedia(driveNo, &img);
+                    if (slot6RomMode_ == Slot6RomMode::None) {
+                        setSlot6RomMode(Slot6RomMode::CleanRoom);
+                    }
+                    return drive(id).mount(imageId,
+                                           poOrder ? DiskFormat::Po : DiskFormat::Dsk);
+                }
+            }
+            return MediaResult::InvalidImage;
+        }
     }
 
     diskII_.ejectDrive(driveNo);

@@ -1,11 +1,11 @@
 //================================================================
-// ESP][ — µGulp / Gulp task runner
-// © 2026 Meinolf Amekudzi
+// ESP][ â ÂµGulp / Gulp task runner
+// Â© 2026 Meinolf Amekudzi
 //
 // Groups:
-//   Firmware     — build / flash / upload / clean / size
-//   Tools        — devices / monitor
-//   Docs & Backup — docs / backup:git / backup / backup:all
+//   Firmware     â build / flash / upload / clean / size
+//   Tools        â devices / monitor
+//   Docs & Backup â docs / backup:git / backup / backup:all
 //
 // NAS form = microGulp BACKUP_TO_NAS / Watchy pattern (destination1..3).
 // No help clutter. Default = docs (safe).
@@ -55,7 +55,7 @@ import { syncApple2js } from "./dev/tools/apple2js/sync.mjs";
 
 InstallStringExtensions();
 
-export const µI18xContext = { project: "esp2", product: "ESP][" };
+export const ÂµI18xContext = { project: "esp2", product: "ESP][" };
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 
@@ -65,19 +65,19 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
  */
 function _Tag(_task, _meta) {
   if (_meta.gulpName) _task.displayName = _meta.gulpName;
-  if (_meta.µDisplayName) _task.µDisplayName = _meta.µDisplayName.i18xRegister();
-  if (_meta.µDescription) _task.µDescription = _meta.µDescription.i18xRegister();
-  if (_meta.µTooltip) _task.µTooltip = _meta.µTooltip.i18xRegister();
-  if (_meta.µGroup) _task.µGroup = _meta.µGroup.i18xRegister();
-  if (_meta.µIcon != null) _task.µIcon = _meta.µIcon;
-  if (_meta.µOrder != null) _task.µOrder = _meta.µOrder;
-  if (_meta.µExecutionConcurrency != null) {
-    _task.µExecutionConcurrency = _meta.µExecutionConcurrency;
+  if (_meta.ÂµDisplayName) _task.ÂµDisplayName = _meta.ÂµDisplayName.i18xRegister();
+  if (_meta.ÂµDescription) _task.ÂµDescription = _meta.ÂµDescription.i18xRegister();
+  if (_meta.ÂµTooltip) _task.ÂµTooltip = _meta.ÂµTooltip.i18xRegister();
+  if (_meta.ÂµGroup) _task.ÂµGroup = _meta.ÂµGroup.i18xRegister();
+  if (_meta.ÂµIcon != null) _task.ÂµIcon = _meta.ÂµIcon;
+  if (_meta.ÂµOrder != null) _task.ÂµOrder = _meta.ÂµOrder;
+  if (_meta.ÂµExecutionConcurrency != null) {
+    _task.ÂµExecutionConcurrency = _meta.ÂµExecutionConcurrency;
   }
-  if (_meta.µExecutionRestrictions) {
-    _task.µExecutionRestrictions = _meta.µExecutionRestrictions;
+  if (_meta.ÂµExecutionRestrictions) {
+    _task.ÂµExecutionRestrictions = _meta.ÂµExecutionRestrictions;
   }
-  if (_meta.µParameters) _task.µParameters = _meta.µParameters;
+  if (_meta.ÂµParameters) _task.ÂµParameters = _meta.ÂµParameters;
   return _task;
 }
 
@@ -87,7 +87,7 @@ function _Tag(_task, _meta) {
 
 export async function build() {
   ReportProgress(0, "build");
-  Log('Building ESP][ firmware (env <env/>)…<context="task log"/>', {
+  Log('Building ESP][ firmware (env <env/>)â¦<context="task log"/>', {
     env: PIO_ENV,
   });
   await Pio(rootDir, ["run", "-e", PIO_ENV], "pio build");
@@ -97,19 +97,19 @@ export async function build() {
 }
 _Tag(build, {
   gulpName: "build",
-  µDisplayName: 'Build Firmware<context="µDisplayName"/>',
-  µDescription:
-    'Compiles ESP][ with PlatformIO (env: bringup). Does not change board config.<context="µDescription"/>',
-  µIcon: "\u2692",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 10,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Build Firmware<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Compiles ESP][ with PlatformIO (env: bringup). Does not change board config.<context="ÂµDescription"/>',
+  ÂµIcon: "\u2692",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 10,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function flash() {
   ReportProgress(0, "flash-build");
   const port = await AskPort(rootDir, "Flash port (build + upload)");
-  Log('Build + upload → <port/><context="task log"/>…', {
+  Log('Build + upload â <port/><context="task log"/>â¦', {
     port: port ?? "auto/ini",
   });
   await Pio(rootDir, ["run", "-e", PIO_ENV], "pio build");
@@ -121,22 +121,22 @@ export async function flash() {
 }
 _Tag(flash, {
   gulpName: "flash",
-  µDisplayName: 'Build & Upload<context="µDisplayName"/>',
-  µDescription:
-    'Rebuilds and flashes ESP][ firmware in one step.<context="µDescription"/>',
-  µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
-  µIcon: "\u26A1",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 15,
-  µExecutionConcurrency: false,
-  µExecutionRestrictions: { deny: ["upload", "build", "backup"] },
+  ÂµDisplayName: 'Build & Upload<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Rebuilds and flashes ESP][ firmware in one step.<context="ÂµDescription"/>',
+  ÂµTooltip:
+    'Set ESP2_PORT=COMx to skip the port dialog.<context="ÂµTooltip"/>',
+  ÂµIcon: "\u26A1",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 15,
+  ÂµExecutionConcurrency: false,
+  ÂµExecutionRestrictions: { deny: ["upload", "build", "backup"] },
 });
 
 export async function upload() {
   ReportProgress(0, "upload");
   const port = await AskPort(rootDir, "Upload port");
-  Log('Uploading → <port/><context="task log"/>…', {
+  Log('Uploading â <port/><context="task log"/>â¦', {
     port: port ?? "auto/ini",
   });
   await Pio(rootDir, UploadArgs(port), "pio upload");
@@ -146,16 +146,16 @@ export async function upload() {
 }
 _Tag(upload, {
   gulpName: "upload",
-  µDisplayName: 'Upload Firmware<context="µDisplayName"/>',
-  µDescription:
-    'Flashes the last build. Asks for the COM port.<context="µDescription"/>',
-  µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
-  µIcon: "\u2191",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 20,
-  µExecutionConcurrency: false,
-  µExecutionRestrictions: { deny: ["flash", "monitor", "backup"] },
+  ÂµDisplayName: 'Upload Firmware<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Flashes the last build. Asks for the COM port.<context="ÂµDescription"/>',
+  ÂµTooltip:
+    'Set ESP2_PORT=COMx to skip the port dialog.<context="ÂµTooltip"/>',
+  ÂµIcon: "\u2191",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 20,
+  ÂµExecutionConcurrency: false,
+  ÂµExecutionRestrictions: { deny: ["flash", "monitor", "backup"] },
 });
 
 export async function size() {
@@ -165,13 +165,13 @@ export async function size() {
 }
 _Tag(size, {
   gulpName: "size",
-  µDisplayName: 'Memory Size<context="µDisplayName"/>',
-  µDescription:
-    'Shows RAM / Flash usage of the last firmware build.<context="µDescription"/>',
-  µIcon: "\u25A6",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 30,
-  µExecutionConcurrency: true,
+  ÂµDisplayName: 'Memory Size<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Shows RAM / Flash usage of the last firmware build.<context="ÂµDescription"/>',
+  ÂµIcon: "\u25A6",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 30,
+  ÂµExecutionConcurrency: true,
 });
 
 export async function clean() {
@@ -182,25 +182,25 @@ export async function clean() {
 }
 _Tag(clean, {
   gulpName: "clean",
-  µDisplayName: 'Clean Build<context="µDisplayName"/>',
-  µDescription:
-    'Removes .pio/build artefacts for env bringup.<context="µDescription"/>',
-  µIcon: "\u239A",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 40,
-  µExecutionConcurrency: true,
+  ÂµDisplayName: 'Clean Build<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Removes .pio/build artefacts for env bringup.<context="ÂµDescription"/>',
+  ÂµIcon: "\u239A",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 40,
+  ÂµExecutionConcurrency: true,
 });
 
 export const rebuild = gulp.series(clean, build);
 _Tag(rebuild, {
   gulpName: "rebuild",
-  µDisplayName: 'Rebuild Firmware<context="µDisplayName"/>',
-  µDescription: 'clean → build (PlatformIO env bringup).<context="µDescription"/>',
-  µIcon: "\u21BB",
-  µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 12,
-  µExecutionConcurrency: false,
-  µExecutionRestrictions: { deny: ["flash", "upload", "backup"] },
+  ÂµDisplayName: 'Rebuild Firmware<context="ÂµDisplayName"/>',
+  ÂµDescription: 'clean â build (PlatformIO env bringup).<context="ÂµDescription"/>',
+  ÂµIcon: "\u21BB",
+  ÂµGroup: 'Firmware<context="ÂµGroup"/>',
+  ÂµOrder: 12,
+  ÂµExecutionConcurrency: false,
+  ÂµExecutionRestrictions: { deny: ["flash", "upload", "backup"] },
 });
 
 //================================================================
@@ -223,34 +223,34 @@ export async function devices() {
 }
 _Tag(devices, {
   gulpName: "devices",
-  µDisplayName: 'List Devices<context="µDisplayName"/>',
-  µDescription: 'Lists connected serial ports.<context="µDescription"/>',
-  µIcon: "\u2398",
-  µGroup: 'Tools<context="µGroup"/>',
-  µOrder: 10,
-  µExecutionConcurrency: true,
+  ÂµDisplayName: 'List Devices<context="ÂµDisplayName"/>',
+  ÂµDescription: 'Lists connected serial ports.<context="ÂµDescription"/>',
+  ÂµIcon: "\u2398",
+  ÂµGroup: 'Tools<context="ÂµGroup"/>',
+  ÂµOrder: 10,
+  ÂµExecutionConcurrency: true,
 });
 
 export async function monitor() {
   const port = await AskPort(rootDir, "Serial monitor port");
-  Log('Opening serial monitor (Ctrl+C to stop)…<context="task log"/>');
+  Log('Opening serial monitor (Ctrl+C to stop)â¦<context="task log"/>');
   await Pio(rootDir, MonitorArgs(port), "pio monitor");
 }
 _Tag(monitor, {
   gulpName: "monitor",
-  µDisplayName: 'Serial Monitor<context="µDisplayName"/>',
-  µDescription:
-    'Opens the PlatformIO serial monitor at 115200 baud.<context="µDescription"/>',
-  µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog. Free COM5 if another monitor holds it.<context="µTooltip"/>',
-  µIcon: "\u2399",
-  µGroup: 'Tools<context="µGroup"/>',
-  µOrder: 20,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Serial Monitor<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Opens the PlatformIO serial monitor at 115200 baud.<context="ÂµDescription"/>',
+  ÂµTooltip:
+    'Set ESP2_PORT=COMx to skip the port dialog. Free COM5 if another monitor holds it.<context="ÂµTooltip"/>',
+  ÂµIcon: "\u2399",
+  ÂµGroup: 'Tools<context="ÂµGroup"/>',
+  ÂµOrder: 20,
+  ÂµExecutionConcurrency: false,
 });
 
 //================================================================
-// Docs & Backup — NAS form (microGulp / Watchy)
+// Docs & Backup â NAS form (microGulp / Watchy)
 //================================================================
 
 function _NasBackupParameters() {
@@ -266,7 +266,7 @@ function _NasBackupParameters() {
         default: local.t1,
         label: 'Destination 1 (NAS_TARGET_1)<context="task parameter"/>'.i18xRegister(),
         description:
-          'Primary backup folder. Leave empty to skip. Up to three destinations. µGulp remembers answers; optional defaults from config/nas.targets.local.<context="task parameter"/>'.i18xRegister(),
+          'Primary backup folder. Leave empty to skip. Up to three destinations. ÂµGulp remembers answers; optional defaults from config/nas.targets.local.<context="task parameter"/>'.i18xRegister(),
       },
       {
         id: "destination2",
@@ -318,7 +318,7 @@ async function _ResolveNasForRun() {
   }
 
   if (IsMicroGulp()) {
-    // µParameters already collected by dashboard before task body
+    // ÂµParameters already collected by dashboard before task body
     return ResolveNasTargets(rootDir, {
       destination1: GetParameter("destination1", ""),
       destination2: GetParameter("destination2", ""),
@@ -356,7 +356,7 @@ async function _RunNasBackup() {
 
   if (resolved.destinations.length === 0) {
     Log(
-      '[NAS] 0 destinations — use the form, set NAS_TARGET_1..3, or config/nas.targets.local.<context="task log"/>'
+      '[NAS] 0 destinations â use the form, set NAS_TARGET_1..3, or config/nas.targets.local.<context="task log"/>'
     );
     ReportProgress(1, "backup-nas");
     PlaySignal("success");
@@ -364,7 +364,7 @@ async function _RunNasBackup() {
   }
 
   if (resolved.dryRun) {
-    Log('[NAS] DRY-RUN — preview only.<context="task log"/>');
+    Log('[NAS] DRY-RUN â preview only.<context="task log"/>');
   }
 
   /** @type {{ index: number, path: string, status: string, detail?: string }[]} */
@@ -376,7 +376,7 @@ async function _RunNasBackup() {
     ReportProgress(i / resolved.destinations.length, "backup-nas");
     try {
       if (!existsSync(destination)) {
-        Warn(`[${label}] unavailable — skipped (${destination})<context="task warning"/>`);
+        Warn(`[${label}] unavailable â skipped (${destination})<context="task warning"/>`);
         results.push({
           index: i + 1,
           path: destination,
@@ -387,7 +387,7 @@ async function _RunNasBackup() {
       }
       const destResolved = AssertNasBackupTarget(destination, rootDir);
       if (!resolved.dryRun) mkdirSync(destResolved, { recursive: true });
-      Log(`[${label}] Copying → <path/><context="task log"/>`, { path: destResolved });
+      Log(`[${label}] Copying â <path/><context="task log"/>`, { path: destResolved });
       await MirrorNonReproducible(rootDir, destResolved, resolved.dryRun);
       if (!resolved.dryRun) {
         const check = VerifyBackupContents(destResolved);
@@ -408,7 +408,7 @@ async function _RunNasBackup() {
       results.push({ index: i + 1, path: destResolved, status: "OK" });
     } catch (err) {
       Warn(
-        `[${label}] unavailable/failed — skipped (${err.message})<context="task warning"/>`
+        `[${label}] unavailable/failed â skipped (${err.message})<context="task warning"/>`
       );
       results.push({
         index: i + 1,
@@ -419,10 +419,10 @@ async function _RunNasBackup() {
     }
   }
 
-  Log("— NAS backup summary —<context=\"task log\"/>");
+  Log("â NAS backup summary â<context=\"task log\"/>");
   for (const r of results) {
     Log(
-      `[NAS${r.index}] ${r.status}${r.detail ? " — " + r.detail : ""} — ${r.path}<context="task log"/>`
+      `[NAS${r.index}] ${r.status}${r.detail ? " â " + r.detail : ""} â ${r.path}<context="task log"/>`
     );
   }
   const okCount = results.filter((r) => r.status === "OK").length;
@@ -464,13 +464,13 @@ export async function docs() {
 }
 _Tag(docs, {
   gulpName: "docs",
-  µDisplayName: 'Compose READMEs<context="µDisplayName"/>',
-  µDescription:
-    'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE915",
-  µOrder: 10,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Compose READMEs<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="ÂµDescription"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE915",
+  ÂµOrder: 10,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function docsEnUS() {
@@ -487,13 +487,13 @@ export async function docsEnUS() {
 }
 _Tag(docsEnUS, {
   gulpName: "docs:en-US",
-  µDisplayName: 'Compose README (en-US)<context="µDisplayName"/>',
-  µDescription:
-    'Generates README.md from dev/docs/readme/en-US.src.md.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE915",
-  µOrder: 11,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Compose README (en-US)<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Generates README.md from dev/docs/readme/en-US.src.md.<context="ÂµDescription"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE915",
+  ÂµOrder: 11,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function docsDeDE() {
@@ -510,13 +510,13 @@ export async function docsDeDE() {
 }
 _Tag(docsDeDE, {
   gulpName: "docs:de-DE",
-  µDisplayName: 'Compose README (de-DE)<context="µDisplayName"/>',
-  µDescription:
-    'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE915",
-  µOrder: 12,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Compose README (de-DE)<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="ÂµDescription"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE915",
+  ÂµOrder: 12,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function BACKUP_GIT() {
@@ -529,7 +529,7 @@ export async function BACKUP_GIT() {
   if (result.ok) PlaySignal("success");
   else if (result.reason === "not-a-repo") {
     Warn(
-      'Git backup skipped — no .git yet. Run git init when ready.<context="task warning"/>'
+      'Git backup skipped â no .git yet. Run git init when ready.<context="task warning"/>'
     );
   } else {
     Warn('Git backup status: <reason/><context="task warning"/>', {
@@ -540,13 +540,13 @@ export async function BACKUP_GIT() {
 }
 _Tag(BACKUP_GIT, {
   gulpName: "backup:git",
-  µDisplayName: 'Git backup checkpoint<context="µDisplayName"/>',
-  µDescription:
-    'Checkpoint commit including CLAUDE.md. Pushes when a remote exists. Never force-pushes.<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE902",
-  µOrder: 20,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Git backup checkpoint<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Checkpoint commit including CLAUDE.md. Pushes when a remote exists. Never force-pushes.<context="ÂµDescription"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE902",
+  ÂµOrder: 20,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function backup() {
@@ -554,16 +554,16 @@ export async function backup() {
 }
 _Tag(backup, {
   gulpName: "backup",
-  µDisplayName: 'Backup to NAS<context="µDisplayName"/>',
-  µDescription:
-    'Copies non-reproducible ESP][ files to up to three NAS folders. Form picks destinations (remembered). Skips node_modules, .pio, secrets.<context="µDescription"/>',
-  µTooltip:
-    'Form: Destination 1–3 + dry-run. Or NAS_TARGET_1..3 / config/nas.targets.local.<context="µTooltip"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE902",
-  µOrder: 30,
-  µExecutionConcurrency: false,
-  µParameters: _NasBackupParameters(),
+  ÂµDisplayName: 'Backup to NAS<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Copies non-reproducible ESP][ files to up to three NAS folders. Form picks destinations (remembered). Skips node_modules, .pio, secrets.<context="ÂµDescription"/>',
+  ÂµTooltip:
+    'Form: Destination 1â3 + dry-run. Or NAS_TARGET_1..3 / config/nas.targets.local.<context="ÂµTooltip"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE902",
+  ÂµOrder: 30,
+  ÂµExecutionConcurrency: false,
+  ÂµParameters: _NasBackupParameters(),
 });
 
 export async function BACKUP_ALL() {
@@ -578,12 +578,12 @@ export async function BACKUP_ALL() {
 }
 _Tag(BACKUP_ALL, {
   gulpName: "backup:all",
-  µDisplayName: 'Backup all (docs + Git + NAS)<context="µDisplayName"/>',
-  µDescription: 'Runs docs, backup:git, then backup (NAS form).<context="µDescription"/>',
-  µGroup: 'Docs & Backup<context="µGroup"/>',
-  µIcon: "\uE902",
-  µOrder: 40,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Backup all (docs + Git + NAS)<context="ÂµDisplayName"/>',
+  ÂµDescription: 'Runs docs, backup:git, then backup (NAS form).<context="ÂµDescription"/>',
+  ÂµGroup: 'Docs & Backup<context="ÂµGroup"/>',
+  ÂµIcon: "\uE902",
+  ÂµOrder: 40,
+  ÂµExecutionConcurrency: false,
 });
 
 //================================================================
@@ -596,7 +596,7 @@ gulp.task("backup:git", BACKUP_GIT);
 gulp.task("backup:all", BACKUP_ALL);
 gulp.task("docs:en-US", docsEnUS);
 gulp.task("docs:de-DE", docsDeDE);
-// npm script backup:nas → gulp backup (no second dashboard entry)
+// npm script backup:nas â gulp backup (no second dashboard entry)
 
 //================================================================
 // apple2js / media (developer; network only for :sync)
@@ -619,11 +619,11 @@ function runNodeCli(relScript, args, label) {
 export async function apple2jsSync() {
   ReportProgress(0, "apple2js-sync");
   Log(
-    'Syncing apple2js cache (network)…<context="task log"/>',
+    'Syncing apple2js cache (network)â¦<context="task log"/>',
   );
   const r = await syncApple2js({ fetchWebIndex: true });
   Log(
-    'apple2js @ <short/> — web catalog <count/> entries.<context="task log"/>',
+    'apple2js @ <short/> â web catalog <count/> entries.<context="task log"/>',
     { short: r.pin.short, count: String(r.webIndexCount ?? 0) },
   );
   ReportProgress(0.6, "apple2js-audit-diff");
@@ -633,13 +633,13 @@ export async function apple2jsSync() {
 }
 _Tag(apple2jsSync, {
   gulpName: "apple2js:sync",
-  µDisplayName: 'apple2js Sync<context="µDisplayName"/>',
-  µDescription:
-    'Clones/updates .cache/apple2js, fetches website index, re-audits with diff (network).<context="µDescription"/>',
-  µIcon: "\u2601",
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 60,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'apple2js Sync<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Clones/updates .cache/apple2js, fetches website index, re-audits with diff (network).<context="ÂµDescription"/>',
+  ÂµIcon: "\u2601",
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 60,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function apple2jsCatalog() {
@@ -649,12 +649,12 @@ export async function apple2jsCatalog() {
 }
 _Tag(apple2jsCatalog, {
   gulpName: "apple2js:catalog",
-  µDisplayName: 'apple2js Catalog<context="µDisplayName"/>',
-  µDescription:
-    'Summarize cached apple2js git+website catalog (offline if cache present).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 61,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'apple2js Catalog<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Summarize cached apple2js git+website catalog (offline if cache present).<context="ÂµDescription"/>',
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 61,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function apple2jsAudit() {
@@ -665,12 +665,12 @@ export async function apple2jsAudit() {
 }
 _Tag(apple2jsAudit, {
   gulpName: "apple2js:audit",
-  µDisplayName: 'apple2js Audit<context="µDisplayName"/>',
-  µDescription:
-    'Provenance audit + metadata stubs (offline if cache present).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 62,
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'apple2js Audit<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Provenance audit + metadata stubs (offline if cache present).<context="ÂµDescription"/>',
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 62,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function mediaIdentify() {
@@ -686,18 +686,18 @@ export async function mediaIdentify() {
 }
 _Tag(mediaIdentify, {
   gulpName: "media:identify",
-  µDisplayName: 'Media Identify<context="µDisplayName"/>',
-  µDescription:
-    'Offline SHA-256 + catalog match for a user disk image.<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 63,
-  µParameters: {
+  ÂµDisplayName: 'Media Identify<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Offline SHA-256 + catalog match for a user disk image.<context="ÂµDescription"/>',
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 63,
+  ÂµParameters: {
     file: {
       type: "string",
-      description: 'Path to .dsk/.po/.nib/.woz/…<context="µParameter"/>',
+      description: 'Path to .dsk/.po/.nib/.woz/â¦<context="ÂµParameter"/>',
     },
   },
-  µExecutionConcurrency: false,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function mediaImport() {
@@ -721,12 +721,12 @@ export async function mediaImport() {
 }
 _Tag(mediaImport, {
   gulpName: "media:import",
-  µDisplayName: 'Media Import<context="µDisplayName"/>',
-  µDescription:
-    'Import user-supplied disk(s) into a library path (offline; never downloads).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 64,
-  µParameters: {
+  ÂµDisplayName: 'Media Import<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Import user-supplied disk(s) into a library path (offline; never downloads).<context="ÂµDescription"/>',
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 64,
+  ÂµParameters: {
     file: { type: "string" },
     directory: { type: "string" },
     library: { type: "string" },
@@ -734,7 +734,7 @@ _Tag(mediaImport, {
     gameId: { type: "string" },
     dryRun: { type: "boolean" },
   },
-  µExecutionConcurrency: false,
+  ÂµExecutionConcurrency: false,
 });
 
 export async function mediaInspect() {
@@ -748,13 +748,13 @@ export async function mediaInspect() {
 }
 _Tag(mediaInspect, {
   gulpName: "media:inspect",
-  µDisplayName: 'Media Inspect (a2kit)<context="µDisplayName"/>',
-  µDescription:
-    'Optional external a2kit oracle if installed; otherwise ESP][ identify only.<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
-  µOrder: 65,
-  µParameters: { file: { type: "string" } },
-  µExecutionConcurrency: false,
+  ÂµDisplayName: 'Media Inspect (a2kit)<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Optional external a2kit oracle if installed; otherwise ESP][ identify only.<context="ÂµDescription"/>',
+  ÂµGroup: 'Media / apple2js<context="ÂµGroup"/>',
+  ÂµOrder: 65,
+  ÂµParameters: { file: { type: "string" } },
+  ÂµExecutionConcurrency: false,
 });
 
 export async function sdPrepare() {
@@ -794,6 +794,209 @@ _Tag(sdPrepare, {
   µExecutionConcurrency: false,
 });
 
+//================================================================
+// Local Apple II media (gitignored local/apple2/)
+//================================================================
+
+function cliArg(name) {
+  const argv = process.argv;
+  const i = argv.indexOf(`--${name}`);
+  if (i >= 0 && argv[i + 1] && !argv[i + 1].startsWith("--")) return argv[i + 1];
+  const eq = argv.find((a) => a.startsWith(`--${name}=`));
+  if (eq) return eq.slice(name.length + 3);
+  try {
+    const p = GetParameter(name);
+    if (p !== undefined && p !== null && p !== "") return p;
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+function cliFlag(name) {
+  if (process.argv.includes(`--${name}`)) return true;
+  try {
+    return GetParameter(name) === true;
+  } catch {
+    return false;
+  }
+}
+
+export async function apple2RomSync() {
+  ReportProgress(0, "apple2-rom-sync");
+  runNodeCli("dev/tools/apple2-local/cli.mjs", ["rom-sync"], "apple2:rom:sync");
+  ReportProgress(1, "apple2-rom-sync");
+  PlaySignal("success");
+}
+_Tag(apple2RomSync, {
+  gulpName: "apple2:rom:sync",
+  µDisplayName: 'Apple II ROM Sync<context="µDisplayName"/>',
+  µDescription:
+    'Download ONLY redistributable ROMs (e.g. AppleIIGo) into gitignored local/apple2/roms/.<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 70,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaSync() {
+  ReportProgress(0, "apple2-media-sync");
+  const title = cliArg("title") || "";
+  const all = cliFlag("all");
+  const args = ["media-sync"];
+  if (all) args.push("--all");
+  else if (title) args.push("--title", title);
+  else {
+    throw new Error(
+      "apple2:media:sync requires --title <id> or --all (complete LOCAL_TEST_ONLY cache)",
+    );
+  }
+  runNodeCli("dev/tools/apple2-local/cli.mjs", args, "apple2:media:sync");
+  ReportProgress(1, "apple2-media-sync");
+  PlaySignal("success");
+}
+_Tag(apple2MediaSync, {
+  gulpName: "apple2:media:sync",
+  µDisplayName: 'Apple II Media Sync<context="µDisplayName"/>',
+  µDescription:
+    'Fetch apple2js title(s) into gitignored local/apple2/cache/ (LOCAL_TEST_ONLY; never stages Git).<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 71,
+  µParameters: {
+    title: { type: "string", optional: true },
+    all: { type: "boolean", optional: true },
+  },
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaPrepare() {
+  ReportProgress(0, "apple2-media-prepare");
+  const title = cliArg("title") || "";
+  if (!title) throw new Error("apple2:media:prepare requires --title <id>");
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-prepare", "--title", title],
+    "apple2:media:prepare",
+  );
+  ReportProgress(1, "apple2-media-prepare");
+}
+_Tag(apple2MediaPrepare, {
+  gulpName: "apple2:media:prepare",
+  µDisplayName: 'Apple II Media Prepare<context="µDisplayName"/>',
+  µDescription:
+    'Normalize cached source to local/apple2/disks/ (offline; prefers DSK when lossless).<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 72,
+  µParameters: { title: { type: "string" } },
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaStatus() {
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-status"],
+    "apple2:media:status",
+  );
+}
+_Tag(apple2MediaStatus, {
+  gulpName: "apple2:media:status",
+  µDisplayName: 'Apple II Media Status<context="µDisplayName"/>',
+  µDescription:
+    'Compact table of local titles: downloaded / prepared / provenance.<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 73,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaList() {
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-list"],
+    "apple2:media:list",
+  );
+}
+_Tag(apple2MediaList, {
+  gulpName: "apple2:media:list",
+  µDisplayName: 'Apple II Media List<context="µDisplayName"/>',
+  µDescription: 'JSON list of locally cached titles.<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 74,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaAudit() {
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-audit"],
+    "apple2:media:audit",
+  );
+}
+_Tag(apple2MediaAudit, {
+  gulpName: "apple2:media:audit",
+  µDisplayName: 'Apple II Media Audit<context="µDisplayName"/>',
+  µDescription:
+    'Provenance counts for local cache (download never upgrades rights).<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 75,
+  µExecutionConcurrency: false,
+});
+
+export async function apple2MediaClean() {
+  const args = ["media-clean"];
+  if (cliFlag("cache")) args.push("--cache");
+  if (cliFlag("user")) args.push("--user");
+  runNodeCli("dev/tools/apple2-local/cli.mjs", args, "apple2:media:clean");
+}
+_Tag(apple2MediaClean, {
+  gulpName: "apple2:media:clean",
+  µDisplayName: 'Apple II Media Clean<context="µDisplayName"/>',
+  µDescription:
+    'Default: remove generated disks/. Optional --cache / --user (never deletes user media by default).<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 76,
+  µParameters: {
+    cache: { type: "boolean", optional: true },
+    user: { type: "boolean", optional: true },
+  },
+  µExecutionConcurrency: false,
+});
+
+export async function apple2DeviceSync() {
+  ReportProgress(0, "apple2-device-sync");
+  const title = cliArg("title") || "";
+  const port = cliArg("port") || process.env.ESP2_PORT || "";
+  if (!title) throw new Error("apple2:device:sync requires --title <id>");
+  if (!port) throw new Error("apple2:device:sync requires --port COMx");
+  const args = ["device-sync", "--title", title, "--port", port];
+  const romId = cliArg("romId") || cliArg("rom-id");
+  if (romId) args.push("--rom-id", romId);
+  runNodeCli("dev/tools/apple2-local/cli.mjs", args, "apple2:device:sync");
+  ReportProgress(1, "apple2-device-sync");
+  PlaySignal("success");
+}
+_Tag(apple2DeviceSync, {
+  gulpName: "apple2:device:sync",
+  µDisplayName: 'Apple II Device Sync<context="µDisplayName"/>',
+  µDescription:
+    'Upload ONLY selected title runtime ROM+disk via serial ESPU (not full catalog).<context="µDescription"/>',
+  µGroup: 'Media / local apple2<context="µGroup"/>',
+  µOrder: 77,
+  µParameters: {
+    title: { type: "string" },
+    port: { type: "string" },
+    romId: { type: "string", optional: true },
+  },
+  µExecutionConcurrency: false,
+});
+
+gulp.task("apple2:rom:sync", apple2RomSync);
+gulp.task("apple2:media:sync", apple2MediaSync);
+gulp.task("apple2:media:prepare", apple2MediaPrepare);
+gulp.task("apple2:media:status", apple2MediaStatus);
+gulp.task("apple2:media:list", apple2MediaList);
+gulp.task("apple2:media:audit", apple2MediaAudit);
+gulp.task("apple2:media:clean", apple2MediaClean);
+gulp.task("apple2:device:sync", apple2DeviceSync);
+
 export async function apple2RomIdentify() {
   ReportProgress(0, "apple2-rom-identify");
   const rom = GetParameter("rom") || "";
@@ -804,12 +1007,12 @@ export async function apple2RomIdentify() {
 }
 _Tag(apple2RomIdentify, {
   gulpName: "apple2:rom-identify",
-  µDisplayName: 'Apple II ROM Identify<context="µDisplayName"/>',
-  µDescription:
-    'Hash/identify a user-supplied motherboard ROM (no download). SKIPPED_NO_ROM if absent.<context="µDescription"/>',
-  µGroup: 'Apple II Host<context="µGroup"/>',
-  µOrder: 50,
-  µParameters: [{ name: "rom", type: "string", optional: true }],
+  ÂµDisplayName: 'Apple II ROM Identify<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Hash/identify a user-supplied motherboard ROM (no download). SKIPPED_NO_ROM if absent.<context="ÂµDescription"/>',
+  ÂµGroup: 'Apple II Host<context="ÂµGroup"/>',
+  ÂµOrder: 50,
+  ÂµParameters: [{ name: "rom", type: "string", optional: true }],
 });
 
 export async function apple2RomTest() {
@@ -822,12 +1025,12 @@ export async function apple2RomTest() {
 }
 _Tag(apple2RomTest, {
   gulpName: "apple2:rom-test",
-  µDisplayName: 'Apple II ROM Test<context="µDisplayName"/>',
-  µDescription:
-    'Optional bounded host run with user ROM; SKIPPED_NO_ROM without local ROM.<context="µDescription"/>',
-  µGroup: 'Apple II Host<context="µGroup"/>',
-  µOrder: 51,
-  µParameters: [{ name: "rom", type: "string", optional: true }],
+  ÂµDisplayName: 'Apple II ROM Test<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Optional bounded host run with user ROM; SKIPPED_NO_ROM without local ROM.<context="ÂµDescription"/>',
+  ÂµGroup: 'Apple II Host<context="ÂµGroup"/>',
+  ÂµOrder: 51,
+  ÂµParameters: [{ name: "rom", type: "string", optional: true }],
 });
 
 export async function apple2Host() {
@@ -846,12 +1049,12 @@ export async function apple2Host() {
 }
 _Tag(apple2Host, {
   gulpName: "apple2:host",
-  µDisplayName: 'Apple II Host Runner<context="µDisplayName"/>',
-  µDescription:
-    'Build and batch-run esp2_host (synthetic ROM unless --rom given).<context="µDescription"/>',
-  µGroup: 'Apple II Host<context="µGroup"/>',
-  µOrder: 52,
-  µParameters: [{ name: "rom", type: "string", optional: true }],
+  ÂµDisplayName: 'Apple II Host Runner<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Build and batch-run esp2_host (synthetic ROM unless --rom given).<context="ÂµDescription"/>',
+  ÂµGroup: 'Apple II Host<context="ÂµGroup"/>',
+  ÂµOrder: 52,
+  ÂµParameters: [{ name: "rom", type: "string", optional: true }],
 });
 
 gulp.task("apple2:rom-identify", apple2RomIdentify);
@@ -882,12 +1085,12 @@ export async function apple2DiskTest() {
 }
 _Tag(apple2DiskTest, {
   gulpName: "apple2:disk-test",
-  µDisplayName: 'Apple II Disk Test<context="µDisplayName"/>',
-  µDescription:
-    'Optional bounded Disk II boot/diagnostics; SKIPPED_NO_DISK without --disk. Does not download media.<context="µDescription"/>',
-  µGroup: 'Apple II Host<context="µGroup"/>',
-  µOrder: 53,
-  µParameters: [
+  ÂµDisplayName: 'Apple II Disk Test<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Optional bounded Disk II boot/diagnostics; SKIPPED_NO_DISK without --disk. Does not download media.<context="ÂµDescription"/>',
+  ÂµGroup: 'Apple II Host<context="ÂµGroup"/>',
+  ÂµOrder: 53,
+  ÂµParameters: [
     { name: "disk", type: "string", optional: true },
     { name: "rom", type: "string", optional: true },
     { name: "slot6Rom", type: "string", optional: true },
@@ -898,12 +1101,17 @@ gulp.task("apple2:disk-test", apple2DiskTest);
 
 export async function apple2Compat() {
   ReportProgress(0, "apple2-compat");
-  const test = GetParameter("test") || "";
-  const run = GetParameter("run") === true;
-  const config = GetParameter("config") || "";
-  const rom = GetParameter("rom") || "";
-  const slot6Rom = GetParameter("slot6Rom") || GetParameter("slot6-rom") || "";
-  const disk1 = GetParameter("disk1") || "";
+  const test = cliArg("test") || GetParameter("test") || "";
+  const run = cliFlag("run") || GetParameter("run") === true;
+  const config = cliArg("config") || GetParameter("config") || "";
+  const rom = cliArg("rom") || GetParameter("rom") || "";
+  const slot6Rom =
+    cliArg("slot6Rom") ||
+    cliArg("slot6-rom") ||
+    GetParameter("slot6Rom") ||
+    GetParameter("slot6-rom") ||
+    "";
+  const disk1 = cliArg("disk1") || GetParameter("disk1") || "";
   if (!test) {
     runNodeCli("host/tools/compat_runner.mjs", ["--list"], "apple2:compat-list");
     ReportProgress(1, "apple2-compat");
@@ -920,12 +1128,12 @@ export async function apple2Compat() {
 }
 _Tag(apple2Compat, {
   gulpName: "apple2:compat",
-  µDisplayName: 'Apple II Compatibility Harness<context="µDisplayName"/>',
-  µDescription:
-    'Run real-software compatibility test definitions; SKIPPED_* without user assets. No downloads.<context="µDescription"/>',
-  µGroup: 'Apple II Host<context="µGroup"/>',
-  µOrder: 54,
-  µParameters: [
+  ÂµDisplayName: 'Apple II Compatibility Harness<context="ÂµDisplayName"/>',
+  ÂµDescription:
+    'Run real-software compatibility test definitions; SKIPPED_* without user assets. No downloads.<context="ÂµDescription"/>',
+  ÂµGroup: 'Apple II Host<context="ÂµGroup"/>',
+  ÂµOrder: 54,
+  ÂµParameters: [
     { name: "test", type: "string", optional: true },
     { name: "run", type: "boolean", optional: true },
     { name: "config", type: "string", optional: true },
@@ -963,12 +1171,12 @@ export async function deviceUpload() {
 }
 _Tag(deviceUpload, {
   gulpName: "device:upload",
-  �DisplayName: 'Device Serial Upload<context="�DisplayName"/>',
-  �Description:
-    'Upload a local file to /esp2/... via framed serial protocol (dev only).<context="�Description"/>',
-  �Group: 'Device Storage<context="�Group"/>',
-  �Order: 70,
-  �Parameters: [
+  µDisplayName: 'Device Serial Upload<context="µDisplayName"/>',
+  µDescription:
+    'Upload a local file to /esp2/... via framed serial protocol (dev only).<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 70,
+  µParameters: [
     { name: "port", type: "string", optional: false },
     { name: "file", type: "string", optional: true },
     { name: "target", type: "string", optional: true },
@@ -991,12 +1199,12 @@ export async function deviceUsbStorage() {
 }
 _Tag(deviceUsbStorage, {
   gulpName: "device:usb-storage",
-  �DisplayName: 'Device USB Storage Mode<context="�DisplayName"/>',
-  �Description:
-    'Enter or leave USB MSC ownership of the microSD (TinyUSB OTG).<context="�Description"/>',
-  �Group: 'Device Storage<context="�Group"/>',
-  �Order: 71,
-  �Parameters: [
+  µDisplayName: 'Device USB Storage Mode<context="µDisplayName"/>',
+  µDescription:
+    'Enter or leave USB MSC ownership of the microSD (TinyUSB OTG).<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 71,
+  µParameters: [
     { name: "port", type: "string", optional: false },
     { name: "leave", type: "boolean", optional: true },
   ],

@@ -24,6 +24,12 @@ const KNOWN = Object.freeze({
       "Commercial title (Night Mission / Sublogic lineage commonly cited). Website catalog only; not in public git main. No redistribution grant found.",
     publisherHint: "Sublogic (historical)",
   },
+  galaxian: {
+    status: REDIS_STATUS.USER_SUPPLIED_ONLY,
+    evidence:
+      "Commercial/entertainment title on apple2js website catalog. Website availability is not redistribution permission. LOCAL_TEST_ONLY for compatibility testing.",
+    publisherHint: "Namco / Apple II port (historical)",
+  },
   audit: {
     status: REDIS_STATUS.REDISTRIBUTABLE,
     evidence:

@@ -94,6 +94,8 @@ export function identifyAsset(filePath) {
 export function resolveUserMediaPath(catalogFile) {
   if (!catalogFile) return null;
   const candidates = [
+    path.join(root, "local/apple2/disks", catalogFile),
+    path.join(root, "local/apple2/cache", catalogFile),
     path.join(root, "library/user", catalogFile),
     path.join(root, "local/media", catalogFile),
     catalogFile,
@@ -102,4 +104,43 @@ export function resolveUserMediaPath(catalogFile) {
     if (fs.existsSync(c)) return c;
   }
   return null;
+}
+
+/**
+ * Resolve assets from the ignored local/apple2 library manifest.
+ * @param {string} titleId
+ * @returns {{ rom?: object, disk?: object, record?: object } | null}
+ */
+export function resolveLocalApple2Title(titleId) {
+  if (!titleId) return null;
+  const manifestPath = path.join(root, "local/apple2/manifests/local-library.json");
+  if (!fs.existsSync(manifestPath)) return null;
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const q = String(titleId).toLowerCase();
+  const rec =
+    manifest.titles?.[q] ||
+    Object.values(manifest.titles || {}).find(
+      (t) =>
+        t.id === q ||
+        String(t.title || "").toLowerCase() === q ||
+        String(t.catalogFilename || "").toLowerCase().includes(q),
+    );
+  if (!rec) return null;
+  const romId = rec.defaultRomId || "appleiigo";
+  const romRec = manifest.roms?.[romId] || null;
+  let romPath = romRec?.path || null;
+  if (!romPath || !fs.existsSync(romPath)) {
+    const fallback = path.join(root, "local/apple2/roms", `${romId}.rom`);
+    if (fs.existsSync(fallback)) romPath = fallback;
+    else if (fs.existsSync(path.join(root, "local/apple2/roms/appleiigo.rom"))) {
+      romPath = path.join(root, "local/apple2/roms/appleiigo.rom");
+    } else romPath = null;
+  }
+  const diskPath =
+    (rec.runtimePath && fs.existsSync(rec.runtimePath) && rec.runtimePath) ||
+    (rec.deviceDiskName &&
+      fs.existsSync(path.join(root, "local/apple2/disks", rec.deviceDiskName)) &&
+      path.join(root, "local/apple2/disks", rec.deviceDiskName)) ||
+    null;
+  return { rom: romPath ? { path: romPath, id: romId, record: romRec } : null, disk: diskPath ? { path: diskPath, record: rec } : null, record: rec };
 }
