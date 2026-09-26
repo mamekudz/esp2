@@ -11,6 +11,8 @@
     "keyboard": "PASS",
     "keyboard_strobe": "PASS",
     "speaker": "PASS",
+    "speaker_cycle_edges": "PASS",
+    "speaker_pcm_integrate": "PASS",
     "cassette": "PASS",
     "video_switches": "PASS",
     "text_screen": "PASS",

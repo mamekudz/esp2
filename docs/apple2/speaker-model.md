@@ -1,25 +1,16 @@
-# Apple II speaker model
+# Apple II speaker model (cycle-accurate 1-bit)
 
-## Hardware behavior (summary)
-
-Apple II audio is produced by toggling a soft-switch address that flips a
-1-bit speaker transducer. Software controls pulse timing; there is no
-dedicated PCM DAC in the base machine.
+See **`docs/apple2/audio.md`** for the full fidelity specification,
+Star Blazer subjective reference, BlueShift notes, and diagnostics.
 
 ## Emulation events
 
 ```
 struct SpeakerEvent {
   uint32_t cycle;   // machine cycle stamp
-  uint8_t level;    // 0 or 1 after toggle
+  uint8_t level;    // 0 or 1 after toggle (1-bit state)
 };
 ```
 
-The audio engine converts event streams into:
-
-- click / square approximations for local piezo, or
-- band-limited PCM for digital sinks.
-
-## Separation
-
-`AppleIIMachine` emits events only. GPIO / I2S / BLE Audio live outside.
+Optional transport packing uses `deltaCycles` between edges without
+discarding timing.

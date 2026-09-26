@@ -547,11 +547,37 @@ speaker toggle mechanism.
 
 Audio is a V1 requirement.
 
+The speaker is a **cycle-accurate 1-bit state**. Every access to the
+speaker soft-switch must produce an edge event stamped with the exact
+emulated 6502 cycle.
+
+**Permanent architecture rule:** Apple II speaker output must remain
+represented as cycle-accurate 1-bit edge events until the final
+audio-rendering (or BlueShift edge-transport) stage.
+
+Do **not** reduce the signal prematurely to:
+
+- notes
+- tones
+- frequencies
+- fixed beeps
+- frame-rate events
+
+Historical software uses timed pulses / PWM for digitized audio. The PCM
+renderer must **integrate** the 1-bit level over each output sample
+interval so pulses shorter than one PCM sample still contribute. This
+applies to local speaker, host audio, Bluetooth audio, and BlueShift.
+BlueShift should preferably carry cycle-delta speaker edge events rather
+than pre-rendered PCM when practical.
+
+
 Conceptual architecture:
 
     Apple II speaker toggle
               |
-         audio engine
+         edge stream (cycle, 1-bit level)
+              |
+         audio engine / PCM integrator / BlueShift packer
               |
        +------+------+
        |             |

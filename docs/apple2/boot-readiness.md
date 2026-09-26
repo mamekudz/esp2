@@ -24,7 +24,7 @@ Level 3 **does not** require proprietary ROMs in CI. Optional
 | RAM | PASS |
 | ROM abstraction + loader/hash | PASS |
 | keyboard / strobe | PASS |
-| speaker | PASS |
+| speaker | PASS (cycle edges + PCM integrate) |
 | cassette | PASS (logical) |
 | video switches | PASS |
 | text screen extract / flash model | PASS |

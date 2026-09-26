@@ -1,26 +1,20 @@
-# Audio architecture (preparation only)
+# Audio architecture
 
 ```
-Apple II speaker soft-switch toggle
+Apple II $C030 toggle (any access)
             |
-      audio engine (host-testable)
+     Speaker (1-bit + cycle-stamped edges)
             |
-     +------+------+
-     |             |
-  local sink    Bluetooth sink (later)
-  (piezo/DAC)   (ONLY if BLE Audio proven)
+     SpeakerPcmRenderer (interval integration)
+            |
+     HostAudioBackend / future ESP32 / BlueShift reconstruct
 ```
 
-## Constraints
+Authoritative fidelity rules: `docs/apple2/audio.md` and CLAUDE.md §17.
 
-- ESP32-S3 is **BLE-only** (no Classic / A2DP assumption).
-- BLE Audio feasibility must be measured experimentally; do not implement yet.
-- Do not couple speaker emulation to a GPIO in the Apple II core.
+## BlueShift™ (document only — not in this repository)
 
-## Engine responsibilities
+Preferred wire format: **cycle-delta edges**, not PCM.
 
-- Convert toggle timestamps / cycle counts into a PCM or click stream.
-- Handle underruns with diagnostics.
-- Volume / mute as UI state, not core state.
-
-See also: `docs/apple2/speaker-model.md`.
+Haptic / other vendor commands: same optional extension channel later;
+**NOT_IMPLEMENTED** now.
