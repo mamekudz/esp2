@@ -48,4 +48,18 @@ class Rom {
 /** Build synthetic 12K ROM image into dst[12288]. Returns RomError::Ok. */
 RomError generateSyntheticRom(uint8_t *dst, size_t dstSize);
 
+/**
+ * Project-owned ESP32 text-port ROM (NOT Apple firmware).
+ * Writes multi-line status into text page 1 and markers at $03FC–$03FF.
+ * Signature: $03FC=$A2 $03FD=$54 $03FE=$58 $03FF=$31 ("A2TX1").
+ */
+RomError generateSyntheticEsp32TextPortRom(uint8_t *dst, size_t dstSize);
+
+/** Documented Esp32 text-port success marker bytes at $03FC. */
+inline constexpr uint8_t kEsp32TextPortMarker0 = 0xA2;
+inline constexpr uint8_t kEsp32TextPortMarker1 = 0x54;
+inline constexpr uint8_t kEsp32TextPortMarker2 = 0x58;
+inline constexpr uint8_t kEsp32TextPortMarker3 = 0x31;
+inline constexpr uint16_t kEsp32TextPortMarkerAddr = 0x03FC;
+
 } // namespace esp_bracket

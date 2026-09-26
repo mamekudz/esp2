@@ -117,4 +117,80 @@ RomError generateSyntheticRom(uint8_t *dst, size_t dstSize) {
     return RomError::Ok;
 }
 
+RomError generateSyntheticEsp32TextPortRom(uint8_t *dst, size_t dstSize) {
+    if (!dst || dstSize < Rom::kApple2PlusRomBytes) {
+        return RomError::InvalidSize;
+    }
+    std::memset(dst, 0xEA, Rom::kApple2PlusRomBytes);
+
+    const uint16_t entry = 0xE000;
+    size_t i = 0;
+    auto emit = [&](uint8_t b) {
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(entry + i), b);
+        ++i;
+    };
+
+    // Soft switches: TEXT + PAGE1
+    emit(0x8D);
+    emit(0x51);
+    emit(0xC0);
+    emit(0x8D);
+    emit(0x54);
+    emit(0xC0);
+
+    auto putRow = [&](int row, const char *msg) {
+        for (uint16_t col = 0; msg[col]; ++col) {
+            const uint8_t ch = static_cast<uint8_t>(0x80u | static_cast<uint8_t>(msg[col]));
+            // Classic layout: pageBase + ((row&7)<<7) + ((row>>3)*40) + col
+            const uint16_t addr = static_cast<uint16_t>(
+                0x0400 + ((row & 7) << 7) + ((row >> 3) * 40) + col);
+            emit(0xA9);
+            emit(ch);
+            emit(0x8D);
+            emit(static_cast<uint8_t>(addr & 0xFF));
+            emit(static_cast<uint8_t>((addr >> 8) & 0xFF));
+        }
+    };
+
+    putRow(0, "ESP][");
+    putRow(2, "ESP32-S3 PORT TEST");
+    putRow(4, "6502        OK");
+    putRow(5, "RAM         OK");
+    putRow(6, "BUS         OK");
+    putRow(7, "TEXT        OK");
+    putRow(9, "CYCLES 000000000");
+
+    // Markers $03FC–$03FF = A2 TX 1 (does not collide with Level-2/4 markers)
+    emit(0xA9);
+    emit(kEsp32TextPortMarker0);
+    emit(0x8D);
+    emit(0xFC);
+    emit(0x03);
+    emit(0xA9);
+    emit(kEsp32TextPortMarker1);
+    emit(0x8D);
+    emit(0xFD);
+    emit(0x03);
+    emit(0xA9);
+    emit(kEsp32TextPortMarker2);
+    emit(0x8D);
+    emit(0xFE);
+    emit(0x03);
+    emit(0xA9);
+    emit(kEsp32TextPortMarker3);
+    emit(0x8D);
+    emit(0xFF);
+    emit(0x03);
+
+    const uint16_t loopAddr = static_cast<uint16_t>(entry + i);
+    emit(0x4C);
+    emit(static_cast<uint8_t>(loopAddr & 0xFF));
+    emit(static_cast<uint8_t>((loopAddr >> 8) & 0xFF));
+
+    writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFA, entry);
+    writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFC, entry);
+    writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFE, entry);
+    return RomError::Ok;
+}
+
 } // namespace esp_bracket
