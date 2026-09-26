@@ -893,7 +893,7 @@ static bool level4RegressionSpot() {
     const uint64_t c0 = g_cpu.cycles();
     for (;;) {
         runEmu(64);
-        serviceCleanRoomDenibbleRequest(g_a2bus.ram());
+        serviceCleanRoomCardRequests(g_a2bus.ram(), g_diskII);
         if (g_a2bus.ram()[0x03FE] == 0x4C && g_a2bus.ram()[0x03FF] == 0x34) {
             ok = true;
             break;
@@ -994,7 +994,7 @@ static void emulatorTask(void *) {
         g_cpu.runCycles(kExecQuantum);
         syncCycle();
         if (g_diskII.romKind() == DiskIIController::RomKind::CleanRoom) {
-            serviceCleanRoomDenibbleRequest(g_a2bus.ram());
+            serviceCleanRoomCardRequests(g_a2bus.ram(), g_diskII);
         }
         const uint64_t after = g_cpu.cycles();
         const uint64_t emuSince = after - g_emuCyclesAtBoot;

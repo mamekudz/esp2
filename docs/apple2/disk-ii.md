@@ -65,13 +65,25 @@ Physical SD path (PART E):
 
 Firmware may seed this project-owned image once if missing. Mount is **read-only**.
 
-## Clean-room Level-4 boot
+## Clean-room Level-4 / DOS boot0
 
-Origin: **ESP][ project-owned clean-room Slot-6 boot ROM** (not Apple Disk II ROM).
+Origin: **ESP][ project-owned clean-room Slot-6 firmware** (not Apple Disk II ROM).
 
-1. PROM `$C600`: motor on, Drive 1, find T0S0, copy 343 nibbles → `$0900`, `JMP $C800`
-2. Expansion `$C800`: denibble via `$03FA=$DE` → `DiskIIEncoding::decodeSector` → `$0800`
-3. Boot sector writes text + markers `$03FE=$4C`, `$03FF=$34`
+Vector layout matches documented Disk II PROM offsets (code is project-owned):
+
+1. PROM `$C600` → `JMP $C800` (boot)
+2. PROM `$C65C` → `JMP $C900` (sector-read; DOS boot0 `JMP $Cn5C`)
+3. EXP `$C800`: motor/drive, find T0S0, copy 343 nibbles → `$0900`, set
+   `$2B=$60`, `$27=$09`, **`LDY #$00`**, denibble handshake `$03FA=$DE` →
+   **`JMP $0801`** (Disk II convention: `$0800` is the sector-count byte, not
+   executable code)
+4. EXP `$C900`: sector-read handshake `$03F9=$D1` using ZP `$41` (track),
+   `$3D` (sector), `$27` (dest page) → **`LDY #$00`** → **`JMP $0801`**
+
+`LDY #0` matches Disk II PROM sector-store exit (Y wraps after 256 stores).
+DOS / title boot loaders often index with Y after `$Cn5C` returns.
+
+`Esp2BootTest` T0S0 also follows the `$0800` parameter / `$0801` entry convention.
 
 Evidence:
 

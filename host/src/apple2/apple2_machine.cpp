@@ -121,7 +121,7 @@ void HostAppleIIMachine::runCycles(uint32_t cycles) {
         cpu_.runCycles(step);
         syncBusCycle();
         if (diskII_.romKind() == DiskIIController::RomKind::CleanRoom) {
-            serviceCleanRoomDenibbleRequest(bus_.ram());
+            serviceCleanRoomCardRequests(bus_.ram(), diskII_);
         }
         left -= step;
     }
