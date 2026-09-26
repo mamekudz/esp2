@@ -75,8 +75,8 @@ Keep these levels distinct:
 ### HOST_VERIFIED (host tooling / host machine only)
 
 - Media import / catalog / provenance gates (`media:import`, apple2js catalog)
-- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (Level-4 clean-room boot path), user-ROM loader (`npm run test:apple2`)
-- Synthetic test ROM / no Apple ROMs in the repository (optional local user ROM via `local/roms/`)
+- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (Level-4 clean-room boot path), real-software compatibility harness, user-ROM loader (`npm run test:apple2`)
+- Synthetic test ROM / no Apple ROMs in the repository (optional local user ROM via `local/roms/`; machine config example `config/apple2.local.example.json`)
 
 ### PLANNED
 
@@ -108,7 +108,18 @@ Planned additional hardware: piezo / local speaker, physical reset / control but
 
 ### Apple II emulation
 
-Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED** (boot readiness Level 4: realistic Slot-6 Disk II boot path; optional user-supplied II/II+ and Slot-6 ROMs). Firmware integration on the ESP32: **not yet**. No Apple ROMs in the repo (synthetic / clean-room test firmware only). See `docs/apple2/roms.md` and `docs/apple2/boot-readiness.md`.
+Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED** (boot readiness Level 4 met; Level 5 = **READY_FOR_REAL_SOFTWARE_TEST** via compatibility harness). Firmware integration on the ESP32: **not yet** (see `docs/architecture/esp32-port-readiness.md`). No Apple ROMs in the repo (synthetic / clean-room test firmware only). See `docs/apple2/roms.md`, `docs/apple2/boot-readiness.md`, `docs/apple2/compatibility-testing.md`.
+
+### Compatibility (sample)
+
+| Title | Host | ESP32 |
+| --- | --- | --- |
+| ESP][ Boot Test | COMPLETED_TEST_PATH | NOT_TESTED |
+| Choplifter | BLOCKED_MISSING_ASSET | NOT_TESTED |
+| Night Mission | BLOCKED_MISSING_ASSET | NOT_TESTED |
+| Star Blazer | BLOCKED_MISSING_ASSET (audio SUBJECTIVE_REFERENCE) | NOT_TESTED |
+
+Full matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ incompatible.
 
 ### Virtual Disk II / media layer
 

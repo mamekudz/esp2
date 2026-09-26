@@ -1383,3 +1383,35 @@ Agents must NOT:
 - translate protocol names or stable machine identifiers;
 - reformat the entire repository during an unrelated task;
 - modify vendored code solely to match ESP][ style.
+
+
+# APPLE II COMPATIBILITY AND PORTABILITY
+
+
+## No title-specific emulator hacks
+
+Never special-case commercial titles inside the Apple II core
+(e.g. `if title == "Choplifter"`). Fix machine, timing, device, or parser
+behavior with generic regression tests.
+
+
+## Host vs ESP32 compatibility
+
+`hostStatus` and `esp32Status` are independent evidence fields.
+A host result must never be reported as ESP32 compatibility.
+
+
+## Emulated cycle timeline
+
+The 6502 cycle counter is the authoritative Apple II timeline for speaker,
+paddles, Disk II, and related devices. FreeRTOS / wall-clock time is only for
+real-time throttling and UI — not emulated machine time.
+
+
+## Real-software assets
+
+Real Apple ROM / Disk II ROM / commercial disk testing uses
+**USER_SUPPLIED_ONLY** local assets unless redistribution rights are
+established. CI must stay green without proprietary media.
+Compatibility claims require recorded evidence (see
+`docs/apple2/compatibility-testing.md`).
