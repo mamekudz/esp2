@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "machine": "AppleIIPlus",
+  "rom": "local/roms/apple2plus.rom",
+  "slot6Rom": null,
+  "slot6Mode": "cleanroom",
+  "disk1": null,
+  "disk2": null,
+  "videoMode": "CompositeColor",
+  "displayEffect": "Sharp",
+  "inputProfile": "default",
+  "audio": "host",
+  "notes": "Copy to config/apple2.local.json. Paths are local only — never commit apple2.local.json. Media/ROMs remain USER_SUPPLIED_ONLY unless redistribution is established."
+}

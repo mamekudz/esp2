@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "id": "star-blazer",
+  "title": "Star Blazer",
+  "category": "Game",
+  "disks": [
+    {
+      "file": "star-blazer.dsk",
+      "label": "disk1",
+      "writeProtected": true,
+      "mediaInstalled": false
+    }
+  ],
+  "bootDisk": "star-blazer.dsk",
+  "defaultDrive1": "star-blazer.dsk",
+  "defaultDrive2": null,
+  "joystickMode": "auto",
+  "videoColorMode": "CompositeColor",
+  "displayEffect": "Sharp",
+  "effectStrength": "Off",
+  "notes": "Future audio/video compatibility reference. Disk image not bundled with ESP][.",
+  "mediaStatus": "not_installed",
+  "source": {
+    "type": "manual",
+    "site": null,
+    "inGitRepo": false,
+    "onWebsite": false
+  },
+  "redistribution": {
+    "status": "USER_SUPPLIED_ONLY",
+    "evidence": "Commercial title. No redistribution grant. Subjective browser-simulation audio reference only.",
+    "preferredUpstream": null,
+    "publisherHint": null
+  },
+  "audioNote": "SUBJECTIVE_REFERENCE — browser Apple II simulation sounded subjectively close to original; not an automated pass."
+}

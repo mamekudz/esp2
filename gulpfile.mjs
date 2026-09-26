@@ -895,3 +895,44 @@ _Tag(apple2DiskTest, {
 });
 
 gulp.task("apple2:disk-test", apple2DiskTest);
+
+export async function apple2Compat() {
+  ReportProgress(0, "apple2-compat");
+  const test = GetParameter("test") || "";
+  const run = GetParameter("run") === true;
+  const config = GetParameter("config") || "";
+  const rom = GetParameter("rom") || "";
+  const slot6Rom = GetParameter("slot6Rom") || GetParameter("slot6-rom") || "";
+  const disk1 = GetParameter("disk1") || "";
+  if (!test) {
+    runNodeCli("host/tools/compat_runner.mjs", ["--list"], "apple2:compat-list");
+    ReportProgress(1, "apple2-compat");
+    return;
+  }
+  const args = ["--test", test];
+  if (run) args.push("--run");
+  if (config) args.push("--config", config);
+  if (rom) args.push("--rom", rom);
+  if (slot6Rom) args.push("--slot6-rom", slot6Rom);
+  if (disk1) args.push("--disk1", disk1);
+  runNodeCli("host/tools/compat_runner.mjs", args, "apple2:compat");
+  ReportProgress(1, "apple2-compat");
+}
+_Tag(apple2Compat, {
+  gulpName: "apple2:compat",
+  µDisplayName: 'Apple II Compatibility Harness<context="µDisplayName"/>',
+  µDescription:
+    'Run real-software compatibility test definitions; SKIPPED_* without user assets. No downloads.<context="µDescription"/>',
+  µGroup: 'Apple II Host<context="µGroup"/>',
+  µOrder: 54,
+  µParameters: [
+    { name: "test", type: "string", optional: true },
+    { name: "run", type: "boolean", optional: true },
+    { name: "config", type: "string", optional: true },
+    { name: "rom", type: "string", optional: true },
+    { name: "slot6Rom", type: "string", optional: true },
+    { name: "disk1", type: "string", optional: true },
+  ],
+});
+
+gulp.task("apple2:compat", apple2Compat);

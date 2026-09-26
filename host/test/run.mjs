@@ -14,6 +14,15 @@ import {
   testMediaImportAndNoMediaState,
 } from "./media_import.test.mjs";
 import {
+  testCompatDefinitionsPresent,
+  testCompatSkipsWithoutAssets,
+  testCompatProjectOwnedGate,
+  testCompatTitlesMatrix,
+  testMachineConfigExample,
+  testIdentifyMissingAsset,
+  testCompatRunnerSkippedExit,
+} from "./compat_harness.test.mjs";
+import {
   testSourcesRegistry,
   testProvenanceGates,
   testApple2jsSyncDiffBlocksUpgrade,
@@ -46,6 +55,13 @@ const tests = [
   ["directory_import", testDirectoryImportNonRecursive],
   ["sd_prepare_dryrun", testSdPrepareDryRunSafety],
   ["woz_redistributable", testWozRedistributableHash],
+  ["compat_definitions", testCompatDefinitionsPresent],
+  ["compat_skip_assets", testCompatSkipsWithoutAssets],
+  ["compat_project_owned", testCompatProjectOwnedGate],
+  ["compat_titles_matrix", testCompatTitlesMatrix],
+  ["machine_config_example", testMachineConfigExample],
+  ["identify_missing_asset", testIdentifyMissingAsset],
+  ["compat_runner_skip", testCompatRunnerSkippedExit],
 ];
 
 let failed = 0;

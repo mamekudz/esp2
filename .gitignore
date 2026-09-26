@@ -74,6 +74,9 @@ local/roms/**
 # Local ROM path config (personal)
 config/roms.local.json
 
+# Local full machine config (personal paths)
+config/apple2.local.json
+
 
 # User-imported library media (local only)
 library/user/

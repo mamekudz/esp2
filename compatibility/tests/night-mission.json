@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "id": "night-mission",
+  "catalogId": "night-mission",
+  "title": "Night Mission",
+  "redistribution": "USER_SUPPLIED_ONLY",
+  "machineProfile": "AppleIIPlus",
+  "romProfile": "user_ii_plus",
+  "slot6Mode": "user_or_cleanroom",
+  "media": {
+    "disk1": {
+      "catalogFile": "night-mission.dsk",
+      "format": "dsk",
+      "sha256": null,
+      "note": "Hash filled only after user supplies legal local media"
+    }
+  },
+  "bootCycleBudget": 120000000,
+  "sustainedCycleBudget": 60000000,
+  "stages": ["boot", "title_or_start", "input", "gameplay", "disk", "video", "audio"],
+  "checkpoints": [
+    { "type": "surviveCycles", "cycles": 1000000, "phase": "boot" },
+    { "type": "videoModeAny", "modes": ["TEXT", "HGR", "MIXED"], "phase": "title_or_start" },
+    { "type": "diskMotorActivity", "expect": true, "phase": "boot" }
+  ],
+  "manualSteps": [
+    "Confirm interactive start without title-specific emulator hacks",
+    "Record input/video/audio observations separately for host vs ESP32"
+  ],
+  "knownIssues": [],
+  "hostStatus": "BLOCKED_MISSING_ASSET",
+  "esp32Status": "NOT_TESTED",
+  "notes": "Commercial title. No media in repo. Do not invent SHA-256."
+}

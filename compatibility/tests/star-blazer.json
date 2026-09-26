@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "id": "star-blazer",
+  "catalogId": "star-blazer",
+  "title": "Star Blazer",
+  "redistribution": "USER_SUPPLIED_ONLY",
+  "machineProfile": "AppleIIPlus",
+  "romProfile": "user_ii_plus",
+  "slot6Mode": "user_or_cleanroom",
+  "media": {
+    "disk1": {
+      "catalogFile": "star-blazer.dsk",
+      "format": "dsk",
+      "sha256": null,
+      "note": "Hash filled only after user supplies legal local media"
+    }
+  },
+  "bootCycleBudget": 120000000,
+  "sustainedCycleBudget": 60000000,
+  "stages": ["boot", "title_or_start", "input", "gameplay", "disk", "video", "audio"],
+  "checkpoints": [
+    { "type": "surviveCycles", "cycles": 1000000, "phase": "boot" },
+    { "type": "speakerEdgesMin", "count": 1, "phase": "gameplay", "optional": true }
+  ],
+  "manualSteps": [
+    "Compare digitized audio subjectively to original Apple II experience",
+    "Do not treat SUBJECTIVE_REFERENCE as automated PASS"
+  ],
+  "audio": {
+    "status": "SUBJECTIVE_REFERENCE",
+    "notes": "Author's browser Apple II simulation of Star Blazer sounded subjectively reasonably close to original Apple II digitized audio behavior. Not an automated criterion."
+  },
+  "knownIssues": [],
+  "hostStatus": "BLOCKED_MISSING_ASSET",
+  "esp32Status": "NOT_TESTED",
+  "notes": "Useful future audio/video compatibility reference. No media in repo."
+}

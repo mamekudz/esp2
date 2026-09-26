@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "title": "ESP][ software compatibility matrix",
+  "notes": [
+    "hostStatus and esp32Status are independent.",
+    "NOT_TESTED is not incompatible.",
+    "USER_SUPPLIED_ONLY titles never embed media in the repository.",
+    "Evidence-based statuses only — no title-specific emulator hacks."
+  ],
+  "statuses": [
+    "NOT_TESTED",
+    "BOOTS",
+    "TITLE_SCREEN",
+    "INTERACTIVE",
+    "PLAYABLE",
+    "COMPLETED_TEST_PATH",
+    "PARTIAL",
+    "FAILS",
+    "BLOCKED_MISSING_ASSET"
+  ],
+  "titles": [
+    {
+      "id": "esp2-boot-test",
+      "title": "ESP][ Boot Test",
+      "hostStatus": "COMPLETED_TEST_PATH",
+      "esp32Status": "NOT_TESTED",
+      "input": "n/a",
+      "video": "TEXT",
+      "audio": "n/a",
+      "disk": "DSK Level-4 clean-room",
+      "notes": "Project-owned CI fixture"
+    },
+    {
+      "id": "choplifter",
+      "title": "Choplifter",
+      "hostStatus": "BLOCKED_MISSING_ASSET",
+      "esp32Status": "NOT_TESTED",
+      "input": "NOT_TESTED",
+      "video": "NOT_TESTED",
+      "audio": "NOT_TESTED",
+      "disk": "USER_SUPPLIED_ONLY",
+      "notes": "Compat profile ready; no media in repo"
+    },
+    {
+      "id": "night-mission",
+      "title": "Night Mission",
+      "hostStatus": "BLOCKED_MISSING_ASSET",
+      "esp32Status": "NOT_TESTED",
+      "input": "NOT_TESTED",
+      "video": "NOT_TESTED",
+      "audio": "NOT_TESTED",
+      "disk": "USER_SUPPLIED_ONLY",
+      "notes": "Compat profile ready; no media in repo"
+    },
+    {
+      "id": "star-blazer",
+      "title": "Star Blazer",
+      "hostStatus": "BLOCKED_MISSING_ASSET",
+      "esp32Status": "NOT_TESTED",
+      "input": "NOT_TESTED",
+      "video": "NOT_TESTED",
+      "audio": "SUBJECTIVE_REFERENCE",
+      "disk": "USER_SUPPLIED_ONLY",
+      "notes": "Browser simulation subjective audio reference only"
+    }
+  ]
+}

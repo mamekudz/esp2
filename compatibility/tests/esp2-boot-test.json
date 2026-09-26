@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "id": "esp2-boot-test",
+  "catalogId": "esp2-boot-test",
+  "title": "ESP][ Boot Test (project-owned)",
+  "redistribution": "PROJECT_OWNED",
+  "machineProfile": "AppleIIPlus",
+  "romProfile": "synthetic_or_user",
+  "slot6Mode": "cleanroom",
+  "media": {
+    "disk1": {
+      "id": "Esp2BootTest",
+      "format": "dsk",
+      "sha256": null,
+      "note": "Generated in-process by HostAppleIIMachine — not a file fixture"
+    }
+  },
+  "bootCycleBudget": 30000000,
+  "sustainedCycleBudget": 5000000,
+  "checkpoints": [
+    { "type": "memoryMarker", "address": "0x03FE", "value": "0x4C" },
+    { "type": "memoryMarker", "address": "0x03FF", "value": "0x34" },
+    { "type": "screenContains", "text": "ESP][ LEVEL 4" },
+    { "type": "screenContains", "text": "DISK II BOOT OK" },
+    { "type": "diskMotorActivity", "expect": true },
+    { "type": "surviveCycles", "cycles": 5000000 }
+  ],
+  "manualSteps": [],
+  "knownIssues": [],
+  "hostStatus": "COMPLETED_TEST_PATH",
+  "esp32Status": "NOT_TESTED",
+  "notes": "Legal CI fixture for harness regression. Not a commercial title."
+}
