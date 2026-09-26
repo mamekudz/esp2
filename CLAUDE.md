@@ -1408,6 +1408,16 @@ paddles, Disk II, and related devices. FreeRTOS / wall-clock time is only for
 real-time throttling and UI — not emulated machine time.
 
 
+## Video memory and dirty tracking
+
+- Apple II logical **HGR remains 280 × 192** permanently.
+- Every emulated VRAM write (and its cycle cost) remains fully executed.
+- Dirty metadata may optimize physical display transfers only (scanline/row
+  bitsets, coalescing, frame skip).
+- Physical display may drop or coalesce frames when behind.
+- Apple II emulated cycles must **never** be dropped to chase display FPS.
+
+
 ## Real-software assets
 
 Real Apple ROM / Disk II ROM / commercial disk testing uses

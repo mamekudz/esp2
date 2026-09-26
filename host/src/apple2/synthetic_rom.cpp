@@ -142,8 +142,8 @@ RomError generateSyntheticEsp32TextPortRom(uint8_t *dst, size_t dstSize) {
         for (uint16_t col = 0; msg[col]; ++col) {
             const uint8_t ch = static_cast<uint8_t>(0x80u | static_cast<uint8_t>(msg[col]));
             // Classic layout: pageBase + ((row&7)<<7) + ((row>>3)*40) + col
-            const uint16_t addr = static_cast<uint16_t>(
-                0x0400 + ((row & 7) << 7) + ((row >> 3) * 40) + col);
+            const uint16_t addr =
+                static_cast<uint16_t>(0x0400 + ((row & 7) << 7) + ((row >> 3) * 40) + col);
             emit(0xA9);
             emit(ch);
             emit(0x8D);
@@ -190,6 +190,94 @@ RomError generateSyntheticEsp32TextPortRom(uint8_t *dst, size_t dstSize) {
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFA, entry);
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFC, entry);
     writeRomWord(dst, Rom::kApple2PlusRomBytes, 0xFFFE, entry);
+    return RomError::Ok;
+}
+
+RomError generateSyntheticVideoPipelineRom(uint8_t *dst, size_t dstSize) {
+    // Start from text-port ROM (banner + idle), then add HGR clear + VP marker.
+    const RomError base = generateSyntheticEsp32TextPortRom(dst, dstSize);
+    if (base != RomError::Ok) {
+        return base;
+    }
+
+    // $E800: clear HGR page 1 ($2000-$3FFF) via zero-page pointer — every store
+    // is a real 6502 write (dirty tracking may coalesce display work).
+    const uint16_t clr = kEsp32HgrClearRoutine;
+    size_t i = 0;
+    auto emitAt = [&](uint8_t b) {
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(clr + i), b);
+        ++i;
+    };
+    emitAt(0xA9);
+    emitAt(0x00); // LDA #0
+    emitAt(0x85);
+    emitAt(0x00); // STA $00
+    emitAt(0xA9);
+    emitAt(0x20); // LDA #$20
+    emitAt(0x85);
+    emitAt(0x01); // STA $01
+    emitAt(0xA0);
+    emitAt(0x00); // LDY #0
+    emitAt(0xA9);
+    emitAt(0x00); // LDA #0
+    // clr_loop:
+    const uint16_t loop = static_cast<uint16_t>(clr + i);
+    emitAt(0x91);
+    emitAt(0x00); // STA ($00),Y
+    emitAt(0xC8); // INY
+    emitAt(0xD0);
+    emitAt(0xFB); // BNE clr_loop (-5)
+    emitAt(0xE6);
+    emitAt(0x01); // INC $01
+    emitAt(0xA5);
+    emitAt(0x01); // LDA $01
+    emitAt(0xC9);
+    emitAt(0x40); // CMP #$40
+    emitAt(0xD0);
+    emitAt(0xF3); // BNE clr_loop
+    // Park here after clear (no RTS — avoids bogus stack return in diagnostic).
+    const uint16_t done = static_cast<uint16_t>(clr + i);
+    emitAt(0x4C);
+    emitAt(static_cast<uint8_t>(done & 0xFF));
+    emitAt(static_cast<uint8_t>((done >> 8) & 0xFF));
+    (void)loop;
+
+    // Video-pipeline marker (distinct from text-port A2TX1).
+    writeRomByte(dst, Rom::kApple2PlusRomBytes, 0xE000 + 0, 0xEA); // keep entry
+    // Write marker via short stub prepended? Simpler: store constants into ROM
+    // image at a data table; firmware verifies after 6502 STA sequence.
+    // Emit at end of clear: also write marker bytes with 6502 before RTS —
+    // replace RTS with marker STAs then RTS.
+    // Re-emit clear ending: already emitted RTS. Patch: overwrite last RTS area.
+    // Instead write marker with dedicated tiny routine at $E840.
+    i = 0;
+    const uint16_t mk = 0xE840;
+    auto emitMk = [&](uint8_t b) {
+        writeRomByte(dst, Rom::kApple2PlusRomBytes, static_cast<uint16_t>(mk + i), b);
+        ++i;
+    };
+    emitMk(0xA9);
+    emitMk(kEsp32VideoPipeMarker0);
+    emitMk(0x8D);
+    emitMk(0xF8);
+    emitMk(0x03);
+    emitMk(0xA9);
+    emitMk(kEsp32VideoPipeMarker1);
+    emitMk(0x8D);
+    emitMk(0xF9);
+    emitMk(0x03);
+    emitMk(0xA9);
+    emitMk(kEsp32VideoPipeMarker2);
+    emitMk(0x8D);
+    emitMk(0xFA);
+    emitMk(0x03);
+    emitMk(0xA9);
+    emitMk(kEsp32VideoPipeMarker3);
+    emitMk(0x8D);
+    emitMk(0xFB);
+    emitMk(0x03);
+    emitMk(0x60);
+
     return RomError::Ok;
 }
 

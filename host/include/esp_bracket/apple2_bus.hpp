@@ -10,6 +10,7 @@
 #include "esp_bracket/slot_device.hpp"
 #include "esp_bracket/soft_switches.hpp"
 #include "esp_bracket/speaker.hpp"
+#include "esp_bracket/video_dirty_tracker.hpp"
 
 namespace esp_bracket {
 
@@ -77,6 +78,13 @@ class Apple2Bus {
     void setIoTrace(IoTraceFn fn, void *ctx);
     void clearIoTrace();
 
+    /**
+     * Optional dirty-metadata sink for physical display. Null = disabled.
+     * Does not alter RAM write semantics or cycle timing.
+     */
+    void setVideoDirtyTracker(VideoDirtyTracker *tracker) { videoDirty_ = tracker; }
+    VideoDirtyTracker *videoDirtyTracker() const { return videoDirty_; }
+
     /** Expansion ROM C800 latch: last slot that touched its Cx00 ROM. */
     int expansionRomSlot() const { return expansionRomSlot_; }
 
@@ -101,6 +109,7 @@ class Apple2Bus {
     IoTraceFn traceFn_ = nullptr;
     void *traceCtx_ = nullptr;
     int expansionRomSlot_ = -1;
+    VideoDirtyTracker *videoDirty_ = nullptr;
 };
 
 } // namespace esp_bracket

@@ -55,11 +55,25 @@ RomError generateSyntheticRom(uint8_t *dst, size_t dstSize);
  */
 RomError generateSyntheticEsp32TextPortRom(uint8_t *dst, size_t dstSize);
 
+/**
+ * PART C video-pipeline diagnostic ROM (NOT Apple firmware).
+ * RESET → TEXT banner + idle. Subroutine $E800 clears HGR page 1 ($2000–$3FFF).
+ * Marker $03F8–$03FB = A2VP1.
+ */
+RomError generateSyntheticVideoPipelineRom(uint8_t *dst, size_t dstSize);
+
 /** Documented Esp32 text-port success marker bytes at $03FC. */
 inline constexpr uint8_t kEsp32TextPortMarker0 = 0xA2;
 inline constexpr uint8_t kEsp32TextPortMarker1 = 0x54;
 inline constexpr uint8_t kEsp32TextPortMarker2 = 0x58;
 inline constexpr uint8_t kEsp32TextPortMarker3 = 0x31;
 inline constexpr uint16_t kEsp32TextPortMarkerAddr = 0x03FC;
+
+inline constexpr uint8_t kEsp32VideoPipeMarker0 = 0xA2;
+inline constexpr uint8_t kEsp32VideoPipeMarker1 = 0x56;
+inline constexpr uint8_t kEsp32VideoPipeMarker2 = 0x50;
+inline constexpr uint8_t kEsp32VideoPipeMarker3 = 0x31;
+inline constexpr uint16_t kEsp32VideoPipeMarkerAddr = 0x03F8;
+inline constexpr uint16_t kEsp32HgrClearRoutine = 0xE800;
 
 } // namespace esp_bracket

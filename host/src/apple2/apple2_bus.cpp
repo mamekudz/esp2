@@ -89,6 +89,9 @@ uint8_t Apple2Bus::read(uint16_t address) {
 void Apple2Bus::write(uint16_t address, uint8_t value) {
     if (address < 0xC000u) {
         ram_[address] = value;
+        if (videoDirty_) {
+            videoDirty_->markRamWrite(address);
+        }
         return;
     }
     if (address <= 0xC0FFu) {
@@ -197,6 +200,9 @@ uint8_t Apple2Bus::handleIoRead(uint16_t address, bool sideEffects) {
     if (pageOff >= 0x50 && pageOff <= 0x57) {
         if (sideEffects) {
             softSwitches_.access(address);
+            if (videoDirty_) {
+                videoDirty_->markModeChange();
+            }
             trace(false, address, 0, "video-sw");
         }
         return 0x00;
@@ -288,6 +294,9 @@ void Apple2Bus::handleIoWrite(uint16_t address, uint8_t value, bool sideEffects)
 
     if (pageOff >= 0x50 && pageOff <= 0x57) {
         softSwitches_.access(address);
+        if (videoDirty_) {
+            videoDirty_->markModeChange();
+        }
         trace(true, address, value, "video-sw");
         return;
     }
