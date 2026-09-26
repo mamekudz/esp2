@@ -20,6 +20,12 @@ class SlotDevice {
      */
     virtual uint8_t ioPeek(uint8_t /*offset*/) const { return 0xFF; }
     virtual uint8_t romRead(uint16_t offset) = 0;
+    /**
+     * Optional $C800–$CFFF expansion ROM (offset 0..0x7FF).
+     * Default: open bus 0xFF.
+     */
+    virtual uint8_t expansionRomRead(uint16_t /*offset*/) const { return 0xFF; }
+    virtual bool hasExpansionRom() const { return false; }
     virtual const char *name() const { return "slot"; }
 };
 

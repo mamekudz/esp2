@@ -81,7 +81,7 @@ Keep these levels distinct:
 ### HOST_VERIFIED (host tooling / host machine only)
 
 - Media import / catalog / provenance gates (`media:import`, apple2js catalog)
-- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (synthetic boot), user-ROM loader (`npm run test:apple2`)
+- Host-side Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (Level-4 clean-room boot path), user-ROM loader (`npm run test:apple2`)
 - Synthetic test ROM / no Apple ROMs in the repository (optional local user ROM via `local/roms/`)
 
 ### PLANNED
@@ -114,11 +114,11 @@ Planned additional hardware: piezo / local speaker, physical reset / control but
 
 ### Apple II emulation
 
-Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED** (boot readiness Level 3 architecture: interactive text path; optional user-supplied II/II+ ROM). Firmware integration on the ESP32: **not yet**. No Apple ROMs in the repo (synthetic test ROM only). See `docs/apple2/roms.md`.
+Host-side machine + **fake6502** (CC0) under `third_party/fake6502/` — **HOST_VERIFIED** (boot readiness Level 4: realistic Slot-6 Disk II boot path; optional user-supplied II/II+ and Slot-6 ROMs). Firmware integration on the ESP32: **not yet**. No Apple ROMs in the repo (synthetic / clean-room test firmware only). See `docs/apple2/roms.md` and `docs/apple2/boot-readiness.md`.
 
 ### Virtual Disk II / media layer
 
-Separated from the core: Disk II controller → virtual disk → Drive 1/2 → image on microSD. Host Disk II + DSK/PO nibble path **HOST_VERIFIED** (synthetic); WOZ / full write path **PLANNED**. No embedded commercial disk images in the repository.
+Separated from the core: Disk II controller → virtual disk → Drive 1/2 → image on microSD. Host-side standard Disk II boot path implemented and regression-tested (DSK/DO, PO, NIB fixtures; WOZ / full write path **PLANNED**). No embedded commercial disk images in the repository.
 
 ### Touch UI
 

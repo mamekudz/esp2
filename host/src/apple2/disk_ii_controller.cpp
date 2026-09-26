@@ -83,6 +83,24 @@ uint8_t DiskIIController::romRead(uint16_t offset) {
     return rom_[offset & 0xFFu];
 }
 
+uint8_t DiskIIController::expansionRomRead(uint16_t offset) const {
+    if (!expansionLoaded_ || offset >= kExpansionRomSize) {
+        return 0xFF;
+    }
+    return expansion_[offset];
+}
+
+void DiskIIController::clearBootTrace() {
+    bootTraceCount_ = 0;
+}
+
+void DiskIIController::pushBootTrace(DiskIIBootTraceEvent ev, uint32_t cycle, uint16_t detail) {
+    if (bootTraceCount_ >= kBootTraceCap) {
+        return;
+    }
+    bootTrace_[bootTraceCount_++] = DiskIIBootTraceEntry{ev, cycle, detail};
+}
+
 uint8_t DiskIIController::access(uint8_t offset, uint32_t cycle, bool isWrite, uint8_t writeValue) {
     (void)isWrite;
     (void)writeValue;
@@ -143,6 +161,7 @@ void DiskIIController::applySwitch(uint8_t offset, uint32_t cycle) {
             emitActivity(DiskIIActivity::MotorOn);
             motorStartCycle_ = cycle;
             rotationIndex_ = 0;
+            lastServedNibbleIndex_ = UINT32_MAX;
         }
         motorOn_ = true;
         lastCycle_ = cycle;
@@ -232,10 +251,10 @@ void DiskIIController::advanceRotation(uint32_t cycle) {
         return;
     }
     if (cycle < motorStartCycle_) {
-        rotationIndex_ = 0;
+        rotationIndex_ = rotationPhaseOffset_;
         return;
     }
-    rotationIndex_ = (cycle - motorStartCycle_) / kCyclesPerNibble;
+    rotationIndex_ = rotationPhaseOffset_ + (cycle - motorStartCycle_) / kCyclesPerNibble;
 }
 
 uint8_t DiskIIController::readLatch(uint32_t cycle) {
@@ -261,10 +280,17 @@ uint8_t DiskIIController::readLatch(uint32_t cycle) {
         return latch_;
     }
     const uint32_t idx = rotationIndex_ % static_cast<uint32_t>(len);
-    latch_ = tr[idx];
-    if (trace_) {
-        traceLine(cycle, "read", latch_);
+    // Authentic shift-register: first read in a nibble window returns bit7 set;
+    // subsequent reads until the window advances return bit7 clear (BPL wait).
+    if (idx != lastServedNibbleIndex_) {
+        latch_ = tr[idx];
+        lastServedNibbleIndex_ = idx;
+        if (trace_) {
+            traceLine(cycle, "read", latch_);
+        }
+        return latch_;
     }
+    latch_ = static_cast<uint8_t>(tr[idx] & 0x7Fu);
     return latch_;
 }
 
@@ -312,7 +338,19 @@ bool DiskIIController::loadSyntheticRom(const uint8_t *data, size_t size) {
         return false;
     }
     std::memcpy(rom_, data, kSlotRomSize);
+    expansionLoaded_ = false;
     romKind_ = RomKind::Synthetic;
+    return true;
+}
+
+bool DiskIIController::loadCleanRoomRom(const uint8_t *prom256, const uint8_t *expansion2048) {
+    if (!prom256 || !expansion2048) {
+        return false;
+    }
+    std::memcpy(rom_, prom256, kSlotRomSize);
+    std::memcpy(expansion_, expansion2048, kExpansionRomSize);
+    expansionLoaded_ = true;
+    romKind_ = RomKind::CleanRoom;
     return true;
 }
 
@@ -321,12 +359,15 @@ bool DiskIIController::loadUserRom(const uint8_t *data, size_t size) {
         return false;
     }
     std::memcpy(rom_, data, kSlotRomSize);
+    expansionLoaded_ = false;
     romKind_ = RomKind::UserSupplied;
     return true;
 }
 
 void DiskIIController::clearRom() {
     std::memset(rom_, 0xFF, sizeof(rom_));
+    std::memset(expansion_, 0xFF, sizeof(expansion_));
+    expansionLoaded_ = false;
     romKind_ = RomKind::None;
 }
 
@@ -374,6 +415,7 @@ DiskIIDiagState DiskIIController::diagState() const {
     DiskIIDiagState d{};
     d.romPresent = romKind_ != RomKind::None;
     d.romSynthetic = romKind_ == RomKind::Synthetic;
+    d.romCleanRoom = romKind_ == RomKind::CleanRoom;
     d.motorOn = motorOn_;
     d.selectedDrive = selectedDrive_;
     d.q6 = q6_;

@@ -65,10 +65,16 @@ Read path (V1):
 
 1. MOTOR ON, DRIVE selected, disk inserted
 2. Q7L (read), Q6L reads shift data register
-3. Latch advances with rotation; each qualifying read samples current nibble
+3. Latch advances with rotation (~32 cycles / nibble)
+4. **Bit7 ready protocol (HOST_VERIFIED):** first read in a nibble window
+   returns the disk byte with bit7 set; further reads in the same window
+   return bit7 clear so `LDA $C0EC / BPL *-3` waits for the next nibble
 
 Write path: architecture present; V1 defaults to **read-only** (WP sense correct;
 writes do not mutate media unless explicitly enabled later).
+
+CPU bus accesses sync `accessCycle` from fake6502 `liveCycles` so rotation
+advances during `runCycles` batches.
 
 ## Media abstraction
 
@@ -107,34 +113,59 @@ fake6502 is instruction-level; Disk II uses `accessCycle` from the bus.
 | Kind | In repo? |
 | --- | --- |
 | Apple Disk II PROM | **Never** |
-| User-supplied PROM | Supported via load API |
-| ESP][ synthetic Slot-6 ROM | Yes — project-owned boot helper |
+| User-supplied PROM (256 B) | `--slot6-rom` / `--slot6 <path>` — hash via `slot6_rom_database.json` |
+| ESP][ synthetic Slot-6 ROM | Yes — Level-2 softswitch / marker helper |
+| ESP][ clean-room Slot-6 card | Yes — Level-4 realistic boot PROM + `$C800` denibble service |
 
-Synthetic ROM is **not** Apple's firmware.
+Synthetic and clean-room firmware are **not** Apple's Disk II ROM and must not
+reproduce Apple ROM byte sequences.
+
+### Clean-room Level-4 boot (HOST_VERIFIED)
+
+Origin: **ESP][ project-owned clean-room Slot-6 boot ROM**
+
+1. PROM `$C600`: motor on, Drive 1, Q7L, recalibrate pulse, search address
+   field `D5 AA 96` for track 0 / sector 0, find data `D5 AA AD`, copy 343
+   nibbles to `$0900`, `JMP $C800`.
+2. Expansion `$C800`: request denibble via `STA $03FA,#$DE`; host/firmware
+   runs `DiskIIEncoding::decodeSector` into `$0800`, clears `$03FA`; `JMP $0800`.
+3. Boot sector (project `Esp2BootTest`) writes text + markers `$03FE=$4C`,
+   `$03FF=$34`.
+
+The denibble handshake is an explicit ESP][ expansion service (APPROXIMATE vs
+Apple 6502 RWTS decode) — Disk II **reads** remain authentic nibble I/O.
+
+Metadata DB: `host/data/slot6_rom_database.json` (hashes only; entries empty until
+reliable provenance is recorded).
 
 ## Activity events (language-neutral)
 
 `DiskIIActivity`: MotorOn/Off, DriveSelect, Step, Read, WriteAttempt, Insert, Eject.
+
+`DiskIIError` (language-neutral): Ok, NoDisk, WriteProtected, TrackNotFound,
+AddressFieldNotFound, DataFieldNotFound, ChecksumError, InvalidNibble,
+RotationTimeout, InvalidImage.
 
 ## Cross-checks
 
 Compared conceptually with apple2js / EWM Disk II behavior and published
 DOS 3.3 track layout notes. Disagreements on timing remain labeled APPROXIMATE.
 
-## Boot target (this milestone)
+Optional external tools (not required for CI): a2kit, DiskM8 (GPL-3.0 external only).
 
-Synthetic Slot-6 ROM + project-owned DSK → load sector → execute →
-`ESP][ DISK BOOT OK` in text page — no Apple DOS / no Apple Disk II ROM.
+## Boot targets
 
-### Boot path (HOST_VERIFIED)
+### Level 2 — synthetic (retained)
 
-1. CPU enters `$C600` synthetic Slot-6 ROM (motor / drive / phase / Q7).
-2. ROM jumps to motherboard `$E200` marker (`$03FE=$EB`).
-3. Host boot helper `DiskIIHostBoot::readSector` reads T0S0 through `$C0EC`
-   latch + 6-and-2 decode (same controller path software would use).
-4. Decoded sector placed at `$0800`; CPU executes → text + `$03FF=$A5`.
+Synthetic Slot-6 ROM + `Esp2DiskTest` + host `DiskIIHostBoot::readSector` →
+`ESP][ DISK BOOT OK` / `$03FF=$A5`.
 
-**DEFERRED:** full 6502 RWTS inside Slot ROM (no Apple Disk II ROM bytes).
+### Level 4 — clean-room (current)
+
+Clean-room Slot-6 + `Esp2BootTest` (.dsk / .po / nib fixture) → 6502 path only →
+`ESP][ LEVEL 4` / `DISK II BOOT OK` / `$03FE=$4C` `$03FF=$34`.
+
+**DEFERRED:** WOZ, writable disks, copy-protection titles, bundling Apple Disk II ROM.
 
 ### Approximations
 
@@ -143,5 +174,6 @@ Synthetic Slot-6 ROM + project-owned DSK → load sector → execute →
 | Motor spin-up/down delay | APPROXIMATE (instant) |
 | Cycles / nibble | APPROXIMATE (32) |
 | Self-sync gaps | APPROXIMATE (`0xFF` runs) |
+| Clean-room denibble | APPROXIMATE (host `DiskIIEncoding` service) |
 | Write path | Read-only V1; WP sense correct |
 | WOZ | Architecture ready; backend DEFERRED |

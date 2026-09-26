@@ -1,5 +1,6 @@
 #include "esp_bracket/apple2_machine_host.hpp"
 
+#include "esp_bracket/disk_ii_cleanroom.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/lores_decoder.hpp"
 #include "esp_bracket/text_decoder.hpp"
@@ -33,8 +34,15 @@ void HostAppleIIMachine::applySlot6RomMode() {
         }
         break;
     }
+    case Slot6RomMode::CleanRoom: {
+        uint8_t prom[DiskIIController::kSlotRomSize];
+        uint8_t exp[DiskIIController::kExpansionRomSize];
+        if (generateCleanRoomDiskIICard(prom, exp)) {
+            diskII_.loadCleanRoomRom(prom, exp);
+        }
+        break;
+    }
     case Slot6RomMode::UserSupplied:
-        // Caller already loaded via diskII().loadUserRom
         break;
     }
 }
@@ -42,6 +50,27 @@ void HostAppleIIMachine::applySlot6RomMode() {
 void HostAppleIIMachine::setSlot6RomMode(Slot6RomMode mode) {
     slot6RomMode_ = mode;
     applySlot6RomMode();
+}
+
+RomError HostAppleIIMachine::loadSlot6UserRom(const uint8_t *data, size_t size,
+                                              Slot6RomIdentity *outId) {
+    Slot6RomIdentity id = Slot6RomDatabase::identify(data, size);
+    if (outId) {
+        *outId = id;
+    }
+    slot6RomIdentity_ = id;
+    if (id.status == RomIdStatus::IoError) {
+        return RomError::IoError;
+    }
+    if (id.status == RomIdStatus::InvalidSize || id.status == RomIdStatus::Truncated ||
+        id.status == RomIdStatus::Unsupported) {
+        return RomError::InvalidSize;
+    }
+    if (!diskII_.loadUserRom(data, size)) {
+        return RomError::InvalidSize;
+    }
+    slot6RomMode_ = Slot6RomMode::UserSupplied;
+    return RomError::Ok;
 }
 
 void HostAppleIIMachine::syncBusCycle() {
@@ -81,7 +110,18 @@ void HostAppleIIMachine::resetCpuOnly() {
 
 void HostAppleIIMachine::runCycles(uint32_t cycles) {
     syncBusCycle();
-    cpu_.runCycles(cycles);
+    // Service clean-room denibble handshake without bypassing Disk II reads.
+    const uint32_t slice = 64;
+    uint32_t left = cycles;
+    while (left > 0) {
+        const uint32_t step = left > slice ? slice : left;
+        cpu_.runCycles(step);
+        syncBusCycle();
+        if (diskII_.romKind() == DiskIIController::RomKind::CleanRoom) {
+            serviceCleanRoomDenibbleRequest(bus_.ram());
+        }
+        left -= step;
+    }
     syncBusCycle();
 }
 
@@ -125,6 +165,36 @@ MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
     }
     Dos33NibbleImage &img = diskImage(id);
     const int driveNo = (id == DriveId::Drive2) ? 2 : 1;
+
+    if (std::strcmp(imageId, "Esp2BootTest") == 0 ||
+        std::strcmp(imageId, "Esp2BootTest.dsk") == 0) {
+        uint8_t raw[kDos33ImageBytes];
+        if (!generateEsp2BootTestImage(raw, sizeof(raw))) {
+            return MediaResult::InvalidImage;
+        }
+        if (!img.load(raw, sizeof(raw), false)) {
+            return MediaResult::InvalidImage;
+        }
+        img.setWriteProtected(true);
+        diskII_.attachMedia(driveNo, &img);
+        setSlot6RomMode(Slot6RomMode::CleanRoom);
+        return drive(id).mount(imageId, DiskFormat::Dsk);
+    }
+
+    if (std::strcmp(imageId, "Esp2BootTest.po") == 0) {
+        uint8_t raw[kDos33ImageBytes];
+        if (!generateEsp2BootTestImage(raw, sizeof(raw))) {
+            return MediaResult::InvalidImage;
+        }
+        // T0S0 occupies file sector 0 in both DO and PO layouts.
+        if (!img.load(raw, sizeof(raw), true)) {
+            return MediaResult::InvalidImage;
+        }
+        img.setWriteProtected(true);
+        diskII_.attachMedia(driveNo, &img);
+        setSlot6RomMode(Slot6RomMode::CleanRoom);
+        return drive(id).mount(imageId, DiskFormat::Po);
+    }
 
     if (std::strcmp(imageId, "Esp2DiskTest") == 0 ||
         std::strcmp(imageId, "Esp2DiskTest.dsk") == 0) {

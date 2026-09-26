@@ -101,6 +101,7 @@ buildTest("test_io_page", join(root, "host/test_cpp/test_io_page.cpp"));
 buildTest("test_disk_ii", join(root, "host/test_cpp/test_disk_ii.cpp"));
 buildTest("test_level3", join(root, "host/test_cpp/test_level3.cpp"));
 buildTest("test_speaker", join(root, "host/test_cpp/test_speaker.cpp"));
+buildTest("test_level4", join(root, "host/test_cpp/test_level4.cpp"));
 
 // Build interactive console + esp2_host (do not run — waits for stdin)
 {

@@ -857,3 +857,41 @@ _Tag(apple2Host, {
 gulp.task("apple2:rom-identify", apple2RomIdentify);
 gulp.task("apple2:rom-test", apple2RomTest);
 gulp.task("apple2:host", apple2Host);
+
+export async function apple2DiskTest() {
+  ReportProgress(0, "apple2-disk-test");
+  const disk = GetParameter("disk") || "";
+  const rom = GetParameter("rom") || "";
+  const slot6 = GetParameter("slot6Rom") || GetParameter("slot6-rom") || "";
+  runNodeCli("host/tools/build_and_test_apple2.mjs", [], "apple2:disk-test-build");
+  const exe = join(rootDir, "host/.out/esp2_host.exe");
+  if (!disk) {
+    console.log("SKIPPED_NO_DISK  pass --disk <path-or-Esp2BootTest>");
+    ReportProgress(1, "apple2-disk-test");
+    return;
+  }
+  const args = ["--diagnostics", "--text", "--batch", "--cycles", "2000000", "--disk1", disk];
+  if (rom) args.push("--rom", rom);
+  if (slot6) args.push("--slot6-rom", slot6);
+  else if (disk.includes("Esp2BootTest")) args.push("--slot6", "cleanroom");
+  const r = spawnSync(exe, args, { cwd: rootDir, encoding: "utf8", shell: false });
+  if (r.stdout) process.stdout.write(r.stdout);
+  if (r.stderr) process.stderr.write(r.stderr);
+  if (r.status !== 0) throw new Error(`apple2:disk-test failed (${r.status})`);
+  ReportProgress(1, "apple2-disk-test");
+}
+_Tag(apple2DiskTest, {
+  gulpName: "apple2:disk-test",
+  µDisplayName: 'Apple II Disk Test<context="µDisplayName"/>',
+  µDescription:
+    'Optional bounded Disk II boot/diagnostics; SKIPPED_NO_DISK without --disk. Does not download media.<context="µDescription"/>',
+  µGroup: 'Apple II Host<context="µGroup"/>',
+  µOrder: 53,
+  µParameters: [
+    { name: "disk", type: "string", optional: true },
+    { name: "rom", type: "string", optional: true },
+    { name: "slot6Rom", type: "string", optional: true },
+  ],
+});
+
+gulp.task("apple2:disk-test", apple2DiskTest);

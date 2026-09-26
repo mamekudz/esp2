@@ -19,7 +19,26 @@ enum class RomIdStatus : uint8_t {
     IoError
 };
 
-enum class Slot6RomMode : uint8_t { None = 0, Synthetic, UserSupplied };
+enum class Slot6RomMode : uint8_t { None = 0, Synthetic, CleanRoom, UserSupplied };
+
+struct Slot6RomIdentity {
+    RomIdStatus status = RomIdStatus::UnknownHash;
+    size_t sizeBytes = 0;
+    char sha256Hex[65]{};
+    const char *name = "";
+    const char *provenance = "";
+};
+
+/**
+ * Metadata-only known Disk II Slot-6 PROM table (no ROM bytes).
+ * Hashes only with documented provenance; otherwise UNKNOWN.
+ */
+class Slot6RomDatabase {
+  public:
+    static constexpr size_t kExpectedSize = 256;
+    static Slot6RomIdentity lookupSha256Hex(const char *sha256Hex);
+    static Slot6RomIdentity identify(const uint8_t *data, size_t size);
+};
 
 struct RomIdentity {
     RomIdStatus status = RomIdStatus::UnknownHash;

@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "description": "Metadata-only Disk II Slot-6 PROM identification. No ROM bytes.",
+  "notes": [
+    "Expected size is typically 256 bytes ($C600–$C6FF).",
+    "Only include SHA-256 hashes with reliable provenance.",
+    "If provenance is uncertain, omit the entry (UNKNOWN_ROM).",
+    "Do not invent or reconstruct Apple Disk II ROM bytes.",
+    "ESP][ clean-room / synthetic Slot-6 firmware is identified in C++, not here."
+  ],
+  "entries": []
+}

@@ -3,7 +3,7 @@
 
 namespace esp_bracket {
 
-Cpu6502* Cpu6502::s_active = nullptr;
+Cpu6502 *Cpu6502::s_active = nullptr;
 
 Cpu6502::Cpu6502() = default;
 
@@ -13,11 +13,11 @@ Cpu6502::~Cpu6502() {
     }
 }
 
-Cpu6502* Cpu6502::active() {
+Cpu6502 *Cpu6502::active() {
     return s_active;
 }
 
-void Cpu6502::setCallbacks(void* ctx, CpuReadFn readFn, CpuWriteFn writeFn) {
+void Cpu6502::setCallbacks(void *ctx, CpuReadFn readFn, CpuWriteFn writeFn) {
     ctx_ = ctx;
     readFn_ = readFn;
     writeFn_ = writeFn;
@@ -32,6 +32,8 @@ void Cpu6502::reset() {
     s_active = this;
     reset6502();
     totalCycles_ = 0;
+    execBaseCycles_ = 0;
+    inExec_ = false;
     lastError_ = CpuError::Ok;
 }
 
@@ -41,7 +43,10 @@ uint32_t Cpu6502::step() {
         return 0;
     }
     s_active = this;
+    execBaseCycles_ = totalCycles_;
+    inExec_ = true;
     const uint32_t ticks = step6502();
+    inExec_ = false;
     totalCycles_ += ticks;
     return ticks;
 }
@@ -52,9 +57,19 @@ uint32_t Cpu6502::runCycles(uint32_t cycles) {
         return 0;
     }
     s_active = this;
+    execBaseCycles_ = totalCycles_;
+    inExec_ = true;
     const uint32_t ticks = exec6502(cycles);
+    inExec_ = false;
     totalCycles_ += ticks;
     return ticks;
+}
+
+uint64_t Cpu6502::liveCycles() const {
+    if (inExec_) {
+        return execBaseCycles_ + static_cast<uint64_t>(clockticks6502);
+    }
+    return totalCycles_;
 }
 
 void Cpu6502::irq() {
@@ -78,7 +93,7 @@ CpuRegisters Cpu6502::registers() const {
     return r;
 }
 
-void Cpu6502::setRegisters(const CpuRegisters& regs) {
+void Cpu6502::setRegisters(const CpuRegisters &regs) {
     a = regs.a;
     x = regs.x;
     y = regs.y;
@@ -90,7 +105,7 @@ void Cpu6502::setRegisters(const CpuRegisters& regs) {
 } // namespace esp_bracket
 
 extern "C" uint8 read6502(ushort address) {
-    esp_bracket::Cpu6502* cpu = esp_bracket::Cpu6502::active();
+    esp_bracket::Cpu6502 *cpu = esp_bracket::Cpu6502::active();
     if (!cpu) {
         return 0xFF;
     }
@@ -98,7 +113,7 @@ extern "C" uint8 read6502(ushort address) {
 }
 
 extern "C" void write6502(ushort address, uint8 value) {
-    esp_bracket::Cpu6502* cpu = esp_bracket::Cpu6502::active();
+    esp_bracket::Cpu6502 *cpu = esp_bracket::Cpu6502::active();
     if (!cpu) {
         return;
     }

@@ -168,4 +168,45 @@ RomError loadAndIdentifyRom(Rom &rom, const uint8_t *data, size_t size, RomIdent
     return rom.load(data, size);
 }
 
+Slot6RomIdentity Slot6RomDatabase::lookupSha256Hex(const char *sha256Hex) {
+    Slot6RomIdentity id{};
+    id.status = RomIdStatus::UnknownHash;
+    if (!sha256Hex) {
+        return id;
+    }
+    std::snprintf(id.sha256Hex, sizeof(id.sha256Hex), "%s", sha256Hex);
+    // No compile-time Apple Disk II hashes until provenance is recorded in
+    // host/data/slot6_rom_database.json and mirrored here.
+    return id;
+}
+
+Slot6RomIdentity Slot6RomDatabase::identify(const uint8_t *data, size_t size) {
+    Slot6RomIdentity id{};
+    if (!data) {
+        id.status = RomIdStatus::IoError;
+        return id;
+    }
+    id.sizeBytes = size;
+    if (size == 0) {
+        id.status = RomIdStatus::Truncated;
+        return id;
+    }
+    if (size != kExpectedSize) {
+        id.status = (size < kExpectedSize) ? RomIdStatus::Truncated : RomIdStatus::InvalidSize;
+        Sha256::hashHex(data, size, id.sha256Hex);
+        return id;
+    }
+    Sha256::hashHex(data, size, id.sha256Hex);
+    Slot6RomIdentity known = lookupSha256Hex(id.sha256Hex);
+    if (known.status == RomIdStatus::Ok) {
+        known.sizeBytes = size;
+        std::memcpy(known.sha256Hex, id.sha256Hex, sizeof(known.sha256Hex));
+        return known;
+    }
+    id.status = RomIdStatus::UnknownHash;
+    id.name = "unrecognized_slot6";
+    id.provenance = "hash not in slot6 metadata DB; still loadable if size OK";
+    return id;
+}
+
 } // namespace esp_bracket

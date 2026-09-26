@@ -82,7 +82,7 @@ Klar getrennt:
 ### HOST_VERIFIED (nur Host-Tooling / Host-Maschine)
 
 - Media-Import / Katalog / Provenance-Gates (`media:import`, apple2js-Katalog)
-- Host-seitige Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe, Disk II (synthetischer Boot), User-ROM-Loader (`npm run test:apple2`)
+- Host-seitige Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe, Disk II (Level-4 Clean-Room-Bootpfad), User-ROM-Loader (`npm run test:apple2`)
 - Synthetische Test-ROM / keine Apple-ROMs im Repo (optionale lokale User-ROM unter `local/roms/`)
 
 ### PLANNED
@@ -115,11 +115,11 @@ Geplante Zusatzhardware: Piezo/Lokal-Lautsprecher, physischer Reset/Control-Tast
 
 ### Apple-II-Emulation
 
-Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/` — **HOST_VERIFIED** (Boot-Readiness Level 3: interaktiver Textpfad; optionale User-ROM II/II+). Firmware-Integration auf dem ESP32: **noch nicht**. Keine Apple-ROMs im Repo (synthetische Test-ROM). Siehe `docs/apple2/roms.md`.
+Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/` — **HOST_VERIFIED** (Boot-Readiness Level 4: realistischer Slot-6-Disk-II-Bootpfad; optionale User-ROM II/II+ und Slot-6). Firmware-Integration auf dem ESP32: **noch nicht**. Keine Apple-ROMs im Repo (nur synthetische / Clean-Room-Test-Firmware). Siehe `docs/apple2/roms.md` und `docs/apple2/boot-readiness.md`.
 
 ### Virtuelle Disk II / Media-Schicht
 
-Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Host Disk II + DSK/PO-Nibble-Pfad **HOST_VERIFIED** (synthetisch); WOZ / voller Schreibpfad **PLANNED**. Keine eingebetteten kommerziellen Disk-Images im Repo.
+Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Host-seitiger Standard-Disk-II-Bootpfad implementiert und regressionstestet (DSK/DO, PO, NIB-Fixtures; WOZ / voller Schreibpfad **PLANNED**). Keine eingebetteten kommerziellen Disk-Images im Repo.
 
 ### Touch-Bedienung
 

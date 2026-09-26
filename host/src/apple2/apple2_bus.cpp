@@ -1,5 +1,7 @@
 #include "esp_bracket/apple2_bus.hpp"
 
+#include "esp_bracket/cpu6502.hpp"
+
 #include <cstring>
 
 namespace esp_bracket {
@@ -70,7 +72,12 @@ uint8_t Apple2Bus::read(uint16_t address) {
         return handleSlotRomRead(address, true);
     }
     if (address >= 0xC800u && address <= 0xCFFFu) {
-        // Expansion ROM window — empty unless future device maps it.
+        if (expansionRomSlot_ >= 1 && expansionRomSlot_ < kSlotCount) {
+            SlotDevice *dev = slots_[expansionRomSlot_];
+            if (dev && dev->hasExpansionRom()) {
+                return dev->expansionRomRead(static_cast<uint16_t>(address - 0xC800u));
+            }
+        }
         return floatingBusApprox_;
     }
     if (address >= Rom::kMapBase) {
@@ -103,6 +110,12 @@ uint8_t Apple2Bus::peek(uint16_t address) const {
         return handleSlotRomRead(address, false);
     }
     if (address >= 0xC800u && address <= 0xCFFFu) {
+        if (expansionRomSlot_ >= 1 && expansionRomSlot_ < kSlotCount) {
+            SlotDevice *dev = slots_[expansionRomSlot_];
+            if (dev && dev->hasExpansionRom()) {
+                return dev->expansionRomRead(static_cast<uint16_t>(address - 0xC800u));
+            }
+        }
         return floatingBusApprox_;
     }
     if (address >= Rom::kMapBase) {
@@ -311,11 +324,19 @@ void Apple2Bus::handleIoWrite(uint16_t address, uint8_t value, bool sideEffects)
 }
 
 uint8_t Apple2Bus::busRead(void *ctx, uint16_t address) {
-    return static_cast<Apple2Bus *>(ctx)->read(address);
+    auto *bus = static_cast<Apple2Bus *>(ctx);
+    if (Cpu6502 *cpu = Cpu6502::active()) {
+        bus->setAccessCycle(static_cast<uint32_t>(cpu->liveCycles() & 0xFFFFFFFFu));
+    }
+    return bus->read(address);
 }
 
 void Apple2Bus::busWrite(void *ctx, uint16_t address, uint8_t value) {
-    static_cast<Apple2Bus *>(ctx)->write(address, value);
+    auto *bus = static_cast<Apple2Bus *>(ctx);
+    if (Cpu6502 *cpu = Cpu6502::active()) {
+        bus->setAccessCycle(static_cast<uint32_t>(cpu->liveCycles() & 0xFFFFFFFFu));
+    }
+    bus->write(address, value);
 }
 
 } // namespace esp_bracket

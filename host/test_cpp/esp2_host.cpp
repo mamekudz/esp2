@@ -3,11 +3,12 @@
  *
  * Usage:
  *   esp2_host [--rom path] [--machine AppleII|AppleIIPlus]
- *             [--slot6 none|synthetic|path] [--disk1 id]
- *             [--cycles N] [--trace] [--text] [--diagnostics]
+ *             [--slot6 none|synthetic|cleanroom|path] [--slot6-rom path]
+ *             [--disk1 id] [--cycles N] [--trace] [--text] [--diagnostics]
  *             [--script path] [--video-dump path.ppm]
  *
  * Without --rom: loads project synthetic ROM (always legal).
+ * --slot6 <path> or --slot6-rom <path>: user-supplied 256-byte Disk II PROM.
  * Emulator commands (not Apple keys): quit, reset, text, diag, pause
  */
 #include "esp_bracket/apple2_machine_host.hpp"
@@ -38,7 +39,9 @@ static void printStatus(const HostAppleIIMachine &m) {
     std::printf("  SLOT6    %s\n",
                 m.slot6RomMode() == Slot6RomMode::None
                     ? "none"
-                    : (m.slot6RomMode() == Slot6RomMode::Synthetic ? "synthetic" : "user"));
+                    : (m.slot6RomMode() == Slot6RomMode::Synthetic
+                           ? "synthetic"
+                           : (m.slot6RomMode() == Slot6RomMode::CleanRoom ? "cleanroom" : "user")));
     std::printf("  DRIVE1   %s\n", m.drive(DriveId::Drive1).state().inserted
                                        ? m.drive(DriveId::Drive1).state().imageId
                                        : "(empty)");
@@ -85,6 +88,7 @@ int main(int argc, char **argv) {
     const char *romPath = nullptr;
     const char *machineArg = nullptr;
     const char *slot6Arg = "none";
+    const char *slot6RomPath = nullptr;
     const char *disk1 = nullptr;
     const char *videoDump = nullptr;
     uint32_t bootCycles = 200000;
@@ -100,6 +104,8 @@ int main(int argc, char **argv) {
             machineArg = argv[++i];
         } else if (std::strcmp(argv[i], "--slot6") == 0 && i + 1 < argc) {
             slot6Arg = argv[++i];
+        } else if (std::strcmp(argv[i], "--slot6-rom") == 0 && i + 1 < argc) {
+            slot6RomPath = argv[++i];
         } else if (std::strcmp(argv[i], "--disk1") == 0 && i + 1 < argc) {
             disk1 = argv[++i];
         } else if (std::strcmp(argv[i], "--cycles") == 0 && i + 1 < argc) {
@@ -116,7 +122,8 @@ int main(int argc, char **argv) {
             interactive = false;
         } else if (std::strcmp(argv[i], "--help") == 0) {
             std::printf("esp2_host [--rom path] [--machine AppleII|AppleIIPlus] "
-                        "[--slot6 none|synthetic] [--disk1 Esp2DiskTest] "
+                        "[--slot6 none|synthetic|cleanroom|<path>] [--slot6-rom path] "
+                        "[--disk1 Esp2BootTest|Esp2DiskTest] "
                         "[--cycles N] [--text] [--diagnostics] [--batch]\n");
             return 0;
         }
@@ -154,10 +161,32 @@ int main(int argc, char **argv) {
         std::printf("ROM synthetic sha256=%s\n", m.romIdentity().sha256Hex);
     }
 
+    if (slot6RomPath) {
+        slot6Arg = slot6RomPath;
+    }
+
     if (std::strcmp(slot6Arg, "synthetic") == 0) {
         m.setSlot6RomMode(Slot6RomMode::Synthetic);
+    } else if (std::strcmp(slot6Arg, "cleanroom") == 0) {
+        m.setSlot6RomMode(Slot6RomMode::CleanRoom);
     } else if (std::strcmp(slot6Arg, "none") == 0) {
         m.setSlot6RomMode(Slot6RomMode::None);
+    } else {
+        // Treat as filesystem path to a 256-byte Slot-6 PROM.
+        std::vector<uint8_t> bytes;
+        if (!loadFile(slot6Arg, &bytes)) {
+            std::fprintf(stderr, "FAIL slot6_rom_open path=%s status=SKIPPED_NO_SLOT6_ROM\n",
+                         slot6Arg);
+            return 4;
+        }
+        Slot6RomIdentity sid{};
+        const RomError serr = m.loadSlot6UserRom(bytes.data(), bytes.size(), &sid);
+        std::printf("SLOT6 status=%s sha256=%s name=%s size=%zu\n", romIdStatusName(sid.status),
+                    sid.sha256Hex, sid.name, sid.sizeBytes);
+        if (serr != RomError::Ok) {
+            std::fprintf(stderr, "FAIL slot6_rom_load\n");
+            return 5;
+        }
     }
 
     if (disk1) {

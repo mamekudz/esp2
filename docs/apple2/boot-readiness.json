@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "machineProfile": "AppleII_Plus",
-  "readinessLevel": 3,
-  "readinessLevelName": "user_rom_interactive_text",
+  "readinessLevel": 4,
+  "readinessLevelName": "realistic_disk_ii_6502_boot",
   "subsystems": {
     "cpu": "PASS",
     "ram": "PASS",
@@ -23,20 +23,25 @@
     "annunciators": "PASS",
     "slot_dispatch": "PASS",
     "slot6_rom_modes": "PASS",
+    "slot6_cleanroom_boot_rom": "PASS",
     "language_card": "DEFERRED",
     "disk_ii": "PASS",
     "disk_ii_6and2": "PASS",
-    "disk_ii_dsk_boot": "PASS",
+    "disk_ii_latch_bit7": "PASS",
+    "disk_ii_dsk_boot_level4": "PASS",
+    "disk_ii_po_boot_level4": "PASS",
+    "disk_ii_nib_boot_level4": "PASS",
     "disk_ii_woz": "DEFERRED",
-    "disk_ii_6502_rwts": "DEFERRED",
+    "disk_ii_writes": "DEFERRED",
     "floating_bus": "APPROXIMATE",
-    "user_rom_optional_test": "SKIPPED_WITHOUT_LOCAL_ROM"
+    "user_rom_optional_test": "SKIPPED_WITHOUT_LOCAL_ROM",
+    "user_slot6_rom_optional": "SKIPPED_NO_SLOT6_ROM"
   },
   "notes": [
-    "Repository remains free of Apple ROM bytes.",
-    "Level 3 architecture verified with synthetic ROM + optional user ROM runner.",
-    "Language Card not required for II+ Applesoft-in-ROM interactive path.",
-    "Default Slot-6 ROM mode is none so Autostart is not diverted to synthetic Disk II boot.",
-    "Optional: gulp apple2:rom-test --rom <path>"
+    "Repository remains free of Apple ROM / DOS / commercial disk bytes.",
+    "Level 4: 6502 clean-room Slot-6 PROM + Esp2BootTest via Disk II softswitches.",
+    "Denibble assist: expansion $C800 handshake $03FA=$DE → DiskIIEncoding::decodeSector (documented ESP][ service, not Apple ROM).",
+    "Level-2 Esp2DiskTest + DiskIIHostBoot::readSector retained for regression.",
+    "Optional: --slot6-rom <path> / gulp apple2:disk-test --disk <path>"
   ]
 }

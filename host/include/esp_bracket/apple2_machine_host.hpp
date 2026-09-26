@@ -97,6 +97,10 @@ class HostAppleIIMachine : public AppleIIMachine {
     void setSlot6RomMode(Slot6RomMode mode);
     Slot6RomMode slot6RomMode() const { return slot6RomMode_; }
 
+    /** Load user-supplied 256-byte Slot-6 PROM (identified by hash, not filename). */
+    RomError loadSlot6UserRom(const uint8_t *data, size_t size, Slot6RomIdentity *outId = nullptr);
+    const Slot6RomIdentity &slot6RomIdentity() const { return slot6RomIdentity_; }
+
     void setFlashPhase(int phase) { flashPhase_ = phase & 1; }
     int flashPhase() const { return flashPhase_; }
 
@@ -123,6 +127,7 @@ class HostAppleIIMachine : public AppleIIMachine {
     VideoColorMode colorMode_ = VideoColorMode::CompositeColor;
     MachineProfile profile_ = MachineProfile::Unknown;
     RomIdentity romIdentity_{};
+    Slot6RomIdentity slot6RomIdentity_{};
     Slot6RomMode slot6RomMode_ = Slot6RomMode::None;
     int flashPhase_ = 0;
 };

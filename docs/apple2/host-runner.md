@@ -13,8 +13,9 @@ npm run test:apple2
 
 ```text
 esp2_host [--rom path] [--machine AppleII|AppleIIPlus]
-          [--slot6 none|synthetic] [--disk1 Esp2DiskTest]
-          [--cycles N] [--text] [--diagnostics] [--batch]
+          [--slot6 none|synthetic|cleanroom|<path>] [--slot6-rom path]
+          [--disk1 Esp2BootTest|Esp2DiskTest] [--cycles N]
+          [--text] [--diagnostics] [--batch]
           [--video-dump out.ppm]
 ```
 

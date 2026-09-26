@@ -55,8 +55,16 @@ Independent of motherboard ROM:
 | Mode | Use |
 | --- | --- |
 | `none` | Default for real-ROM / BASIC bring-up |
-| `synthetic` | ESP][ Disk II boot tests |
-| user path | `--slot6-rom` / future host flag — validate/hash only |
+| `synthetic` | Level-2 Disk II softswitch / marker tests |
+| `cleanroom` | Level-4 realistic boot (project-owned) |
+| user path | `--slot6-rom <path>` or `--slot6 <path>` — 256-byte PROM, SHA-256 identity |
+
+Metadata: `host/data/slot6_rom_database.json` (hashes only). Missing local PROM →
+`SKIPPED_NO_SLOT6_ROM` (not a CI failure).
+
+```bash
+host/.out/esp2_host.exe --slot6-rom path/to/diskii.rom --disk1 Esp2BootTest --batch
+```
 
 ## Optional real-ROM test
 
