@@ -229,10 +229,11 @@ RomError generateSyntheticVideoPipelineRom(uint8_t *dst, size_t dstSize) {
     emitAt(0xFB); // BNE clr_loop (-5)
     emitAt(0xE6);
     emitAt(0x01); // INC $01
-    emitAt(0xA5);
-    emitAt(0x01); // LDA $01
-    emitAt(0xC9);
-    emitAt(0x40); // CMP #$40
+    // Keep A=0 for STA: compare page in X, not A (PART C/D clear bugfix).
+    emitAt(0xA6);
+    emitAt(0x01); // LDX $01
+    emitAt(0xE0);
+    emitAt(0x40); // CPX #$40
     emitAt(0xD0);
     emitAt(0xF3); // BNE clr_loop
     // Park here after clear (no RTS — avoids bogus stack return in diagnostic).

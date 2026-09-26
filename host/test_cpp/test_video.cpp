@@ -1,6 +1,9 @@
+#include "esp_bracket/apple2_bus.hpp"
 #include "esp_bracket/artifact_renderer.hpp"
+#include "esp_bracket/cpu6502.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/lores_decoder.hpp"
+#include "esp_bracket/rom.hpp"
 #include "esp_bracket/soft_switches.hpp"
 #include "esp_bracket/text_decoder.hpp"
 #include "esp_bracket/video_state.hpp"
@@ -117,6 +120,116 @@ static void testArtifact() {
     check(rgb[0] > rgb[2], "art mono amber red>blue");
 }
 
+static void testArtifactRgb565Equivalence() {
+    using AR = ArtifactRenderer;
+    uint8_t ram[0x10000]{};
+    HgrDecoder::writePattern(ram, 0x2000, "artifact_ref");
+    uint8_t bits[AR::kWidth * AR::kHeight];
+    uint8_t high[40 * AR::kHeight];
+    HgrDecoder::decode(ram, 0x2000, bits, high);
+
+    uint8_t rgb888[AR::kWidth * AR::kHeight * 3];
+    AR::render(bits, high, VideoColorMode::CompositeColor, rgb888, sizeof(rgb888));
+
+    uint16_t line565[AR::kWidth];
+    int mismatches = 0;
+    for (int y = 0; y < AR::kHeight; ++y) {
+        AR::renderScanlineRgb565(bits + y * AR::kWidth, high + y * 40,
+                                 VideoColorMode::CompositeColor, line565);
+        for (int x = 0; x < AR::kWidth; ++x) {
+            const uint8_t *p = rgb888 + (static_cast<size_t>(y) * AR::kWidth + x) * 3;
+            const uint16_t expect = AR::toRgb565({p[0], p[1], p[2]});
+            if (line565[x] != expect) {
+                ++mismatches;
+            }
+        }
+    }
+    check(mismatches == 0, "art rgb565 scanline == rgb888+quantize");
+
+    // Byte-boundary pair (pixels 6|7): last of byte0 + first of byte1.
+    HgrDecoder::writePattern(ram, 0x2000, "byte_boundary");
+    HgrDecoder::decode(ram, 0x2000, bits, high);
+    AR::renderScanlineRgb565(bits, high, VideoColorMode::CompositeColor, line565);
+    const AR::Rgb whitePair = AR::compositePair(true, true, false); // both on → white
+    // 0x40|0x01 → bits 6 and 7 both set → white pair
+    check(line565[6] == AR::toRgb565(whitePair) && line565[7] == AR::toRgb565(whitePair),
+          "art byte-boundary pair white");
+
+    // Phase from high bit of the byte containing the pair's first pixel (bx=0).
+    std::memset(bits, 0, sizeof(bits));
+    std::memset(high, 0, sizeof(high));
+    bits[6] = 1;
+    bits[7] = 0;
+    high[0] = 0;
+    AR::renderScanlineRgb565(bits, high, VideoColorMode::CompositeColor, line565);
+    check(line565[6] == AR::toRgb565(AR::compositePair(true, false, false)),
+          "art phase high-clear purple across boundary");
+    high[0] = 1;
+    AR::renderScanlineRgb565(bits, high, VideoColorMode::CompositeColor, line565);
+    check(line565[6] == AR::toRgb565(AR::compositePair(true, false, true)),
+          "art phase high-set blue across boundary");
+}
+
+static void testHgrClearExactCycles() {
+    // Diagnose PART C ~8e6 figure: measure exact cycles to clear one 8 KiB page.
+    uint8_t romImg[Rom::kApple2PlusRomBytes];
+    check(generateSyntheticVideoPipelineRom(romImg, sizeof(romImg)) == RomError::Ok,
+          "hgr clear rom gen");
+
+    Apple2Bus bus;
+    check(bus.rom().load(romImg, sizeof(romImg)) == RomError::Ok, "hgr clear rom load");
+    Cpu6502 cpu;
+    cpu.setCallbacks(&bus, Apple2Bus::busRead, Apple2Bus::busWrite);
+    cpu.reset();
+
+    std::memset(bus.ram() + 0x2000, 0xA5, 0x2000);
+
+    CpuRegisters r = cpu.registers();
+    r.pc = kEsp32HgrClearRoutine;
+    cpu.setRegisters(r);
+    const uint64_t c0 = cpu.cycles();
+
+    // Done address: self-JMP after clear body (see synthetic_rom.cpp).
+    const uint16_t donePc = static_cast<uint16_t>(kEsp32HgrClearRoutine + 0x19);
+    bool parked = false;
+    for (int i = 0; i < 200000; ++i) {
+        cpu.runCycles(64);
+        if (cpu.registers().pc == donePc) {
+            parked = true;
+            break;
+        }
+    }
+    const uint64_t used = cpu.cycles() - c0;
+    check(parked, "hgr clear parked at done JMP");
+    const uint8_t b0 = bus.ram()[0x2000];
+    const uint8_t b1 = bus.ram()[0x3FFF];
+    const uint8_t z0 = bus.ram()[0];
+    const uint8_t z1 = bus.ram()[1];
+    int nonzero = 0;
+    int firstNz = -1;
+    for (int a = 0x2000; a < 0x4000; ++a) {
+        if (bus.ram()[a] != 0) {
+            ++nonzero;
+            if (firstNz < 0) {
+                firstNz = a;
+            }
+        }
+    }
+    std::printf("HOST DIAG  hgr_clear pc=$%04X cycles=%llu ram2000=$%02X ram3fff=$%02X "
+                "zp=$%02X%02X nonzero=%d first_nz=$%04X peekE800=$%02X\n",
+                cpu.registers().pc, static_cast<unsigned long long>(used), b0, b1, z1, z0, nonzero,
+                firstNz, bus.peek(0xE800));
+    check(b0 == 0 && b1 == 0 && nonzero == 0, "hgr clear page zeroed");
+    // Expected ~90k cycles (8192 STA ind,Y + loops) — not millions.
+    check(used > 50000 && used < 200000, "hgr clear cycle budget ~90k not 8e6");
+    std::printf("HOST MEASUREMENT  hgr_clear_exact_cycles=%llu (done_pc=$%04X)\n",
+                static_cast<unsigned long long>(used), donePc);
+    // PART C firmware logged ~8e6 because that was the *timeout* when the done
+    // detector used a loose PC window and continued executing JMP * idle until
+    // the 8e6 budget — not because the clear loop itself costs 8e6 cycles.
+    check(used < 8000000ull, "hgr clear not timeout-scale");
+}
+
 static void testPageAndMixed() {
     SoftSwitches sw;
     sw.reset();
@@ -149,6 +262,8 @@ int main() {
     testLoresColors();
     testHgrMapping();
     testArtifact();
+    testArtifactRgb565Equivalence();
+    testHgrClearExactCycles();
     testPageAndMixed();
 
     if (g_failures != 0) {

@@ -25,9 +25,8 @@ env.BuildSources(
         "-<rom_identity.cpp>",
         "-<sha256.cpp>",
         "-<text_screen.cpp>",
-        "-<artifact_renderer.cpp>",
         "-<display_effect.cpp>",
     ],
 )
 
-print("[apple2_text] portable core + video dirty sources from", apple2)
+print("[apple2_text] portable core + artifact color sources from", apple2)

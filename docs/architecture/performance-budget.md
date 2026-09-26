@@ -13,18 +13,21 @@ Target SoC: ESP32-S3, 16 MB flash, 8 MB PSRAM, 240 MHz.
 | Dirty metadata | **24 bytes** (192-bit scanline set) | ESP32 PHYSICAL MEASURED | `VideoDirtyTracker` |
 | Viewport RGB565 280×192 | 107 520 B | ESP32 PHYSICAL MEASURED | PSRAM |
 
-## PART B → PART C display (ESP32 PHYSICAL MEASURED)
+## PART B → D display (ESP32 PHYSICAL MEASURED)
 
 | Path | Time / notes |
 | --- | --- |
 | PART B text 240×192 full | ~58.9 ms |
-| PART C Sharp full 280×192 TEXT | ~70 ms (render~7.5 + xfer~62.5) |
-| PART C LORES full | ~69 ms |
-| PART C HGR Sharp full | ~72 ms |
-| TEXT partial (1 row / 8 lines) | ~9.9 ms / 4480 B |
-| LORES partial (1 text row) | ~9.2 ms / 4480 B |
-| HGR partial (1 scanline) | ~10.8 ms / 560 B |
-| Dirty overhead | cps_off≈cps_on ≈ **1.32e6** (negligible) |
+| PART C/D Sharp TEXT full | render ~7.4 ms + xfer ~62.5 ms ≈ **70 ms** |
+| PART D HGR Sharp full | render **7.5 ms** + xfer **62.5 ms** |
+| PART D HGR Artifact full | render **27.0 ms** + xfer **62.4 ms** |
+| PART D HGR Sharp 1 line | render **3.0 ms** + xfer **0.47 ms** (560 B) |
+| PART D HGR Artifact 1 line | render **3.1 ms** + xfer **0.40 ms** (560 B) |
+| PART D HGR Artifact 8 lines | render **4.1 ms** + xfer **2.7 ms** |
+| Artifact stress update rate | max ≈ **12 Hz** (coalesced dirty) |
+| Emulator under artifact stress | throttled ≈ **1.023e6** cps (1× preserved) |
+| Dirty overhead | cps_off≈cps_on ≈ **1.32e6** |
+| HGR clear exact (6502) | **~90 515** host / **92 024** ESP32 cycles; PART C ~8e6 was timeout idle |
 
 QSPI remains **40 MHz** quad, DMA chunk ≤1024 px.
 
@@ -34,6 +37,7 @@ QSPI remains **40 MHz** quad, DMA chunk ≤1024 px.
 - `a2disp` core0 — consumes dirty bitset; never blocks emu on SPI
 - Soft-switch changes mark all scanlines dirty
 - Idle (no dirty): zero viewport transfer
+- Artifact stress: display may fall behind; emulator keeps 1× Apple II cycles
 
 ## Host measurements
 

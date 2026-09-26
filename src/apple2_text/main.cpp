@@ -1,8 +1,8 @@
 /**
- * ESP][ PART C — dirty-tracked Sharp video pipeline (TEXT/LORES/HGR/MIXED).
+ * ESP][ PART D — HGR Artifact Color + dirty-tracked physical color video.
  *
- * Logical HGR remains 280×192. Physical viewport is 280×192 (PART B's 240 was
- * TEXT glyph cell width 40×6 only — layout choice, not HGR resolution).
+ * Presentation color (Sharp vs ArtifactColor) is separate from Apple II
+ * soft-switches. Logical HGR remains 280×192. Same ArtifactRenderer as host.
  */
 #include <Arduino.h>
 #include <SD.h>
@@ -22,6 +22,7 @@
 #include "qmi8658_min.h"
 
 #include "esp_bracket/apple2_bus.hpp"
+#include "esp_bracket/artifact_renderer.hpp"
 #include "esp_bracket/cpu6502.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/lores_decoder.hpp"
@@ -33,17 +34,21 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_video_dirty";
+static constexpr char kBuildId[] = "apple2_artifact_color";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
 static constexpr int kViewY = 48;
-static constexpr int kViewW = 280; // full Apple II logical width
+static constexpr int kViewW = 280;
 static constexpr int kViewH = 192;
-static constexpr int kTextCellW = 7; // 5px glyph + 2px gap → 40*7=280
+static constexpr int kTextCellW = 7;
 static constexpr uint32_t kQspiHz = 40000000;
 static constexpr uint32_t kStabilityMs = 90000;
-static constexpr int kFullUpdateThreshold = 96; // measured preference
+static constexpr int kFullUpdateThreshold = 96;
+static constexpr uint32_t kVisualHoldMs = 2500;
+
+/** ESP][ presentation choice — not Apple II soft-switch state. */
+enum class PresentColorMode : uint8_t { Sharp = 0, ArtifactColor };
 
 static Arduino_DataBus *g_bus = nullptr;
 static Arduino_CO5300 *g_gfx = nullptr;
@@ -53,22 +58,25 @@ static constexpr uint8_t kDisplayBrightness = 180;
 static Apple2Bus g_a2bus;
 static Cpu6502 g_cpu;
 static VideoDirtyTracker g_dirty;
+static PresentColorMode g_presentColor = PresentColorMode::Sharp;
 
 static bool g_display_ok = false;
 static bool g_touch_ok = false;
 static bool g_sd_ok = false;
 static bool g_imu_ok = false;
 
-static uint16_t *g_viewportFb = nullptr; // 280*192 RGB565 in PSRAM
+static uint16_t *g_viewportFb = nullptr;
 static uint8_t *g_hgrBits = nullptr;
 static uint8_t *g_hgrHigh = nullptr;
 static volatile bool g_schedulerGo = false;
+static volatile bool g_stressArtifact = false;
 static volatile uint64_t g_emuCyclesAtBoot = 0;
 static volatile uint32_t g_wallStartUs = 0;
 static volatile uint32_t g_dispFrames = 0;
 static volatile uint32_t g_dispBytes = 0;
 static volatile uint32_t g_lastXferUs = 0;
 static volatile uint32_t g_lastRenderUs = 0;
+static volatile uint32_t g_artifactFrames = 0;
 static portMUX_TYPE g_dirtyMux = portMUX_INITIALIZER_UNLOCKED;
 
 static void logf(const char *tag, const char *fmt, ...) {
@@ -81,7 +89,7 @@ static void logf(const char *tag, const char *fmt, ...) {
 }
 
 static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
-    return static_cast<uint16_t>(((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3));
+    return ArtifactRenderer::toRgb565({r, g, b});
 }
 
 static void panel_sleep_co5300() {
@@ -120,7 +128,7 @@ static bool init_display() {
     g_gfx->fillScreen(0x0000);
     logf("DISPLAY", "CO5300 init OK %dx%d", g_gfx->width(), g_gfx->height());
     logf("DISPLAY", "viewport_policy=280x192_full_logical qspi_hz=%u", kQspiHz);
-    logf("DISPLAY", "part_b_240_reason=TEXT_glyph_cells_40x6_layout_choice_not_HGR");
+    logf("DISPLAY", "artifact=digital_hgr_phase_pair not_full_ntsc");
     return true;
 }
 
@@ -167,7 +175,7 @@ static void writeTextLine(int row, const char *msg) {
 static void fillTextPage(uint16_t page, const char *title) {
     for (int r = 0; r < 24; ++r) {
         for (int c = 0; c < 40; ++c) {
-            g_a2bus.write(TextDecoder::cellAddress(page, r, c), 0xA0); // space
+            g_a2bus.write(TextDecoder::cellAddress(page, r, c), 0xA0);
         }
     }
     for (int c = 0; title[c] && c < 40; ++c) {
@@ -188,91 +196,147 @@ static void fillLoresPattern(uint16_t page) {
 }
 
 static void fillHgrPattern(uint16_t page, const char *kind) {
-    // Host helper writes raw RAM — also mark via bus for authenticity of dirties.
-    // Use setPixel through bus by reconstructing bytes.
     uint8_t *ram = g_a2bus.ram();
     HgrDecoder::writePattern(ram, page, kind);
-    // Mark every scanline (pattern write bypassed bus) — then force dirty.
     portENTER_CRITICAL(&g_dirtyMux);
     g_dirty.markAll();
     portEXIT_CRITICAL(&g_dirtyMux);
 }
 
-/** Render one Sharp frame into g_viewportFb from current softswitches + RAM. */
-static void renderSharpFrame(uint16_t *fb) {
+static void renderTextRows(uint16_t *fb, int row0, int row1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
     const uint8_t *ram = g_a2bus.ram();
-    memset(fb, 0, kViewW * kViewH * sizeof(uint16_t));
-
-    auto renderTextRows = [&](int row0, int row1) {
-        uint8_t chars[TextDecoder::kRows * TextDecoder::kCols];
-        TextDecoder::decodeScreen(ram, vs.textPageBase(), chars);
-        for (int row = row0; row <= row1; ++row) {
-            for (int gy = 0; gy < 8; ++gy) {
-                uint16_t *dst = fb + (row * 8 + gy) * kViewW;
-                for (int col = 0; col < 40; ++col) {
-                    const uint8_t cell = chars[row * 40 + col];
-                    const uint8_t ascii7 = static_cast<uint8_t>(cell & 0x7F);
-                    const bool inverse = (cell & 0x80) == 0;
-                    uint8_t bits = 0;
-                    if (gy < TextDecoder::kGlyphH) {
-                        bits = TextDecoder::glyphRow(ascii7, gy);
-                    }
-                    for (int gx = 0; gx < 5; ++gx) {
-                        const bool on = (bits & (1u << (4 - gx))) != 0;
-                        const bool lit = inverse ? !on : on;
-                        dst[col * kTextCellW + gx] = lit ? 0xFFFF : 0x0000;
-                    }
-                    dst[col * kTextCellW + 5] = 0;
-                    dst[col * kTextCellW + 6] = 0;
+    uint8_t chars[TextDecoder::kRows * TextDecoder::kCols];
+    TextDecoder::decodeScreen(ram, vs.textPageBase(), chars);
+    for (int row = row0; row <= row1; ++row) {
+        for (int gy = 0; gy < 8; ++gy) {
+            uint16_t *dst = fb + (row * 8 + gy) * kViewW;
+            for (int col = 0; col < 40; ++col) {
+                const uint8_t cell = chars[row * 40 + col];
+                const uint8_t ascii7 = static_cast<uint8_t>(cell & 0x7F);
+                const bool inverse = (cell & 0x80) == 0;
+                uint8_t bits = 0;
+                if (gy < TextDecoder::kGlyphH) {
+                    bits = TextDecoder::glyphRow(ascii7, gy);
                 }
+                for (int gx = 0; gx < 5; ++gx) {
+                    const bool on = (bits & (1u << (4 - gx))) != 0;
+                    const bool lit = inverse ? !on : on;
+                    dst[col * kTextCellW + gx] = lit ? 0xFFFF : 0x0000;
+                }
+                dst[col * kTextCellW + 5] = 0;
+                dst[col * kTextCellW + 6] = 0;
             }
         }
-    };
+    }
+}
 
-    auto renderLoresRows = [&](int scan0, int scan1) {
-        uint8_t blocks[LoresDecoder::kRows * LoresDecoder::kCols];
-        LoresDecoder::decode(ram, vs.textPageBase(), blocks);
-        for (int py = scan0; py <= scan1; ++py) {
-            const int brow = py / LoresDecoder::kBlockH;
-            uint16_t *dst = fb + py * kViewW;
-            for (int bx = 0; bx < 40; ++bx) {
-                uint8_t r, g, b;
-                LoresDecoder::colorRgb(blocks[brow * 40 + bx], &r, &g, &b);
-                const uint16_t c = rgb565(r, g, b);
-                for (int dx = 0; dx < 7; ++dx) {
-                    dst[bx * 7 + dx] = c;
-                }
+static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    const uint8_t *ram = g_a2bus.ram();
+    uint8_t blocks[LoresDecoder::kRows * LoresDecoder::kCols];
+    LoresDecoder::decode(ram, vs.textPageBase(), blocks);
+    for (int py = scan0; py <= scan1; ++py) {
+        const int brow = py / LoresDecoder::kBlockH;
+        uint16_t *dst = fb + py * kViewW;
+        for (int bx = 0; bx < 40; ++bx) {
+            uint8_t r, g, b;
+            LoresDecoder::colorRgb(blocks[brow * 40 + bx], &r, &g, &b);
+            const uint16_t c = rgb565(r, g, b);
+            for (int dx = 0; dx < 7; ++dx) {
+                dst[bx * 7 + dx] = c;
             }
         }
-    };
+    }
+}
 
-    auto renderHgrRows = [&](int scan0, int scan1) {
-        if (!g_hgrBits || !g_hgrHigh) {
-            return;
-        }
-        HgrDecoder::decode(ram, vs.hgrPageBase(), g_hgrBits, g_hgrHigh);
-        for (int y = scan0; y <= scan1; ++y) {
-            uint16_t *dst = fb + y * kViewW;
+/**
+ * Render HGR scanlines [scan0..scan1] into fb.
+ * Artifact regenerates each complete 280-px line (no per-pixel dirty) so
+ * byte-boundary neighbor pairs stay correct without horizontal dirty expansion.
+ */
+static void renderHgrRows(uint16_t *fb, int scan0, int scan1) {
+    if (!g_hgrBits || !g_hgrHigh || scan0 > scan1) {
+        return;
+    }
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    const uint8_t *ram = g_a2bus.ram();
+    HgrDecoder::decode(ram, vs.hgrPageBase(), g_hgrBits, g_hgrHigh);
+
+    const VideoColorMode colorMode = (g_presentColor == PresentColorMode::ArtifactColor)
+                                         ? VideoColorMode::CompositeColor
+                                         : VideoColorMode::MonochromeWhite;
+
+    for (int y = scan0; y <= scan1; ++y) {
+        uint16_t *dst = fb + y * kViewW;
+        if (g_presentColor == PresentColorMode::ArtifactColor) {
+            ArtifactRenderer::renderScanlineRgb565(g_hgrBits + y * 280, g_hgrHigh + y * 40,
+                                                   colorMode, dst);
+        } else {
             for (int x = 0; x < 280; ++x) {
                 dst[x] = g_hgrBits[y * 280 + x] ? 0xFFFF : 0x0000;
             }
         }
+    }
+}
+
+/** Render only dirty scanlines (or full viewport) for current soft-switch mode. */
+static void renderDirtyIntoFb(uint16_t *fb, const VideoDirtyTracker::Bitset &bits) {
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+
+    auto anyIn = [&](int y0, int y1) {
+        for (int y = y0; y <= y1; ++y) {
+            if (bits.test(y)) {
+                return true;
+            }
+        }
+        return false;
     };
 
     if (vs.text) {
-        renderTextRows(0, 23);
+        for (int row = 0; row < 24; ++row) {
+            if (anyIn(row * 8, row * 8 + 7)) {
+                renderTextRows(fb, row, row);
+            }
+        }
         return;
     }
-    // Graphics
+
     const int graphicsEnd = vs.mixed ? 159 : 191;
     if (vs.hires) {
-        renderHgrRows(0, graphicsEnd);
+        // Coalesce dirty graphics lines into one decode+render pass.
+        int d0 = -1, d1 = -1;
+        for (int y = 0; y <= graphicsEnd; ++y) {
+            if (bits.test(y)) {
+                if (d0 < 0) {
+                    d0 = y;
+                }
+                d1 = y;
+            }
+        }
+        if (d0 >= 0) {
+            renderHgrRows(fb, d0, d1);
+        }
     } else {
-        renderLoresRows(0, graphicsEnd);
+        int d0 = -1, d1 = -1;
+        for (int y = 0; y <= graphicsEnd; ++y) {
+            if (bits.test(y)) {
+                if (d0 < 0) {
+                    d0 = y;
+                }
+                d1 = y;
+            }
+        }
+        if (d0 >= 0) {
+            renderLoresRows(fb, d0, d1);
+        }
     }
     if (vs.mixed) {
-        renderTextRows(20, 23); // bottom 4 text rows → scanlines 160-191
+        for (int row = 20; row < 24; ++row) {
+            if (anyIn(row * 8, row * 8 + 7)) {
+                renderTextRows(fb, row, row);
+            }
+        }
     }
 }
 
@@ -294,7 +358,7 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
         return 0;
     }
     const uint32_t tR0 = micros();
-    renderSharpFrame(g_viewportFb);
+    renderDirtyIntoFb(g_viewportFb, bits);
     g_lastRenderUs = micros() - tR0;
 
     const int pop = bits.popcount();
@@ -302,7 +366,6 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
         return transferScanlineRange(0, kViewH - 1);
     }
 
-    // Merge contiguous runs.
     uint32_t total = 0;
     int runStart = -1;
     for (int y = 0; y <= kViewH; ++y) {
@@ -320,7 +383,6 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
 static void runModeBench(const char *name) {
     portENTER_CRITICAL(&g_dirtyMux);
     auto bits = g_dirty.exchange();
-    // Force full for mode reveal
     bits.markAll();
     portEXIT_CRITICAL(&g_dirtyMux);
 
@@ -328,21 +390,38 @@ static void runModeBench(const char *name) {
     const uint32_t xfer = presentDirty(bits);
     const uint32_t total = micros() - t0;
     g_dispFrames = g_dispFrames + 1;
-    logf("PERF", "ESP32 PHYSICAL MEASURED mode=%s render_us=%u xfer_us=%u total_us=%u bytes=%u",
-         name, g_lastRenderUs, xfer, total, g_dispBytes);
+    logf("PERF",
+         "ESP32 PHYSICAL MEASURED mode=%s present=%s render_us=%u xfer_us=%u total_us=%u "
+         "bytes=%u",
+         name, g_presentColor == PresentColorMode::ArtifactColor ? "ARTIFACT" : "SHARP",
+         g_lastRenderUs, xfer, total, g_dispBytes);
+}
+
+static void holdScreen(const char *tag, uint32_t ms = kVisualHoldMs) {
+    logf("VISUAL", "screen=%s hold_ms=%u (confirm on CO5300)", tag, ms);
+    delay(ms);
+}
+
+static void setPresentColor(PresentColorMode m) {
+    g_presentColor = m;
+    portENTER_CRITICAL(&g_dirtyMux);
+    g_dirty.markAll();
+    portEXIT_CRITICAL(&g_dirtyMux);
 }
 
 static void demoText() {
+    setPresentColor(PresentColorMode::Sharp);
     softSwitch(SoftSwitches::kAddrText);
     softSwitch(SoftSwitches::kAddrPage1);
     softSwitch(SoftSwitches::kAddrFull);
     fillTextPage(0x0400, "ESP][ TEXT PAGE1");
-    writeTextLine(2, "DIRTY TRACKED SHARP");
+    writeTextLine(2, "PART D ARTIFACT COLOR");
     writeTextLine(4, "280x192 VIEWPORT");
     runModeBench("TEXT");
 }
 
 static void demoLores() {
+    setPresentColor(PresentColorMode::Sharp);
     softSwitch(SoftSwitches::kAddrGraphics);
     softSwitch(SoftSwitches::kAddrLores);
     softSwitch(SoftSwitches::kAddrFull);
@@ -352,6 +431,7 @@ static void demoLores() {
 }
 
 static void demoLoresMixed() {
+    setPresentColor(PresentColorMode::Sharp);
     softSwitch(SoftSwitches::kAddrGraphics);
     softSwitch(SoftSwitches::kAddrLores);
     softSwitch(SoftSwitches::kAddrMixed);
@@ -364,7 +444,8 @@ static void demoLoresMixed() {
     runModeBench("LORES_MIXED");
 }
 
-static void demoHgr(const char *pattern, const char *tag) {
+static void demoHgrSharp(const char *pattern, const char *tag) {
+    setPresentColor(PresentColorMode::Sharp);
     softSwitch(SoftSwitches::kAddrGraphics);
     softSwitch(SoftSwitches::kAddrHires);
     softSwitch(SoftSwitches::kAddrFull);
@@ -373,20 +454,32 @@ static void demoHgr(const char *pattern, const char *tag) {
     runModeBench(tag);
 }
 
-static void demoHgrMixed() {
+static void demoHgrArtifact(const char *pattern, const char *tag) {
+    setPresentColor(PresentColorMode::ArtifactColor);
+    softSwitch(SoftSwitches::kAddrGraphics);
+    softSwitch(SoftSwitches::kAddrHires);
+    softSwitch(SoftSwitches::kAddrFull);
+    softSwitch(SoftSwitches::kAddrPage1);
+    fillHgrPattern(0x2000, pattern);
+    runModeBench(tag);
+}
+
+static void demoHgrMixedArtifact() {
+    setPresentColor(PresentColorMode::ArtifactColor);
     softSwitch(SoftSwitches::kAddrGraphics);
     softSwitch(SoftSwitches::kAddrHires);
     softSwitch(SoftSwitches::kAddrMixed);
     softSwitch(SoftSwitches::kAddrPage1);
-    fillHgrPattern(0x2000, "hline");
-    writeTextLine(20, "MIXED HGR/TEXT");
+    fillHgrPattern(0x2000, "artifact_ref");
+    writeTextLine(20, "MIXED HGR ARTIFACT/TEXT");
     writeTextLine(21, "LOGICAL HGR 280x192");
-    writeTextLine(22, "SHARP ONLY");
-    writeTextLine(23, "NO ARTIFACT YET");
-    runModeBench("HGR_MIXED");
+    writeTextLine(22, "TEXT BELOW SCAN 160");
+    writeTextLine(23, "NO FULL HGR ON TEXT");
+    runModeBench("HGR_MIXED_ARTIFACT");
 }
 
 static void demoPages() {
+    setPresentColor(PresentColorMode::Sharp);
     softSwitch(SoftSwitches::kAddrText);
     softSwitch(SoftSwitches::kAddrFull);
     fillTextPage(0x0400, "TEXT PAGE1");
@@ -401,7 +494,6 @@ static void demoPages() {
     softSwitch(SoftSwitches::kAddrLores);
     fillLoresPattern(0x0400);
     fillLoresPattern(0x0800);
-    // distinguish page2
     g_a2bus.write(TextDecoder::cellAddress(0x0800, 0, 0), 0xFF);
     softSwitch(SoftSwitches::kAddrPage1);
     runModeBench("LORES_P1");
@@ -419,62 +511,81 @@ static void demoPages() {
     softSwitch(SoftSwitches::kAddrPage1);
 }
 
-static void benchPartialUpdates() {
-    softSwitch(SoftSwitches::kAddrText);
+static void benchHgrModes() {
+    softSwitch(SoftSwitches::kAddrGraphics);
+    softSwitch(SoftSwitches::kAddrHires);
+    softSwitch(SoftSwitches::kAddrFull);
     softSwitch(SoftSwitches::kAddrPage1);
-    fillTextPage(0x0400, "PARTIAL TEXT");
-    portENTER_CRITICAL(&g_dirtyMux);
-    g_dirty.exchange(); // clear
-    portEXIT_CRITICAL(&g_dirtyMux);
+    fillHgrPattern(0x2000, "artifact_ref");
 
-    g_a2bus.write(TextDecoder::cellAddress(0x0400, 3, 0), 0xC1); // 'A'
+    // Sharp full
+    setPresentColor(PresentColorMode::Sharp);
     portENTER_CRITICAL(&g_dirtyMux);
     auto bits = g_dirty.exchange();
-    portEXIT_CRITICAL(&g_dirtyMux);
-    const uint32_t t0 = micros();
-    presentDirty(bits);
-    logf("PERF", "ESP32 PHYSICAL MEASURED text_partial_row_us=%u bytes=%u dirty_lines=%d",
-         micros() - t0, g_dispBytes, bits.popcount());
-
-    softSwitch(SoftSwitches::kAddrGraphics);
-    softSwitch(SoftSwitches::kAddrLores);
-    softSwitch(SoftSwitches::kAddrFull);
-    fillLoresPattern(0x0400);
-    portENTER_CRITICAL(&g_dirtyMux);
-    g_dirty.exchange();
-    portEXIT_CRITICAL(&g_dirtyMux);
-    g_a2bus.write(TextDecoder::cellAddress(0x0400, 10, 5), 0x1F);
-    portENTER_CRITICAL(&g_dirtyMux);
-    bits = g_dirty.exchange();
-    portEXIT_CRITICAL(&g_dirtyMux);
-    const uint32_t t1 = micros();
-    presentDirty(bits);
-    logf("PERF", "ESP32 PHYSICAL MEASURED lores_partial_us=%u bytes=%u dirty_lines=%d",
-         micros() - t1, g_dispBytes, bits.popcount());
-
-    softSwitch(SoftSwitches::kAddrHires);
-    fillHgrPattern(0x2000, "isolated");
-    portENTER_CRITICAL(&g_dirtyMux);
-    g_dirty.exchange();
-    portEXIT_CRITICAL(&g_dirtyMux);
-    // one authentic bus write into HGR
-    const uint16_t ha = HgrDecoder::lineAddress(0x2000, 50);
-    g_a2bus.write(ha, 0x7F);
-    portENTER_CRITICAL(&g_dirtyMux);
-    bits = g_dirty.exchange();
-    portEXIT_CRITICAL(&g_dirtyMux);
-    const uint32_t t2 = micros();
-    presentDirty(bits);
-    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_partial_scanline_us=%u bytes=%u dirty_lines=%d",
-         micros() - t2, g_dispBytes, bits.popcount());
-
-    // Full HGR
-    portENTER_CRITICAL(&g_dirtyMux);
     bits.markAll();
     portEXIT_CRITICAL(&g_dirtyMux);
-    const uint32_t t3 = micros();
     presentDirty(bits);
-    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_full_us=%u bytes=%u", micros() - t3, g_dispBytes);
+    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_sharp_full render_us=%u xfer_us=%u", g_lastRenderUs,
+         g_lastXferUs);
+
+    // Artifact full
+    setPresentColor(PresentColorMode::ArtifactColor);
+    portENTER_CRITICAL(&g_dirtyMux);
+    bits = g_dirty.exchange();
+    bits.markAll();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_artifact_full render_us=%u xfer_us=%u",
+         g_lastRenderUs, g_lastXferUs);
+
+    // One scanline Sharp
+    setPresentColor(PresentColorMode::Sharp);
+    portENTER_CRITICAL(&g_dirtyMux);
+    g_dirty.exchange();
+    g_dirty.markScanline(50);
+    bits = g_dirty.exchange();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_sharp_1line render_us=%u xfer_us=%u bytes=%u",
+         g_lastRenderUs, g_lastXferUs, g_dispBytes);
+
+    // One scanline Artifact
+    setPresentColor(PresentColorMode::ArtifactColor);
+    portENTER_CRITICAL(&g_dirtyMux);
+    g_dirty.exchange();
+    g_dirty.markScanline(50);
+    bits = g_dirty.exchange();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_artifact_1line render_us=%u xfer_us=%u bytes=%u",
+         g_lastRenderUs, g_lastXferUs, g_dispBytes);
+
+    // Several adjacent
+    portENTER_CRITICAL(&g_dirtyMux);
+    g_dirty.exchange();
+    for (int y = 40; y < 48; ++y) {
+        g_dirty.markScanline(y);
+    }
+    bits = g_dirty.exchange();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    logf("PERF", "ESP32 PHYSICAL MEASURED hgr_artifact_8lines render_us=%u xfer_us=%u",
+         g_lastRenderUs, g_lastXferUs);
+
+    // Sharp <-> Artifact switch without touching Apple II RAM
+    setPresentColor(PresentColorMode::Sharp);
+    portENTER_CRITICAL(&g_dirtyMux);
+    bits = g_dirty.exchange();
+    bits.markAll();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    setPresentColor(PresentColorMode::ArtifactColor);
+    portENTER_CRITICAL(&g_dirtyMux);
+    bits = g_dirty.exchange();
+    bits.markAll();
+    portEXIT_CRITICAL(&g_dirtyMux);
+    presentDirty(bits);
+    logf("PERF", "ESP32 PHYSICAL MEASURED sharp_artifact_switch render_us=%u", g_lastRenderUs);
 }
 
 static void benchHgrClear6502() {
@@ -492,16 +603,18 @@ static void benchHgrClear6502() {
     g_cpu.setRegisters(r);
     const uint64_t c0 = g_cpu.cycles();
     const uint32_t t0 = micros();
+    // Exact done PC: self-JMP after clear body ($E800+0x19).
+    const uint16_t donePc = static_cast<uint16_t>(kEsp32HgrClearRoutine + 0x19);
+    bool ok = false;
     for (;;) {
         g_cpu.runCycles(4000);
         g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
-        const uint16_t pc = g_cpu.registers().pc;
-        // Done when parked in JMP * at end of clear (~0xE818 class) and page zeroed.
-        if (pc >= kEsp32HgrClearRoutine + 0x14 && pc < kEsp32HgrClearRoutine + 0x30 &&
-            g_a2bus.ram()[0x2000] == 0 && g_a2bus.ram()[0x3FFF] == 0) {
+        if (g_cpu.registers().pc == donePc && g_a2bus.ram()[0x2000] == 0 &&
+            g_a2bus.ram()[0x3FFF] == 0) {
+            ok = true;
             break;
         }
-        if ((g_cpu.cycles() - c0) > 8000000ull) {
+        if ((g_cpu.cycles() - c0) > 500000ull) {
             break;
         }
     }
@@ -514,9 +627,32 @@ static void benchHgrClear6502() {
     presentDirty(bits);
     const uint32_t dispUs = micros() - t1;
     logf("PERF",
-         "ESP32 PHYSICAL MEASURED hgr_clear cpu_cycles=%llu cpu_us=%u dirty_lines=%d "
-         "display_us=%u",
-         static_cast<unsigned long long>(cpuCycles), cpuUs, bits.popcount(), dispUs);
+         "ESP32 PHYSICAL MEASURED hgr_clear ok=%s cpu_cycles=%llu cpu_us=%u dirty_lines=%d "
+         "display_us=%u (PART_C_8e6_was_timeout_idle_not_clear_cost)",
+         ok ? "yes" : "no", static_cast<unsigned long long>(cpuCycles), cpuUs, bits.popcount(),
+         dispUs);
+}
+
+static void visualArtifactSequence() {
+    logf("VISUAL", "begin artifact confirmation sequence");
+
+    demoHgrSharp("checker", "HGR_SHARP_REF");
+    holdScreen("1_SHARP_HGR");
+
+    demoHgrArtifact("artifact_ref", "HGR_ARTIFACT_REF");
+    holdScreen("2_ARTIFACT_REF");
+
+    demoHgrArtifact("highbit", "HGR_HIGHBIT_PHASE");
+    holdScreen("3_HIGHBIT_PHASE");
+
+    demoHgrArtifact("byte_boundary", "HGR_BYTE_BOUNDARY");
+    holdScreen("4_BYTE_BOUNDARY");
+
+    demoHgrArtifact("white_run", "HGR_WHITE_BLACK_RUNS");
+    holdScreen("5_WHITE_BLACK_RUNS");
+
+    demoHgrMixedArtifact();
+    holdScreen("6_HGR_MIXED_ARTIFACT");
 }
 
 static void benchDirtyOverhead() {
@@ -560,7 +696,6 @@ static void bootVideoSuite() {
     }
     g_cpu.reset();
 
-    // Call marker stub
     CpuRegisters r = g_cpu.registers();
     r.pc = 0xE840;
     g_cpu.setRegisters(r);
@@ -597,17 +732,24 @@ static void bootVideoSuite() {
     demoLores();
     measureCpsLabel("LORES");
     demoLoresMixed();
-    demoHgr("checker", "HGR_SHARP");
+    demoHgrSharp("checker", "HGR_SHARP");
     measureCpsLabel("HGR");
-    demoHgr("isolated", "HGR_ISOLATED");
-    demoHgr("vline", "HGR_VLINE");
-    demoHgrMixed();
     demoPages();
-    benchPartialUpdates();
+    visualArtifactSequence();
+    // Benches after visual holds so a late-attached serial monitor still captures them.
+    benchHgrModes();
     benchHgrClear6502();
 
-    // Leave on TEXT for interactive run
-    demoText();
+    // Leave HGR artifact stress pattern for live run
+    setPresentColor(PresentColorMode::ArtifactColor);
+    softSwitch(SoftSwitches::kAddrGraphics);
+    softSwitch(SoftSwitches::kAddrHires);
+    softSwitch(SoftSwitches::kAddrFull);
+    softSwitch(SoftSwitches::kAddrPage1);
+    fillHgrPattern(0x2000, "artifact_ref");
+    runModeBench("HGR_ARTIFACT_STRESS_SEED");
+    g_stressArtifact = true;
+
     logf("APPLE2", "video suite done");
     logf("RAM", "heap_free=%u heap_min=%u", ESP.getFreeHeap(), ESP.getMinFreeHeap());
     if (ESP.getPsramSize()) {
@@ -622,12 +764,12 @@ static void emulatorTask(void *) {
     logf("SCHED", "emu core=%d quantum=%u", xPortGetCoreID(), kExecQuantum);
     g_wallStartUs = micros();
     g_emuCyclesAtBoot = g_cpu.cycles();
-    // Return to ROM idle via reset
     g_cpu.reset();
     g_emuCyclesAtBoot = g_cpu.cycles();
     g_wallStartUs = micros();
 
     uint32_t lastPulse = 0;
+    uint32_t stressPhase = 0;
     for (;;) {
         g_cpu.runCycles(kExecQuantum);
         g_a2bus.setAccessCycle(static_cast<uint32_t>(g_cpu.cycles() & 0xFFFFFFFFu));
@@ -645,9 +787,19 @@ static void emulatorTask(void *) {
         } else if (((after / kExecQuantum) & 0x0F) == 0) {
             taskYIELD();
         }
-        // Occasional text pulse so dirty path stays exercised (does not notifyActivity).
+
         const uint32_t now = millis();
-        if (now - lastPulse > 500 && g_a2bus.softSwitches().isText()) {
+        if (g_stressArtifact && (now - lastPulse > 80)) {
+            // Full-screen color stress: rewrite HGR via authentic bus stores.
+            // Does NOT call notifyActivity — video animation ≠ user activity.
+            ++stressPhase;
+            const uint8_t v = static_cast<uint8_t>((stressPhase & 0x7F) | ((stressPhase & 1) << 7));
+            for (int y = 0; y < 192; y += 4) {
+                const uint16_t ha = HgrDecoder::lineAddress(0x2000, y);
+                g_a2bus.write(static_cast<uint16_t>(ha + (stressPhase % 40)), v);
+            }
+            lastPulse = now;
+        } else if (!g_stressArtifact && now - lastPulse > 500 && g_a2bus.softSwitches().isText()) {
             static char dig = '0';
             g_a2bus.write(TextDecoder::cellAddress(0x0400, 23, 39),
                           static_cast<uint8_t>(0x80u | static_cast<uint8_t>(dig)));
@@ -667,6 +819,7 @@ static void displayTask(void *) {
     bool stabilityDone = false;
     bool sawSs = false, sawOff = false;
     uint32_t lastPower = 255;
+    uint32_t maxArtifactHz = 0;
 
     for (;;) {
         const uint32_t now = millis();
@@ -693,21 +846,32 @@ static void displayTask(void *) {
             }
         }
         if (now - lastDiag >= 5000) {
-            lastDiag = now;
             const uint32_t wallUs = micros() - g_wallStartUs;
             const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
-            logf("PERF", "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u", cps,
-                 g_dispFrames, ESP.getFreeHeap(), ESP.getMinFreeHeap());
+            const uint32_t framesDelta = g_artifactFrames;
+            g_artifactFrames = 0;
+            const uint32_t hz = framesDelta / 5;
+            if (hz > maxArtifactHz) {
+                maxArtifactHz = hz;
+            }
+            logf("PERF",
+                 "ESP32 PHYSICAL MEASURED live cps=%.0f frames_5s=%u approx_hz=%u "
+                 "max_artifact_hz=%u heap=%u heap_min=%u render_us=%u xfer_us=%u",
+                 cps, framesDelta, hz, maxArtifactHz, ESP.getFreeHeap(), ESP.getMinFreeHeap(),
+                 g_lastRenderUs, g_lastXferUs);
+            lastDiag = now;
         }
         if (!stabilityDone && (now - startMs) >= kStabilityMs) {
             stabilityDone = true;
-            logf("STABILITY", "duration_ms=%u frames=%u", kStabilityMs, g_dispFrames);
+            logf("STABILITY", "duration_ms=%u frames=%u max_artifact_hz=%u", kStabilityMs,
+                 g_dispFrames, maxArtifactHz);
             logf("POWER", "screensaver_seen=%s off_seen=%s", sawSs ? "yes" : "no",
                  sawOff ? "yes" : "no");
             logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s", g_display_ok ? "PASS" : "FAIL",
                  g_touch_ok ? "PASS" : "FAIL", g_sd_ok ? "PASS" : "FAIL",
                  g_imu_ok ? "PASS" : "FAIL");
             logf("STABILITY", "result=PASS");
+            g_stressArtifact = false;
         }
 
         if (!g_display_ok || !g_display_power.isInteractive()) {
@@ -724,13 +888,16 @@ static void displayTask(void *) {
         }
         presentDirty(bits);
         g_dispFrames = g_dispFrames + 1;
+        if (g_presentColor == PresentColorMode::ArtifactColor) {
+            g_artifactFrames = g_artifactFrames + 1;
+        }
         // paint ≠ user activity
     }
 }
 
 void setup() {
     Serial.begin(115200);
-    delay(300);
+    delay(1500); // allow host monitor to attach after upload reset
     logf("ESP2", "build=%s", kBuildId);
     logf("ESP2", "psram=%u heap=%u", ESP.getPsramSize(), ESP.getFreeHeap());
 
