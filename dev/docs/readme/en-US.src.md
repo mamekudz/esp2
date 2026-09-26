@@ -1,3 +1,9 @@
+<!-- note
+Maintained English source for the ESP][ README. Edit this file (and de-DE.src.md).
+Then: npx gulp docs  → generates README.md and updates the en-US.md baseline.
+website blocks may be added later; unmarked text appears in the Git README.
+-->
+
 # ESP][
 
 **English** | [Deutsch](README.de-DE.md)
@@ -183,9 +189,9 @@ Do not maintain generated READMEs by hand.
 
 ### Configure NAS backup
 
-1. Copy `config/nas.targets.example` to `config/nas.targets.local`
-2. Set up to three paths (`NAS_TARGET_1` … `NAS_TARGET_3`)
-3. Or set environment variables of the same names
+1. Copy `config/nas.targets.example` to `config/nas.targets.local`  
+2. Set up to three paths (`NAS_TARGET_1` … `NAS_TARGET_3`)  
+3. Or set environment variables of the same names  
 
 `nas.targets.local` is gitignored. At most three destinations; missing targets are skipped individually.
 

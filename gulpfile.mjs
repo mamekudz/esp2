@@ -26,7 +26,12 @@ import {
   RequestForm,
   IsMicroGulp,
 } from "gulp-mu-gulp-api";
-import { ComposeReadme, README_SOURCE_RELATIVE } from "./dev/tools/readme-compose.mjs";
+import {
+  ComposeReadme,
+  ComposeReadmeLocale,
+  README_SOURCE_RELATIVE,
+  README_SOURCES,
+} from "./dev/tools/readme-compose.mjs";
 import {
   AssertNasBackupTarget,
   LoadNasLocalDefaults,
@@ -436,32 +441,81 @@ async function _RunNasBackup() {
 
 export async function docs() {
   ReportProgress(0, "docs");
-  Log('Composing README.md from <path/><context="task log"/>', {
+  Log('Composing READMEs from <path/> + de-DE.src.md<context="task log"/>', {
     path: README_SOURCE_RELATIVE,
   });
   const result = ComposeReadme({ root: rootDir });
-  if (result.changed) {
-    Log('Wrote <path/> (<bytes format="int"/> bytes)<context="task log"/>', {
-      path: "README.md",
-      bytes: result.bytes,
-    });
-  } else {
-    Log(
-      'README.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
-      { bytes: result.bytes }
-    );
+  for (const r of result.results) {
+    const name = README_SOURCES[r.locale].outputRel;
+    if (r.changed) {
+      Log('Wrote <path/> (<bytes format="int"/> bytes)<context="task log"/>', {
+        path: name,
+        bytes: r.bytes,
+      });
+    } else {
+      Log(
+        '<path/> already up to date (<bytes format="int"/> bytes).<context="task log"/>',
+        { path: name, bytes: r.bytes }
+      );
+    }
   }
   ReportProgress(1, "docs");
   PlaySignal("success");
 }
 _Tag(docs, {
   gulpName: "docs",
-  µDisplayName: 'Compose README<context="µDisplayName"/>',
+  µDisplayName: 'Compose READMEs<context="µDisplayName"/>',
   µDescription:
-    'Generates README.md from dev/docs/readme/de-DE.src.md. Does not overwrite the source.<context="µDescription"/>',
+    'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="µDescription"/>',
   µGroup: 'Docs & Backup<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 10,
+  µExecutionConcurrency: false,
+});
+
+export async function docsEnUS() {
+  ReportProgress(0, "docs-en-US");
+  const result = ComposeReadmeLocale({ root: rootDir, locale: "en-US" });
+  Log(
+    result.changed
+      ? 'Wrote README.md (<bytes format="int"/> bytes)<context="task log"/>'
+      : 'README.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
+    { bytes: result.bytes }
+  );
+  ReportProgress(1, "docs-en-US");
+  PlaySignal("success");
+}
+_Tag(docsEnUS, {
+  gulpName: "docs:en-US",
+  µDisplayName: 'Compose README (en-US)<context="µDisplayName"/>',
+  µDescription:
+    'Generates README.md from dev/docs/readme/en-US.src.md.<context="µDescription"/>',
+  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µIcon: "\uE915",
+  µOrder: 11,
+  µExecutionConcurrency: false,
+});
+
+export async function docsDeDE() {
+  ReportProgress(0, "docs-de-DE");
+  const result = ComposeReadmeLocale({ root: rootDir, locale: "de-DE" });
+  Log(
+    result.changed
+      ? 'Wrote README.de-DE.md (<bytes format="int"/> bytes)<context="task log"/>'
+      : 'README.de-DE.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
+    { bytes: result.bytes }
+  );
+  ReportProgress(1, "docs-de-DE");
+  PlaySignal("success");
+}
+_Tag(docsDeDE, {
+  gulpName: "docs:de-DE",
+  µDisplayName: 'Compose README (de-DE)<context="µDisplayName"/>',
+  µDescription:
+    'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="µDescription"/>',
+  µGroup: 'Docs & Backup<context="µGroup"/>',
+  µIcon: "\uE915",
+  µOrder: 12,
   µExecutionConcurrency: false,
 });
 
@@ -540,6 +594,8 @@ export default docs;
 
 gulp.task("backup:git", BACKUP_GIT);
 gulp.task("backup:all", BACKUP_ALL);
+gulp.task("docs:en-US", docsEnUS);
+gulp.task("docs:de-DE", docsDeDE);
 // npm script backup:nas → gulp backup (no second dashboard entry)
 
 //================================================================

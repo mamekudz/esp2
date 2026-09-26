@@ -1233,18 +1233,22 @@ Do not design game.json around German-only or English-only text.
 
 Follow the established µGulp documentation workflow.
 
-Primary German source:
+Locale sources (edit these — first-class, independently reviewable):
 
-    de-DE.src.md
+    dev/docs/readme/en-US.src.md
+    dev/docs/readme/de-DE.src.md
 
-Generated:
+Generated GitHub READMEs (do not edit by hand):
 
-    README.md
+    README.md          ← en-US (GitHub default)
+    README.de-DE.md    ← de-DE
 
-Additional languages may be added through the existing documentation/i18x
-pipeline.
+Filtered baselines may also be written under `dev/docs/readme/*.md`.
 
-Do not manually maintain conflicting copies of the same documentation.
+Future README changes must be made in the locale `.src.md` files / structured
+data, not in the generated README files.
+
+`npx gulp docs` regenerates both. Optional: `docs:en-US`, `docs:de-DE`.
 
 
 ## Generated Files
@@ -1255,7 +1259,13 @@ Running generation twice without source changes must not create meaningless
 Git differences.
 
 Do not manually edit generated README content when the source belongs in
-de-DE.src.md.
+`en-US.src.md` or `de-DE.src.md`.
+
+The canonical µGulp-ready badge asset is:
+
+    docs/assets/microgulp-ready.png
+
+Do not invent alternate badge artworks or language-specific copies.
 
 
 # ARCHITECTURAL STRING RULE

@@ -1,10 +1,12 @@
 <!-- note
-Pflegequelle der ESP][-README. Nur diese Datei bearbeiten.
-Danach: npx gulp docs  → erzeugt README.md und de-DE.md
+Pflegequelle der deutschen ESP][-README. Nur diese Datei (und en-US.src.md) bearbeiten.
+Danach: npx gulp docs  → erzeugt README.de-DE.md und aktualisiert die Baseline de-DE.md
 website-Blöcke können später ergänzt werden; unmarked Text erscheint in der Git-README.
 -->
 
 # ESP][
+
+[English](README.md) | **Deutsch**
 
 <p align="center">
   <a href="https://microgulp.dev/de/ready/">
@@ -12,13 +14,80 @@ website-Blöcke können später ergänzt werden; unmarked Text erscheint in der 
   </a>
 </p>
 
+> **🚧 In Entwicklung**
+>
+> Dieses Projekt befindet sich in aktiver Entwicklung.
+> Hardware, Firmware, APIs, Dokumentation und Kompatibilität können
+> sich noch ändern.
+
 **ESP][** ist ein experimentelles Hobby-/Open-Source-Projekt: ein miniaturisierter, in sich geschlossener **Apple-II-Emulator** auf dem Board **Waveshare ESP32-S3-Touch-AMOLED-1.64**.
 
 Paket-/Repo-Identifier (ASCII): `esp2` — sichtbarer Projektname bleibt **ESP][**.
 
-**Status:** Phase-1-Hardware-Bring-up. Apple-II-Emulation ist **noch nicht** implementiert.
+### Wichtiger Status-Hinweis
 
-Dieses Repository ist **µGulp-ready** (Gulp-Tasks für Dokumentation und Backup; siehe [Entwicklung](#entwicklung)).
+- ESP][ ist **nicht fertig**.
+- Die **Apple-II-Emulation ist noch nicht vollständig** und **noch nicht** in die ESP32-Firmware integriert.
+- Verifizierte **Phase-1-Hardware** (Display, Touch, microSD, …) bedeutet **nicht**, dass der komplette Emulator auf dem Gerät läuft.
+- Host-getestete Emulator-Komponenten (`HOST_VERIFIED`) sind von **ESP32-getesteten** Teilen zu unterscheiden.
+- Controller-/Medien-Kompatibilität und Disk-II bleiben in Entwicklung.
+
+---
+
+## Aktueller Status
+
+Klar getrennt:
+
+| Stufe | Bedeutung |
+| --- | --- |
+| **VERIFIED** | Auf dem physischen Board nachvollzogen |
+| **HOST_VERIFIED** | Auf dem Entwicklungsrechner getestet, nicht auf dem ESP32 |
+| **IN DEVELOPMENT** | Teilweise vorhanden, Verifikation unvollständig |
+| **PLANNED** | Architektur/Ziel, noch nicht gebaut |
+
+### VERIFIED (physisches Board)
+
+**DISPLAY**
+
+- CO5300 AMOLED initialisiert
+- Auflösung **280 × 456**
+- Visuell verifiziert (Testmuster / Orientierung)
+- Display-Power: ACTIVE → SCREENSAVER → OFF (CO5300 `displayOff`/`displayOn`)
+
+**TOUCH**
+
+- FT3168 auf shared I2C
+- SDA **GPIO47**, SCL **GPIO48**
+- Touch-Koordinaten-Mapping verifiziert
+
+**microSD**
+
+- SPI: CS **GPIO38**, MOSI **GPIO39**, MISO **GPIO40**, SCLK **GPIO41**
+- SDHC / FAT verifiziert
+- 32-GB-Karte getestet
+- Lesen / Schreiben / Persistenz verifiziert
+
+**IMU (QMI8658)**
+
+- Erkannt unter I2C-Adresse **0x6B**
+- WHO_AM_I **0x05**, Revision **0x7C**
+- Live-Accelerometer/Gyro verifiziert
+- Physisches Achsen-Mapping noch ausstehend
+
+**Build / Diagnose**
+
+- PlatformIO-Firmware baut und flash
+- Serielle `[TAG]`-Diagnostik für Bring-up
+
+### HOST_VERIFIED (nur Host-Tooling / Host-Maschine)
+
+- Media-Import / Katalog / Provenance-Gates (`media:import`, apple2js-Katalog)
+- Host-seitige Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe (`npm run test:apple2`)
+- Synthetische Test-ROM / keine Apple-ROMs im Repo
+
+### PLANNED
+
+Alles unter [Geplante Funktionen](#geplante-funktionen) — inkl. ESP32-Integration des Emulators, Disk II, Bluetooth-Eingabe/-Audio, Control Screen.
 
 ---
 
@@ -42,69 +111,15 @@ Geplante Zusatzhardware: Piezo/Lokal-Lautsprecher, physischer Reset/Control-Tast
 
 ---
 
-## Aktueller Status
-
-Klar getrennt:
-
-| Stufe | Bedeutung |
-| --- | --- |
-| **IMPLEMENTED / VERIFIED** | Auf dem physischen Board nachvollzogen |
-| **IN DEVELOPMENT** | Teilweise vorhanden, Verifikation unvollständig |
-| **PLANNED** | Architektur/Ziel, noch nicht gebaut |
-
-### IMPLEMENTED / VERIFIED
-
-**DISPLAY**
-
-- CO5300 AMOLED initialisiert
-- Auflösung **280 × 456**
-- Visuell verifiziert (Testmuster / Orientierung)
-
-**TOUCH**
-
-- FT3168 auf shared I2C
-- SDA **GPIO47**, SCL **GPIO48**
-- Touch-Koordinaten-Mapping verifiziert
-
-**microSD**
-
-- SPI: CS **GPIO38**, MOSI **GPIO39**, MISO **GPIO40**, SCLK **GPIO41**
-- SDHC / FAT verifiziert
-- 32-GB-Karte getestet
-- Lesen / Schreiben / Persistenz verifiziert
-
-**Build / Diagnose**
-
-- PlatformIO-Firmware baut und flash
-- Serielle `[TAG]`-Diagnostik für Bring-up
-
-### IN DEVELOPMENT
-
-**QMI8658 (IMU)**
-
-- Erkannt unter I2C-Adresse **0x6B**
-- WHO_AM_I **0x05**, Revision **0x7C**
-- Shared I2C mit FT3168
-- Live-Rohdaten können gelesen werden
-- **Bewegungs-/Live-Sample-Verifikation ist derzeit NICHT abgeschlossen** — IMU-Motion Sensing gilt **nicht** als voll verifiziert
-
-Weitere Bring-up-/Diagnose-Arbeit am IMU-Pfad kann fortgesetzt werden; dieses Dokument behauptet keinen abgeschlossenen Motion-Selftest.
-
-### PLANNED
-
-Alles unter [Geplante Funktionen](#geplante-funktionen).
-
----
-
 ## Geplante Funktionen
 
 ### Apple-II-Emulation
 
-Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/`, Wrapper `Cpu6502`, Bus/Soft-Switches/Text/LoRes/HGR/Artifact — **HOST VERIFIED** (`npm run test:apple2`). Firmware-Integration auf dem ESP32: **noch nicht**. Keine Apple-ROMs im Repo (synthetische Test-ROM).
+Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/` — **HOST_VERIFIED**. Firmware-Integration auf dem ESP32: **noch nicht**. Keine Apple-ROMs im Repo (synthetische Test-ROM).
 
 ### Virtuelle Disk II / Media-Schicht
 
-Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Formate schrittweise (DSK, PO, NIB, WOZ). **PLANNED.** Keine eingebetteten kommerziellen Disk-Images im Repo.
+Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Formate schrittweise (DSK, PO, NIB, WOZ). Host-Import-Tooling vorhanden; Disk-II-Controller **PLANNED.** Keine eingebetteten kommerziellen Disk-Images im Repo.
 
 ### Touch-Bedienung
 
@@ -137,7 +152,7 @@ Unabhängig von CRT-Effekten:
 | Green phosphor | Grünes Monitor-Mono |
 | Amber phosphor | Bernsteinfarbenes Monitor-Mono |
 
-**PLANNED.**
+Host-Renderer: **HOST_VERIFIED**; ESP32-Pfad: **PLANNED**.
 
 ### Display-Effekte (optional)
 
@@ -158,15 +173,20 @@ Inkrementell, PlatformIO, bestehende Board-Init nicht ohne Grund ersetzen. Agent
 ```bash
 npm install
 npx gulp help          # Aufgabenliste
-npx gulp docs          # README.md aus de-DE.src.md
+npx gulp docs          # README.md + README.de-DE.md
+npx gulp docs:en-US    # nur englische README
+npx gulp docs:de-DE    # nur deutsche README
 npx gulp backup:git    # Git-Checkpoint (explizit, kein Auto-Commit)
 npx gulp backup:nas    # NAS-Kopie (0–3 Ziele)
 npx gulp backup:all    # docs → Git → NAS
 ```
 
-Dokumentationsquelle: `dev/docs/readme/de-DE.src.md` → `npx gulp docs` → `README.md`.
+Dokumentationsquellen:
 
-µGulp-Ready-Badge: offizielles Artwork unter `docs/assets/microgulp-ready.png` ([Regeln](https://microgulp.dev/de/ready/)).
+- `dev/docs/readme/en-US.src.md` → `README.md`
+- `dev/docs/readme/de-DE.src.md` → `README.de-DE.md`
+
+Generierte READMEs nicht manuell pflegen.
 
 ### NAS-Backup konfigurieren
 
@@ -181,6 +201,22 @@ Dry-Run: `ESP2_NAS_DRY_RUN=1`.
 ### Git-Backup
 
 Expliziter Checkpoint (`backup: ESP][ YYYY-MM-DD HH:mm`), inkl. **CLAUDE.md**, Quellen, Docs, PlatformIO-Config. Kein Force-Push, kein `reset --hard`. Ohne Remote: nur lokaler Commit bzw. klarer Hinweis. Preview: `ESP2_BACKUP_GIT_DRY_RUN=1`.
+
+---
+
+## µGulp-ready
+
+Dieses Repository nutzt den **µGulp**-Automatisierungsworkflow für:
+
+- Dokumentationsgenerierung (`gulp docs`)
+- Lokalisierung der README-Quellen (en-US / de-DE)
+- Infrastruktur-Validierung (`npm run test:infra`)
+- Git-Checkpoints (`gulp backup:git`)
+- NAS-Backup, sofern konfiguriert (`gulp backup:nas` / `backup:all`)
+
+Weitere Plattform-/Flash-Tasks laufen über PlatformIO und projekteigene Gulp-Wrapper.
+
+µGulp-Ready-Badge: offizielles Artwork unter `docs/assets/microgulp-ready.png` ([Regeln](https://microgulp.dev/de/ready/)).
 
 ---
 
@@ -219,7 +255,7 @@ Entwicklungskatalog/Referenz: [apple2js](https://github.com/whscullin/apple2js) 
 
 ## Videomodi
 
-Siehe Tabelle unter Geplante Funktionen. Apple-II-HGR (280 × 192) ist kein gewöhnliches RGB-Bitmap; Artifact-Farbe ist Kernanforderung — **PLANNED**.
+Siehe Tabelle unter Geplante Funktionen. Apple-II-HGR (280 × 192) ist kein gewöhnliches RGB-Bitmap; Artifact-Farbe ist Kernanforderung. Host-Pfad: **HOST_VERIFIED**; Gerät: **PLANNED**.
 
 ---
 
@@ -250,8 +286,9 @@ Miniatur-Apple-II-Setup; sichtbares Monitor-Viewport ≠ volles AMOLED — **PLA
 | Bereich | Stufe |
 | --- | --- |
 | PlatformIO-Build / Flash / Serial | VERIFIED |
-| CO5300 280×456 Display | VERIFIED |
+| CO5300 280×456 Display + Power | VERIFIED |
 | FT3168 Touch (I2C 47/48, Mapping) | VERIFIED |
 | microSD SPI 38–41 | VERIFIED |
-| QMI8658 Detect / WHO_AM_I | IN DEVELOPMENT (Motion nicht voll verifiziert) |
-| Apple-II-Core, Disk, BT, Audio, UI, Gehäuse | PLANNED |
+| QMI8658 Live-Sensorik | VERIFIED (Achsen-Mapping offen) |
+| Host Apple-II-Maschine / Media-Tooling | HOST_VERIFIED |
+| Emulator auf ESP32, Disk II, BT, Audio, UI, Gehäuse | PLANNED |

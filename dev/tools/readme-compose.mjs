@@ -1,12 +1,14 @@
 // ===========================================
-// readme-compose.mjs — de-DE.src.md → README.md
-// ESP][ (esp2) — simplified µGulp-style compose
+// readme-compose.mjs — locale .src.md → public READMEs
+// ESP][ (esp2) — µGulp-style compose
 // ===========================================
 //
-// Source (edit this):     dev/docs/readme/de-DE.src.md
-// Optional baseline:      dev/docs/readme/de-DE.md
-// Later translations:     dev/docs/readme/<lid>.md
-// Public Git file:        README.md
+// Sources (edit these):
+//   dev/docs/readme/en-US.src.md  →  README.md          (GitHub default)
+//   dev/docs/readme/de-DE.src.md  →  README.de-DE.md
+// Optional filtered baselines:
+//   dev/docs/readme/en-US.md
+//   dev/docs/readme/de-DE.md
 //
 // Channel markers (outside fenced code), same idea as microGulp:
 //   unmarked text       → published
@@ -20,11 +22,24 @@ import { fileURLToPath } from "node:url";
 
 const PROJECT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const README_DIR = join(PROJECT_ROOT, "dev", "docs", "readme");
-const SOURCE = join(README_DIR, "de-DE.src.md");
-const BASELINE = join(README_DIR, "de-DE.md");
-const PUBLIC_README = join(PROJECT_ROOT, "README.md");
 
-export const README_SOURCE_RELATIVE = "dev/docs/readme/de-DE.src.md";
+/** @deprecated use README_SOURCES — kept for older callers */
+export const README_SOURCE_RELATIVE = "dev/docs/readme/en-US.src.md";
+
+export const README_SOURCES = Object.freeze({
+  "en-US": {
+    sourceRel: "dev/docs/readme/en-US.src.md",
+    baselineRel: "dev/docs/readme/en-US.md",
+    outputRel: "README.md",
+  },
+  "de-DE": {
+    sourceRel: "dev/docs/readme/de-DE.src.md",
+    baselineRel: "dev/docs/readme/de-DE.md",
+    outputRel: "README.de-DE.md",
+  },
+});
+
+export const MICROGULP_READY_ASSET = "docs/assets/microgulp-ready.png";
 
 /**
  * Strip HTML channel comment blocks outside fenced code.
@@ -55,8 +70,10 @@ export function FilterChannels(_text, _channel = "git") {
         if (kind === "note") continue;
         if (kind === "website" && _channel === "git") continue;
         if (kind === "git" && _channel === "website") continue;
-        // single-line git/website kept for matching channel — drop marker only
-        const inner = line.replace(/^\s*<!--\s*(note|git|website)\b[^>]*-->\s*/i, "");
+        const inner = line.replace(
+          /^\s*<!--\s*(note|git|website)\b[^>]*-->\s*/i,
+          "",
+        );
         if (inner) out.push(inner);
         continue;
       }
@@ -95,22 +112,41 @@ export function FilterChannels(_text, _channel = "git") {
     out.push(line);
   }
 
-  // Normalize: trim trailing spaces, single trailing newline, no trailing blank spam
   let body = out.join("\n").replace(/[ \t]+$/gm, "");
   body = body.replace(/\n{3,}/g, "\n\n").replace(/^\n+/, "").replace(/\n*$/, "\n");
   return body;
 }
 
 /**
- * Compose public README.md from German source. Deterministic.
- * @param {{ root?: string }} [_opts]
- * @returns {{ source: string, output: string, bytes: number }}
+ * @param {string} path
+ * @param {string} next
+ * @returns {boolean} whether file changed
  */
-export function ComposeReadme(_opts = {}) {
+function writeIfChanged(path, next) {
+  const prev = existsSync(path) ? readFileSync(path, "utf8") : null;
+  if (prev === next) {
+    return false;
+  }
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, next, "utf8");
+  return true;
+}
+
+/**
+ * Compose one locale README from its .src.md. Deterministic.
+ * @param {{ root?: string, locale?: "en-US" | "de-DE" }} [_opts]
+ */
+export function ComposeReadmeLocale(_opts = {}) {
   const root = _opts.root ?? PROJECT_ROOT;
-  const sourcePath = join(root, "dev", "docs", "readme", "de-DE.src.md");
-  const baselinePath = join(root, "dev", "docs", "readme", "de-DE.md");
-  const outPath = join(root, "README.md");
+  const locale = _opts.locale ?? "en-US";
+  const cfg = README_SOURCES[locale];
+  if (!cfg) {
+    throw new Error(`Unknown README locale: ${locale}`);
+  }
+
+  const sourcePath = join(root, cfg.sourceRel);
+  const baselinePath = join(root, cfg.baselineRel);
+  const outPath = join(root, cfg.outputRel);
 
   if (!existsSync(sourcePath)) {
     throw new Error(`README source missing: ${sourcePath}`);
@@ -119,27 +155,52 @@ export function ComposeReadme(_opts = {}) {
   const raw = readFileSync(sourcePath, "utf8");
   const composed = FilterChannels(raw, "git");
 
-  mkdirSync(dirname(baselinePath), { recursive: true });
-  // Baseline = filtered German (translation reference). Skip writes when unchanged
-  // so a second docs run does not create meaningless Git noise.
   let changed = false;
-  for (const [path, next] of [
-    [baselinePath, composed],
-    [outPath, composed],
-  ]) {
-    const prev = existsSync(path) ? readFileSync(path, "utf8") : null;
-    if (prev !== next) {
-      writeFileSync(path, next, "utf8");
-      changed = true;
-    }
-  }
+  if (writeIfChanged(baselinePath, composed)) changed = true;
+  if (writeIfChanged(outPath, composed)) changed = true;
 
   return {
+    locale,
     source: sourcePath,
+    baseline: baselinePath,
     output: outPath,
     bytes: Buffer.byteLength(composed, "utf8"),
     changed,
   };
 }
 
-export { SOURCE, BASELINE, PUBLIC_README, README_DIR, PROJECT_ROOT };
+/**
+ * Compose all public README locales. Deterministic.
+ * @param {{ root?: string }} [_opts]
+ */
+export function ComposeReadme(_opts = {}) {
+  const root = _opts.root ?? PROJECT_ROOT;
+  const results = [];
+  let changed = false;
+  let bytes = 0;
+  for (const locale of Object.keys(README_SOURCES)) {
+    const r = ComposeReadmeLocale({ root, locale });
+    results.push(r);
+    if (r.changed) changed = true;
+    bytes += r.bytes;
+  }
+  return {
+    source: join(root, README_SOURCES["en-US"].sourceRel),
+    output: join(root, "README.md"),
+    bytes,
+    changed,
+    results,
+  };
+}
+
+export {
+  README_DIR,
+  PROJECT_ROOT,
+  SOURCE as _DEPRECATED_SOURCE,
+};
+
+const SOURCE = join(README_DIR, "de-DE.src.md");
+const BASELINE = join(README_DIR, "de-DE.md");
+const PUBLIC_README = join(PROJECT_ROOT, "README.md");
+
+export { SOURCE, BASELINE, PUBLIC_README };

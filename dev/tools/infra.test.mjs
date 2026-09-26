@@ -20,7 +20,14 @@ import {
 	GIT_BACKUP_ENSURE_PATHS,
 	GIT_BACKUP_NEVER_STAGE,
 } from './git-backup.mjs';
-import { ComposeReadme, FilterChannels, README_SOURCE_RELATIVE } from './readme-compose.mjs';
+import {
+	ComposeReadme,
+	ComposeReadmeLocale,
+	FilterChannels,
+	README_SOURCE_RELATIVE,
+	README_SOURCES,
+	MICROGULP_READY_ASSET,
+} from './readme-compose.mjs';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 
@@ -84,14 +91,62 @@ test('readme filter strips note/website and is deterministic', () => {
 	assert.doesNotMatch(a, /drop/);
 });
 
+test('locale README sources exist', () => {
+	assert.equal(README_SOURCE_RELATIVE, 'dev/docs/readme/en-US.src.md');
+	for (const locale of Object.keys(README_SOURCES)) {
+		const src = join(ROOT, README_SOURCES[locale].sourceRel);
+		assert.ok(existsSync(src), `missing ${src}`);
+	}
+});
+
 test('ComposeReadme is idempotent (second run unchanged)', () => {
-	assert.equal(README_SOURCE_RELATIVE, 'dev/docs/readme/de-DE.src.md');
 	const first = ComposeReadme({ root: ROOT });
 	const second = ComposeReadme({ root: ROOT });
 	assert.equal(second.changed, false);
 	assert.equal(first.bytes, second.bytes);
-	assert.match(readFileSync(join(ROOT, 'README.md'), 'utf8'), /ESP\]\[/);
-	assert.match(readFileSync(join(ROOT, 'README.md'), 'utf8'), /microgulp-ready\.png/);
+	assert.equal(second.results.length, 2);
+});
+
+test('generated READMEs: language selector, WIP, µGulp-ready', () => {
+	ComposeReadme({ root: ROOT });
+	const en = readFileSync(join(ROOT, 'README.md'), 'utf8');
+	const de = readFileSync(join(ROOT, 'README.de-DE.md'), 'utf8');
+
+	assert.match(en, /ESP\]\[/);
+	assert.match(de, /ESP\]\[/);
+
+	assert.match(en, /\[Deutsch\]\(README\.de-DE\.md\)/);
+	assert.match(de, /\[English\]\(README\.md\)/);
+
+	assert.match(en, /Work in Progress/);
+	assert.match(de, /In Entwicklung/);
+
+	assert.match(en, /HOST_VERIFIED/);
+	assert.match(de, /HOST_VERIFIED/);
+	assert.match(en, /not yet.*integrated into the ESP32/i);
+	assert.match(de, /noch nicht.*in die ESP32-Firmware/i);
+
+	assert.match(en, /## µGulp-ready/);
+	assert.match(de, /## µGulp-ready/);
+	assert.match(en, /documentation generation/i);
+	assert.match(de, /Dokumentationsgenerierung/);
+
+	assert.match(en, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
+	assert.match(de, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
+
+	assert.doesNotMatch(en, /\{\{[A-Z_]+\}\}/);
+	assert.doesNotMatch(de, /\{\{[A-Z_]+\}\}/);
+	assert.doesNotMatch(en, /TODO_TRANSLATE/);
+	assert.doesNotMatch(de, /TODO_TRANSLATE/);
+});
+
+test('canonical µGulp-ready asset exists once', () => {
+	const asset = join(ROOT, MICROGULP_READY_ASSET);
+	assert.ok(existsSync(asset), `missing ${MICROGULP_READY_ASSET}`);
+	assert.equal(existsSync(join(ROOT, 'docs/assets/microgulp-ready-en.png')), false);
+	assert.equal(existsSync(join(ROOT, 'docs/assets/microgulp-ready-de.png')), false);
+	ComposeReadmeLocale({ root: ROOT, locale: 'en-US' });
+	ComposeReadmeLocale({ root: ROOT, locale: 'de-DE' });
 });
 
 test('NAS mirror includes CLAUDE.md and skips .pio/node_modules', async () => {
@@ -102,12 +157,12 @@ test('NAS mirror includes CLAUDE.md and skips .pio/node_modules', async () => {
 		assert.ok(existsSync(join(dest, 'CLAUDE.md')), 'CLAUDE.md copied');
 		assert.ok(existsSync(join(dest, 'platformio.ini')));
 		assert.ok(existsSync(join(dest, 'dev', 'docs', 'readme', 'de-DE.src.md')));
+		assert.ok(existsSync(join(dest, 'dev', 'docs', 'readme', 'en-US.src.md')));
 		assert.equal(existsSync(join(dest, 'node_modules')), false);
 		assert.equal(existsSync(join(dest, '.pio')), false);
 		const check = VerifyBackupContents(dest);
 		assert.equal(check.ok, true, check.missing.join(','));
 
-		// Unavailable path must not throw when only checking existsSync (gulpfile skips)
 		assert.equal(existsSync(missingTarget), false);
 	} finally {
 		rmSync(dest, { recursive: true, force: true });
