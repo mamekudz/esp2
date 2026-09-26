@@ -1,0 +1,31 @@
+# Vendor mechanical dumps (local reference only — see SOURCES.md)
+reference/waveshare/**/*.stp
+reference/waveshare/**/*.STP
+reference/waveshare/**/*.step
+reference/waveshare/**/*.STEP
+reference/waveshare/**/*.dwg
+reference/waveshare/**/*.DWG
+reference/waveshare/**/*.zip
+reference/waveshare/**/*.pdf
+reference/waveshare/**/*.jpg
+reference/waveshare/**/*.png
+
+# Convenience copies of vendor STEP (regenerate via tools/sync_reference_bodies.py)
+cad/reference-bodies/*.stp
+cad/reference-bodies/*.STP
+cad/reference-bodies/*.step
+
+# Future generated meshes / exports (not foundation source)
+printable/**/*.stl
+printable/**/*.3mf
+cad/step/*.stp
+cad/parasolid/*
+!cad/parasolid/.gitkeep
+!cad/step/.gitkeep
+!printable/**/.gitkeep
+
+# Keep text mirrors that are small / project-owned
+!reference/waveshare/pins_arduino.h.txt
+!reference/waveshare/README.md
+!cad/reference-bodies/PROVENANCE.md
+!cad/reference-bodies/.gitkeep

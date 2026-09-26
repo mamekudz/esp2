@@ -798,60 +798,75 @@ Touch handling belongs outside the Apple II emulation core.
 # PHYSICAL DESIGN
 
 
-## 28. Final Enclosure Concept
+## 28. Enclosure — high-level permanent rules
 
-Final system should resemble a miniature Apple II setup.
+ESP][ is a **miniature Apple II–inspired** physical system (computer +
+monitor + integrated Disk II bodies), not a 1:1 replica of the original
+enclosure.
 
-Components:
+**Authoritative detailed mechanical specification:**
 
-- Apple II base
-- monitor
-- Disk II drive(s)
+    3dprint/ENCLOSURE-SPEC.md
 
-The ESP32-S3 AMOLED board is mounted vertically inside the monitor.
+Machine-readable companions:
 
-The board's existing side USB-C connector remains directly accessible.
+    3dprint/dimensions/*.json
+    3dprint/BOM.md
+    3dprint/WIRING.md
+    3dprint/SOURCES.md
 
-Do NOT assume an internal USB extension.
+Do **not** duplicate the full mechanical specification here. If this section
+and `ENCLOSURE-SPEC.md` ever disagree, **`ENCLOSURE-SPEC.md` wins** for
+mechanical design.
+
+Permanent high-level rules:
+
+- Beige upper = one coherent visible enclosure (computer + drives + monitor).
+- Gray = separate screwed bottom plate (service access).
+- Brown = one-piece keyboard/key structure inserted from below.
+- Black = separate drive-front inserts.
+- White = keyboard legends + badge carriers (no copyrighted logo art in CAD).
+- White/translucent = recessed POWER indicator (not a switch).
+- Waveshare board inserts **from below** into the upper enclosure; guides/stops
+  align the AMOLED; screws only retain.
+- Three display geometries remain distinct: physical glass, active area,
+  ESP][ visible monitor window (see ENCLOSURE-SPEC / `display-geometry.json`).
+- OLED upper roundings must **not** be visible in the finished monitor opening.
+- Chassis rear USB-C is the external port; Waveshare USB-C stays **internal**
+  (90° adapter + short extension + panel socket). Do **not** expose the module
+  USB-C as the primary user port.
+- microSD may remain internal (no required external SD door).
+- Protect the LiPo: no sharp printed pressure against the pouch.
+- Prefer parameterized B-Rep → STEP (+ Parasolid when tooling permits) →
+  Plasticity. Do not treat STL mesh editing as the primary CAD workflow.
 
 
-## 29. Power Concept
+## 29. Power Concept (high-level)
 
-The Apple II base may contain:
+Internal LiPo + Waveshare charge path; real ON/OFF is a **rear** mechanical
+switch. Front POWER is an illuminated indicator only.
 
-- lithium battery
-- protection electronics
-- charging electronics
-- regulated 5 V output
+External power/data enter through the **chassis** USB-C panel socket (not by
+plugging into the Waveshare connector on the side of the module).
 
-A short external USB-C cable runs from the rear of the Apple II base
-to the existing side USB-C connector of the ESP32/monitor.
-
-No magnetic electrical power contacts are currently planned.
+Exact battery capacity, switch P/N, and USB panel geometry remain
+`TO_BE_SELECTED` / `PENDING_COMPONENT_SELECTION` in `3dprint/BOM.md`.
 
 
-## 30. Mechanical Concept
+## 30. Accessories (paddles / joystick) — high-level
 
-Future CAD requirements:
+Optional accessories are **1:1 original Apple II size**, not miniature
+enclosure scale:
 
-- Apple II case shaped similar to original
-- removable upper cover similar to original Apple II
-- keyboard insert installed from underneath
-- individual openings for keys
-- keyboard can be printed separately
-- parts separated according to print color
-- monitor is removable
-- monitor attaches using hidden magnets
-- Disk II drives attach using hidden magnets
-- drives remain removable
-- hidden magnet pockets
-- board mechanically mounted, not glued
-- direct access to USB-C
-- required microSD access
-- protected battery compartment
-- no sharp printed structures against lithium pouch cells
+- Paddles: `3dprint/paddles/`
+- Joystick: `3dprint/joystick/`
 
-CAD is NOT the current development priority.
+The project author owns **physical original paddles and an original joystick**
+for final dimensional validation. Modified paddle buttons on those physical
+units are **not** authoritative for original button geometry.
+
+Detailed FIXED / PROVISIONAL / UNKNOWN rules live in the accessory specs —
+not here.
 
 
 # SOFTWARE ARCHITECTURE

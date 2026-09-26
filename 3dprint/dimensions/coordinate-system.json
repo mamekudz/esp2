@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "status": "FIXED",
+  "name": "ESP][ mechanical coordinate system",
+  "notes": [
+    "All later enclosure CAD must use this convention.",
+    "Board local axes map into enclosure axes as documented below."
+  ],
+  "enclosureAxes": {
+    "X": {
+      "direction": "left → right when facing the keyboard/monitor",
+      "positive": "toward the user's right"
+    },
+    "Y": {
+      "direction": "front → rear",
+      "positive": "toward the rear I/O wall (away from the user)"
+    },
+    "Z": {
+      "direction": "bottom → top",
+      "positive": "upward (bottom plate at Z≈0)"
+    }
+  },
+  "origin": {
+    "description": "Intersection of bottom-plate top face and the vertical mid-plane of the beige upper, at the front-most keyboard bezel reference plane",
+    "status": "PROVISIONAL",
+    "notes": "Exact numeric origin lock waits for miniature scale freeze; axis directions are FIXED."
+  },
+  "boardOrientation": {
+    "status": "FIXED",
+    "description": "Waveshare module stands vertically inside the monitor housing",
+    "displayNormal": "+Y (toward the user / front of monitor)",
+    "moduleLongAxis": "+Z (USB-C end toward enclosure bottom / lower monitor)",
+    "moduleWidthAxis": "+X",
+    "usbCEnd": "toward −Z (insertion / lower service side)",
+    "notes": "Matches portrait board mount in CLAUDE.md §7 / ENCLOSURE-SPEC board mount."
+  },
+  "insertionDirection": {
+    "status": "FIXED",
+    "vector": "+Z",
+    "description": "Board inserted from below into upper enclosure, guided to positive stop, then retained by screws"
+  },
+  "displayGeometries": {
+    "DISPLAY_GLASS_PHYSICAL": "see display-geometry.json",
+    "DISPLAY_ACTIVE_AREA": "see display-geometry.json",
+    "DISPLAY_VISIBLE_WINDOW": "see display-geometry.json (PROVISIONAL_CAD_CANDIDATE)"
+  }
+}

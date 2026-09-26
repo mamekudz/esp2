@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "accessory": "apple2-joystick",
+  "units": "mm",
+  "scale": { "value": "1:1_ORIGINAL", "status": "FIXED" },
+  "physicalReference": {
+    "status": "AUTHORITATIVE_PHYSICAL_REFERENCE_AVAILABLE",
+    "owner": "project_author",
+    "validation": "required_before_printable_release"
+  },
+  "variants": ["ORIGINAL_REFERENCE", "ESP2_JOYSTICK_WIRED", "ESP2_JOYSTICK_WIRELESS"],
+  "base": {
+    "footprintWidestMm": { "value": 83.5, "status": "DERIVED", "source": "applefritter-a2m2002-2022" },
+    "heightButtonDeckMm": { "value": 43.4, "status": "DERIVED", "source": "applefritter-a2m2002-2022" },
+    "heightRaisedStickMm": { "value": 54.4, "status": "DERIVED", "source": "applefritter-a2m2002-2022" },
+    "raisedSquareBaseMm": { "value": 62.1, "status": "DERIVED" },
+    "raisedSquareTopMm": { "value": 58.6, "status": "DERIVED" }
+  },
+  "buttons": {
+    "squareMm": { "value": 12.6, "status": "DERIVED", "source": "applefritter-a2m2002-2022" }
+  },
+  "positionSensing": {
+    "status": "FIXED",
+    "method": "electronic_contactless_XY",
+    "prefer": ["Hall", "magnetic"],
+    "doNotUseOriginalCenteringAsSensor": true
+  },
+  "centering": {
+    "status": "FIXED",
+    "springsProvideForceOnly": true,
+    "electronicallySwitchable": true,
+    "modes": ["X_ON_Y_ON", "X_OFF_Y_ON", "X_ON_Y_OFF", "X_OFF_Y_OFF"],
+    "actuationCandidates": [
+      "bistable_magnetic_latch",
+      "miniature_servo_cam",
+      "mechanical_bistable_latch",
+      "miniature_solenoid"
+    ],
+    "preferLowIdleEnergy": true,
+    "selection": "NOT_SELECTED"
+  },
+  "wiredInterface": {
+    "status": "UNFROZEN",
+    "options": [
+      "legacy_analog_multipole",
+      "passive_analog_TRRS_probably_insufficient",
+      "intelligent_controller_power_plus_digital_over_TRRS"
+    ],
+    "preferredConcept": "intelligent_controller_power_plus_digital_over_TRRS"
+  },
+  "axes": { "status": "PENDING_COMPONENT_SELECTION" }
+}

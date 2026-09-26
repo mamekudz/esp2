@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "notes": [
+    "Three geometries must never be merged in CAD.",
+    "OFFICIAL values come from Waveshare size drawing via board.json.",
+    "Visible window is PROVISIONAL_CAD_CANDIDATE until project-author review."
+  ],
+  "oled_physical_width": { "value": 26.74, "status": "OFFICIAL", "source": "board.json / ws-size-jpg" },
+  "oled_physical_height": { "value": 41.62, "status": "OFFICIAL", "source": "board.json / ws-size-jpg" },
+  "oled_physical_corner_radius": { "value": 3.7, "status": "OFFICIAL", "notes": "Glass outer R3.7" },
+
+  "oled_active_width": { "value": 22.34, "status": "OFFICIAL" },
+  "oled_active_height": { "value": 36.06, "status": "OFFICIAL" },
+  "oled_upper_radius": { "value": 2.5, "status": "OFFICIAL", "notes": "Active-area upper corner R2.50 — must be hidden by bezel" },
+  "oled_active_offset_x": {
+    "value": 2.2,
+    "status": "OFFICIAL",
+    "notes": "Inset from glass left/right edges (board.json insetFromGlassSides)"
+  },
+  "oled_active_offset_y": {
+    "value": 2.28,
+    "status": "OFFICIAL",
+    "notes": "Inset from glass top edge (board.json insetFromGlassTop); bottom inset = physical_h - active_h - top_inset = 3.28"
+  },
+  "oled_active_offset_y_bottom": {
+    "value": 3.28,
+    "status": "DERIVED",
+    "formula": "oled_physical_height - oled_active_height - oled_active_offset_y",
+    "notes": "41.62 - 36.06 - 2.28"
+  },
+
+  "DISPLAY_GLASS_PHYSICAL": {
+    "width": 26.74,
+    "height": 41.62,
+    "cornerRadius": 3.7,
+    "status": "OFFICIAL"
+  },
+  "DISPLAY_ACTIVE_AREA": {
+    "width": 22.34,
+    "height": 36.06,
+    "upperCornerRadius": 2.5,
+    "offsetFromGlass": { "left": 2.2, "right": 2.2, "top": 2.28, "bottom": 3.28 },
+    "status": "OFFICIAL"
+  },
+  "DISPLAY_VISIBLE_WINDOW": {
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "classification": "PROVISIONAL_CAD_CANDIDATE",
+    "description": "Maximum practical rectangle inside active area that hides upper R2.50 corners",
+    "method": "Inscribe rectangle in active area with top inset = oled_upper_radius (2.50 mm); full active width; no left/right/bottom inset beyond active bounds",
+    "monitor_visible_width": { "value": 22.34, "status": "PROVISIONAL_CAD_CANDIDATE" },
+    "monitor_visible_height": { "value": 33.56, "status": "PROVISIONAL_CAD_CANDIDATE", "formula": "36.06 - 2.50" },
+    "offset_from_active": {
+      "x": { "value": 0.0, "status": "PROVISIONAL_CAD_CANDIDATE", "notes": "Centered; flush with active left/right" },
+      "y": { "value": 2.5, "status": "PROVISIONAL_CAD_CANDIDATE", "notes": "From active top edge downward" }
+    },
+    "offset_from_glass": {
+      "x": { "value": 2.2, "status": "DERIVED" },
+      "y": { "value": 4.78, "status": "DERIVED", "formula": "2.28 + 2.50" }
+    },
+    "authorReviewRequired": true,
+    "notes": [
+      "Do NOT freeze until project author reviews.",
+      "Lower active area may be further masked by drive/monitor structure (CLAUDE.md §7) — additional bottom overlap is a separate design choice.",
+      "Glass R3.7 lies outside the active opening and is covered by monitor bezel once the window stays within active bounds."
+    ]
+  },
+
+  "bezel_overlap_top": {
+    "value": 2.5,
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "relativeTo": "DISPLAY_ACTIVE_AREA",
+    "notes": "Minimum to hide R2.50; equals oled_upper_radius"
+  },
+  "bezel_overlap_bottom": {
+    "value": 0.0,
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "relativeTo": "DISPLAY_ACTIVE_AREA",
+    "notes": "Candidate uses full remaining active height; may increase for drive masking"
+  },
+  "bezel_overlap_left": {
+    "value": 0.0,
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "relativeTo": "DISPLAY_ACTIVE_AREA"
+  },
+  "bezel_overlap_right": {
+    "value": 0.0,
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "relativeTo": "DISPLAY_ACTIVE_AREA"
+  },
+
+  "roundingMaskRequirement": {
+    "status": "FIXED",
+    "rule": "Finished monitor must not reveal upper rounded OLED/active geometry",
+    "evidence": "OFFICIAL active upper R2.50 + glass R3.7 from Waveshare size drawing"
+  }
+}

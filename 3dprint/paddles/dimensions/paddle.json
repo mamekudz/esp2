@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "accessory": "apple2-paddle",
+  "units": "mm",
+  "scale": { "value": "1:1_ORIGINAL", "status": "FIXED" },
+  "physicalReference": {
+    "status": "AUTHORITATIVE_PHYSICAL_REFERENCE_AVAILABLE",
+    "owner": "project_author",
+    "validation": "required_before_printable_release",
+    "buttonGeometry": {
+      "status": "DO_NOT_USE_PHYSICAL_AS_ORIGINAL",
+      "reason": "Author paddles historically modified with non-original buttons; use photo/documentation for original button"
+    }
+  },
+  "variants": ["ORIGINAL_REFERENCE", "ESP2_PADDLE_WIRED", "ESP2_PADDLE_WIRELESS"],
+  "commonExterior": {
+    "parts": ["upper_shell", "lower_shell", "rotary_knob", "button", "cable_or_reference_opening"],
+    "internalCarriers": ["wired_internal_carrier", "wireless_internal_carrier"],
+    "status": "FIXED"
+  },
+  "housing": {
+    "overall": { "status": "UNKNOWN", "notes": "Pending PHYSICALLY_MEASURED from author paddles" }
+  },
+  "knob": {
+    "diameterMm": { "value": 31.8, "status": "DERIVED", "notes": "~1.25 in from period review; provisional" }
+  },
+  "originalButton": {
+    "diameterMm": { "value": 4.8, "status": "DERIVED", "notes": "~3/16 in documented original FIRE; NOT author-modified buttons" }
+  },
+  "potentiometer": {
+    "historicalResistanceOhms": { "value": 150000, "status": "DOCUMENTED" },
+    "selection": { "status": "PENDING_COMPONENT_SELECTION" }
+  },
+  "electronics": {
+    "wired": { "connector": "2.5mm_TRRS_concept", "status": "PROPOSED" },
+    "wireless": { "mcu": "ESP_family_BLE", "battery": "small_LiPo", "status": "TO_BE_SELECTED" }
+  }
+}

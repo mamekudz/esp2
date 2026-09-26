@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "notes": [
+    "ESP][ enclosure is a miniature Apple II–inspired system, not 1:1 original size.",
+    "Original Apple II / II+ dimensions are reference proportions only.",
+    "Do not freeze CRITICAL openings until BOM parts are SELECTED."
+  ],
+  "coordinateSystem": {
+    "status": "FIXED",
+    "see": "dimensions/coordinate-system.json",
+    "X": "left→right",
+    "Y": "front→rear",
+    "Z": "bottom→top",
+    "boardInsertion": "+Z from below"
+  },
+  "displayGeometry": {
+    "see": "dimensions/display-geometry.json",
+    "visibleWindowStatus": "PROVISIONAL_CAD_CANDIDATE"
+  },
+  "designIntent": {
+    "upperEnclosure": {
+      "color": "BEIGE",
+      "contains": ["computer upper housing", "integrated drive bodies", "monitor housing"],
+      "status": "FIXED",
+      "notes": "One coherent visible structure — not separate bolt-on boxes"
+    },
+    "bottomPlate": {
+      "color": "GRAY",
+      "attachment": "screws to beige upper",
+      "status": "FIXED",
+      "notes": "Service access; removing bottom must not disturb display alignment"
+    },
+    "boardMount": {
+      "mountsTo": "upper enclosure",
+      "insertDirection": "from below",
+      "alignment": "guides + positive stops",
+      "retention": "screws",
+      "status": "FIXED"
+    },
+    "displayGeometries": {
+      "amoledPhysicalOutline": "see board.json",
+      "amoledActiveArea": "see board.json",
+      "esp2VisibleMonitorWindow": {
+        "status": "PROVISIONAL",
+        "rule": "Hide OLED upper roundings (R2.50 active / R3.7 glass); maximize practical rectangular active area; do not copy OLED outline into bezel opening"
+      }
+    },
+    "printCapability": {
+      "fineNozzleMm": 0.2,
+      "status": "FIXED",
+      "useFor": ["keyboard legends", "small inserts", "visual details"]
+    }
+  },
+  "originalAppleIIReference": {
+    "status": "OFFICIAL",
+    "source": "Apple TIL00105 Hardware Specs (Apple II / II Plus)",
+    "heightIn": 4.5,
+    "widthIn": 15.1,
+    "lengthIn": 18.0,
+    "heightMm": 114.3,
+    "widthMm": 383.54,
+    "lengthMm": 457.2,
+    "notes": "Full-size reference only. Alternate published figures exist (e.g. RigPix 387×108×451 mm) — treat as cross-check, not yet reconciled."
+  },
+  "esp2Scale": {
+    "status": "UNKNOWN",
+    "targetOverall": null,
+    "notes": "Miniature scale factor TBD after board viewport + keyboard + drive proportions are locked"
+  },
+  "fitTolerances": {
+    "status": "PROVISIONAL",
+    "notes": "Explicit parameters required; do not apply crude generic FDM clearances everywhere. Fine 0.2 mm nozzle available.",
+    "parameters": {
+      "guideClearanceMm": { "value": null, "status": "UNKNOWN" },
+      "screwBossClearanceMm": { "value": null, "status": "UNKNOWN" },
+      "keyboardKeyToBezelClearanceMm": { "value": null, "status": "UNKNOWN" },
+      "pressFitInsertInterferenceMm": { "value": null, "status": "UNKNOWN" }
+    }
+  },
+  "printColorGroups": {
+    "BEIGE": ["upper enclosure", "monitor housing", "drive bodies"],
+    "GRAY": ["bottom plate"],
+    "BROWN": ["one-piece keyboard/key structure"],
+    "BLACK": ["Drive 1 front insert", "Drive 2 front insert"],
+    "WHITE": ["keyboard legend geometry", "badge carriers"],
+    "WHITE_TRANSLUCENT": ["recessed POWER indicator"]
+  }
+}

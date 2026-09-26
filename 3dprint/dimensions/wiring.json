@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "board": "waveshare-esp32-s3-touch-amoled-1.64",
+  "authority": [
+    "include/board_pins.h (ESP][ firmware — physically working)",
+    "espressif arduino-esp32 variant pins_arduino.h",
+    "Waveshare wiki + schematics (V1/Rev1.1)"
+  ],
+  "occupiedInternal": [
+    {
+      "gpio": 9,
+      "boardFunction": "LCD_CS (QSPI CS) on PCB V1",
+      "firmwareUse": "CO5300 QSPI CS",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED",
+      "notes": "PCB V2 swaps LCD_CS↔IMU_INT1 (GPIO46). ESP][ defaults V1; -DBOARD_PCB_V2 for V2."
+    },
+    {
+      "gpio": 10,
+      "boardFunction": "LCD_SCK",
+      "firmwareUse": "CO5300 QSPI SCK",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 11,
+      "boardFunction": "LCD_D0",
+      "firmwareUse": "CO5300 QSPI D0",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 12,
+      "boardFunction": "LCD_D1",
+      "firmwareUse": "CO5300 QSPI D1",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 13,
+      "boardFunction": "LCD_D2",
+      "firmwareUse": "CO5300 QSPI D2",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 14,
+      "boardFunction": "LCD_D3",
+      "firmwareUse": "CO5300 QSPI D3",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 21,
+      "boardFunction": "LCD_RST; TP_RESET shared via R35 0Ω (Rev1.1)",
+      "firmwareUse": "CO5300 reset / FT3168 reset",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 18,
+      "boardFunction": "TP_INT (Rev1.1)",
+      "firmwareUse": "FT3168 interrupt input pull-up",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 47,
+      "boardFunction": "I2C SDA",
+      "firmwareUse": "FT3168 + QMI8658",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 48,
+      "boardFunction": "I2C SCL",
+      "firmwareUse": "FT3168 + QMI8658",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 38,
+      "boardFunction": "SD_CS",
+      "firmwareUse": "microSD SPI CS",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 39,
+      "boardFunction": "SD_MOSI",
+      "firmwareUse": "microSD SPI MOSI",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 40,
+      "boardFunction": "SD_MISO",
+      "firmwareUse": "microSD SPI MISO",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 41,
+      "boardFunction": "SD_SCLK",
+      "firmwareUse": "microSD SPI SCLK",
+      "availability": "OCCUPIED",
+      "status": "VERIFIED"
+    },
+    {
+      "gpio": 46,
+      "boardFunction": "IMU_INT1 (V1) / LCD_CS (V2)",
+      "firmwareUse": "IMU INT input (bring-up)",
+      "availability": "OCCUPIED",
+      "status": "DOCUMENTED"
+    },
+    {
+      "gpio": 4,
+      "boardFunction": "BAT_ADC",
+      "firmwareUse": "Battery voltage ADC (Arduino variant)",
+      "availability": "OCCUPIED",
+      "status": "DOCUMENTED",
+      "notes": "Not yet heavily used in ESP][ apple2_text path — still reserved for battery sensing"
+    },
+    {
+      "gpio": 0,
+      "boardFunction": "BOOT button / strapping",
+      "firmwareUse": "Boot strap",
+      "availability": "RESTRICTED",
+      "status": "DOCUMENTED",
+      "strapping": true
+    },
+    {
+      "gpio": 43,
+      "boardFunction": "UART0 TX (variant default)",
+      "firmwareUse": "Possibly unused if USB-CDC only",
+      "availability": "UNKNOWN",
+      "status": "DOCUMENTED"
+    },
+    {
+      "gpio": 44,
+      "boardFunction": "UART0 RX (variant default)",
+      "firmwareUse": "Possibly unused if USB-CDC only",
+      "availability": "UNKNOWN",
+      "status": "DOCUMENTED"
+    }
+  ],
+  "usb": {
+    "path": "Native USB-C on module",
+    "modes": ["HW CDC (ARDUINO_USB_MODE=1 default)", "TinyUSB OTG when MODE=0"],
+    "status": "VERIFIED",
+    "notes": "Chassis USB-C panel is mechanical extension of this port — not a second ESP32 USB PHY"
+  },
+  "externalFunctions": [
+    {
+      "id": "DRIVE1_LED",
+      "proposed": "red mini LED via resistor",
+      "gpio": null,
+      "status": "UNASSIGNED",
+      "driver": "PENDING — do not invent GPIO"
+    },
+    {
+      "id": "DRIVE2_LED",
+      "proposed": "red mini LED via resistor",
+      "gpio": null,
+      "status": "UNASSIGNED"
+    },
+    {
+      "id": "POWER_LED",
+      "proposed": "white mini LED (powered-state indicator)",
+      "gpio": null,
+      "status": "UNASSIGNED",
+      "notes": "May be hard-wired to regulated rail rather than GPIO — TBD"
+    },
+    {
+      "id": "AUDIO_INTERNAL",
+      "proposed": "passive piezo / small transducer",
+      "gpio": null,
+      "status": "UNASSIGNED",
+      "notes": "Must not drive headphones from bare GPIO. PW M / amplifier path TBD."
+    },
+    {
+      "id": "AUDIO_TRRS",
+      "proposed": "2.5 mm 4-pole TRRS panel",
+      "gpio": null,
+      "status": "UNASSIGNED",
+      "notes": "Pinout undecided until audio/controller architecture finalized. Never connect headphones directly to ESP32 GPIO."
+    },
+    {
+      "id": "POWER_SWITCH",
+      "proposed": "rear mechanical ON/OFF",
+      "gpio": null,
+      "status": "UNASSIGNED",
+      "notes": "Likely series battery/load switch — not necessarily a GPIO"
+    },
+    {
+      "id": "BATTERY",
+      "proposed": "LiPo on MX1.25 header + charging path already on Waveshare",
+      "gpio": 4,
+      "status": "PROPOSED",
+      "notes": "BAT_ADC=GPIO4 documented; pack selection PENDING_COMPONENT_SELECTION"
+    }
+  ],
+  "headerPinMap": {
+    "status": "UNKNOWN",
+    "notes": "2×12 2.54 mm headers — exact GPIO-per-pin map pending extraction from Waveshare schematic / JW explanation. Do not invent assignments."
+  },
+  "accessories": {
+    "status": "UNFROZEN",
+    "notes": "Conceptual only — see WIRING.md §7. No GPIO/TRRS pinout invented.",
+    "paddleWired": {
+      "connector": "2.5mm_TRRS_candidate",
+      "signals": ["position", "button", "power", "gnd"],
+      "status": "PROPOSED"
+    },
+    "paddleWireless": {
+      "link": "BLE",
+      "status": "TO_BE_SELECTED"
+    },
+    "joystickWired": {
+      "preferredConcept": "intelligent_controller_power_plus_digital_over_slim_connector",
+      "passiveAnalogTrrs": "PROBABLY_INSUFFICIENT",
+      "status": "UNFROZEN"
+    },
+    "joystickWireless": {
+      "link": "BLE",
+      "centeringActuators": "prefer_bistable_or_pulse",
+      "status": "TO_BE_SELECTED"
+    }
+  }
+}

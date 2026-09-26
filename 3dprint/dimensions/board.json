@@ -1,0 +1,126 @@
+{
+  "schemaVersion": 1,
+  "boardId": "waveshare-esp32-s3-touch-amoled-1.64",
+  "productName": "ESP32-S3-Touch-AMOLED-1.64",
+  "vendor": "Waveshare",
+  "revisionObserved": "Rev1.1 (marked on official size drawing)",
+  "units": "mm",
+  "notes": [
+    "Values marked OFFICIAL are read from Waveshare mechanical size drawing / DAD package.",
+    "Do not estimate from photographs when an OFFICIAL value exists.",
+    "Pixel resolution 280x456 is electrical/logical — physical mm come from the drawing."
+  ],
+  "sources": [
+    {
+      "id": "ws-size-jpg",
+      "path": "3dprint/reference/waveshare/ESP32-S3-Touch-AMOLED-1.64-details-size.jpg",
+      "url": "https://www.waveshare.com/img/devkit/ESP32-S3-Touch-AMOLED-1.64/ESP32-S3-Touch-AMOLED-1.64-details-size.jpg",
+      "status": "OFFICIAL"
+    },
+    {
+      "id": "ws-dad-zip",
+      "path": "3dprint/reference/waveshare/ESP32-S3-Touch-AMOLED-1.64-DAD.zip",
+      "url": "https://files.waveshare.com/wiki/ESP32-S3-Touch-AMOLED-1.64/ESP32-S3-Touch-AMOLED-1.64-DAD.zip",
+      "contains": ["PDF mechanical drawing", "DWG", "STEP esp32-s3-touch-amoled-1_64.stp"],
+      "status": "OFFICIAL"
+    }
+  ],
+  "overallModule": {
+    "width": { "value": 29.12, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Front-view outer module width" },
+    "height": { "value": 44.0, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Front-view outer module height (USB-C end = bottom of this view)" },
+    "thicknessTotal": { "value": 9.6, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Glass front to tallest rear component" }
+  },
+  "pcb": {
+    "width": { "value": 28.6, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "height": { "value": 43.5, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "thickness": { "value": null, "status": "UNKNOWN", "notes": "PCB laminate thickness not separately labeled on size drawing; derive from STEP later if needed" }
+  },
+  "glass": {
+    "width": { "value": 26.74, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "height": { "value": 41.62, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "cornerRadius": { "value": 3.7, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Outer glass corner R3.7" },
+    "insetFromModuleEdge": { "value": 1.19, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Gap module outline → glass edge (top/sides on drawing)" }
+  },
+  "amoledPhysicalOutline": {
+    "description": "Physical glass/cover outline — NOT the monitor window",
+    "width": { "value": 26.74, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "height": { "value": 41.62, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "upperCornerRadius": { "value": 3.7, "status": "OFFICIAL", "source": "ws-size-jpg" }
+  },
+  "amoledActiveArea": {
+    "description": "Lit pixel region — NOT identical to visible ESP][ monitor window",
+    "width": { "value": 22.34, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "height": { "value": 36.06, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "upperCornerRadius": { "value": 2.5, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Active-area rounded upper corners R2.50 — must be hidden by monitor bezel" },
+    "insetFromGlassTop": { "value": 2.28, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "insetFromGlassSides": { "value": 2.2, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "pixelResolution": { "width": 280, "height": 456, "status": "OFFICIAL", "notes": "Logical pixels; CLAUDE.md / Waveshare wiki" }
+  },
+  "esp2VisibleMonitorWindow": {
+    "description": "ESP][ front-visible rectangular monitor aperture. Distinct from OLED outline and active area. Full params in display-geometry.json.",
+    "width": { "value": 22.34, "status": "PROVISIONAL_CAD_CANDIDATE", "notes": "Full active width; author review required" },
+    "height": { "value": 33.56, "status": "PROVISIONAL_CAD_CANDIDATE", "notes": "active 36.06 − upper R 2.50; lower drive masking may reduce further" },
+    "offsetFromActiveTopMm": { "value": 2.5, "status": "PROVISIONAL_CAD_CANDIDATE" },
+    "status": "PROVISIONAL_CAD_CANDIDATE",
+    "seeAlso": "dimensions/display-geometry.json"
+  },
+  "stackup": {
+    "glassFrontToPcbBack": { "value": 5.6, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "displayAssemblyAbovePcbFront": { "value": 4.0, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Drawing annotation ~4.00 mm display stack relative to PCB" },
+    "rearComponentProtrusion": { "value": 4.0, "status": "OFFICIAL", "source": "ws-size-jpg", "notes": "Approx. rear connector/header height from PCB back" }
+  },
+  "mountingHoles": {
+    "thread": { "value": "M2", "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "count": 4,
+    "centerSpacingX": { "value": 22.86, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "centerSpacingY": { "value": 38.5, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "offsetFromPcbTopToHoleCenters": { "value": 2.5, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "offsetFromPcbBottomToHoleCenters": { "value": 4.5, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "alignmentNote": "CAD guides/stops must locate the module; screws only retain. Do not rely on hole play for AMOLED alignment."
+  },
+  "pinHeaders": {
+    "rows": 2,
+    "pinsPerRow": 12,
+    "pitch": { "value": 2.54, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "rowCenterSpacing": { "value": 22.0, "status": "OFFICIAL", "source": "ws-size-jpg" },
+    "bottomPinCenterFromPcbBottom": { "value": 9.33, "status": "OFFICIAL", "source": "ws-size-jpg" }
+  },
+  "connectors": {
+    "usbC": {
+      "location": "bottom edge, centered on PCB width",
+      "status": "OFFICIAL",
+      "source": "ws-size-jpg",
+      "exactOffsetXY": { "status": "UNKNOWN", "notes": "Centerline assumed from drawing symmetry; extract precise XY from DWG/STEP if needed" },
+      "esp2Intent": "Internal only — route via 90° adapter + short extension to chassis panel USB-C (see ENCLOSURE-SPEC / BOM USB-*)"
+    },
+    "microSd": {
+      "location": "PCB center (slot visible on rear view)",
+      "status": "OFFICIAL",
+      "source": "ws-size-jpg",
+      "esp2Intent": "Remains internal; no external SD opening required by current design intent"
+    },
+    "battery": {
+      "type": "MX1.25 / PH1.25-class LiPo header (Waveshare: 3.7V MX1.25)",
+      "location": "between microSD and USB-C on rear view",
+      "status": "OFFICIAL",
+      "source": ["ws-size-jpg", "waveshare-wiki"]
+    },
+    "rstButton": { "location": "bottom-left (rear view)", "status": "OFFICIAL" },
+    "bootButton": { "location": "bottom-right (rear view)", "status": "OFFICIAL" },
+    "pwrLed": { "location": "bottom-left area", "status": "OFFICIAL" },
+    "chgLed": { "location": "bottom-right area", "status": "OFFICIAL" },
+    "uflAntenna": { "location": "near top of PCB", "status": "OFFICIAL" }
+  },
+  "keepOuts": {
+    "status": "UNKNOWN",
+    "notes": "Full keep-out / max component height map pending DWG/STEP study and physical measurement"
+  },
+  "stepBoundingBoxNote": {
+    "status": "DERIVED",
+    "path": "ESP32-S3-Touch-AMOLED-1.64-DAD/.../esp32-s3-touch-amoled-1_64.stp",
+    "spanXmm": 60.96,
+    "spanYmm": 65.23,
+    "spanZmm": 28.73,
+    "notes": "Raw STEP AABB includes pin-header extent and assembly helpers — NOT a substitute for OFFICIAL outline dims above"
+  }
+}
