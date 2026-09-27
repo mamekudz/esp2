@@ -16,7 +16,14 @@
 - ESP][ patch: opcode `$CB` is NMOS **SBX/AXS** (upstream left it as NOP).
   Required for some Disk II / DOS boot obfuscation paths.
 - ESP][ patch: `$9C` **SHY** abs,X, `$9E` **SHX** abs,Y, `$93`/`$9F` **AHX/SHA**
-  (upstream NOP).
+  (upstream NOP). Mask uses base high-byte+1; on indexed page-cross the store
+  address high byte is rewritten to the stored value (NMOS unstable behavior,
+  matched to SingleStepTests/65x02).
+- ESP][ patch: RMW undocumented composites **ISB/DCP/SLO/RLA/SRE/RRA** feed the
+  ALU-modified byte into the secondary op via a one-shot `getvalue` override.
+  Upstream `inc(); sbc();` re-reads memory after `putvalue`; on ROM /
+  write-ignored targets that wrongly SBCs the original byte (Apple II titles
+  such as Galaxian use `ISB abs,Y` against `$Dxxx`).
 - Access only through `esp_bracket::Cpu6502` — never call `step6502` from app code.
 - Do not clang-format this file.
 - Cycle model: **instruction-level** with base tick table + page-cross /

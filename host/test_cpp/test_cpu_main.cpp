@@ -278,7 +278,7 @@ static void testSbxCb() {
     expect((cpu.registers().status & 0x01) != 0, "SBX carry set");
 }
 
-/** NMOS $9F AHX abs,Y and $9C SHY abs,X store masking. */
+/** NMOS $9F AHX abs,Y and $9C SHY abs,X store masking + page-cross EA rewrite. */
 static void testAhxShy() {
     CpuHarness mem;
     Cpu6502 cpu;
@@ -306,6 +306,75 @@ static void testAhxShy() {
     expectEq(mem.read8(0x9000), 0x01, "AHX A&X&(H+1)");
 }
 
+/** SST-derived: SHY abs,X page-cross rewrites EA high to stored value. */
+static void testShyPageCrossEa() {
+    // From SingleStepTests 65x02/v1/9c.json case "9c 1":
+    // Y=$5E X=$D7 SHY $DB8F,X → value=$5C, store at $5C66 (not $DC66)
+    CpuHarness mem;
+    Cpu6502 cpu;
+    mem.write8(0xF5F0, 0x9C);
+    mem.write8(0xF5F1, 0x8F);
+    mem.write8(0xF5F2, 0xDB);
+    mem.write8(0xDC66, 0x00);
+    mem.write8(0x5C66, 0x00);
+    mem.setResetVector(0xF5F0);
+    cpu.setCallbacks(&mem, CpuHarness::harnessRead, CpuHarness::harnessWrite);
+    cpu.reset();
+    CpuRegisters r = cpu.registers();
+    r.a = 0xD7;
+    r.x = 0xD7;
+    r.y = 0x5E;
+    r.status = 0x70;
+    r.sp = 0x40;
+    r.pc = 0xF5F0;
+    cpu.setRegisters(r);
+    cpu.step();
+    expectEq(mem.read8(0x5C66), 0x5C, "SHY page-cross store addr/value");
+    expectEq(mem.read8(0xDC66), 0x00, "SHY page-cross must not write linear EA");
+}
+
+/**
+ * ISB abs ($EF) against write-protected memory must SBC A with (read+1),
+ * not the original byte (NMOS RMW; Apple II ROM is write-ignored).
+ */
+static void testIsbWriteIgnored() {
+    CpuHarness mem;
+    Cpu6502 cpu;
+    mem.setWriteProtectRange(0xD000, 0xD0FF);
+    mem.write8(0xD010, 0x40); // ROM-like: stays 0x40 after ISB
+    // SEC; LDA #$50; ISB $D010 → A = 0x50 - 0x41 = 0x0F (C set, no borrow)
+    const uint8_t p[] = {
+        0x38,             // SEC
+        0xA9, 0x50,       // LDA #$50
+        0xEF, 0x10, 0xD0, // ISB $D010
+        0x00,
+    };
+    mem.load(0x8000, p, sizeof(p));
+    mem.setIrqVector(0x9000);
+    mem.write8(0x9000, 0x40);
+    runProgram(mem, cpu, 0x8000, 4);
+    expectEq(mem.read8(0xD010), 0x40, "ISB ROM target unchanged");
+    expectEq(cpu.registers().a, 0x0F, "ISB SBC uses read+1 not original");
+    // Contrast: if wrongly SBC with 0x40, A would be 0x10
+    expect(cpu.registers().a != 0x10, "ISB must not SBC original ROM byte");
+}
+
+/** Same composite on RAM must still write the incremented byte. */
+static void testIsbRam() {
+    CpuHarness mem;
+    Cpu6502 cpu;
+    mem.write8(0x0210, 0x40);
+    const uint8_t p[] = {
+        0x38, 0xA9, 0x50, 0xEF, 0x10, 0x02, 0x00,
+    };
+    mem.load(0x8000, p, sizeof(p));
+    mem.setIrqVector(0x9000);
+    mem.write8(0x9000, 0x40);
+    runProgram(mem, cpu, 0x8000, 4);
+    expectEq(mem.read8(0x0210), 0x41, "ISB RAM stores inc");
+    expectEq(cpu.registers().a, 0x0F, "ISB RAM SBC uses inc");
+}
+
 int main() {
     testReset();
     testLdaSta();
@@ -318,6 +387,9 @@ int main() {
     testPageCrossCycles();
     testSbxCb();
     testAhxShy();
+    testShyPageCrossEa();
+    testIsbWriteIgnored();
+    testIsbRam();
     if (g_failures) {
         std::fprintf(stderr, "\n%d CPU test(s) failed\n", g_failures);
         return 1;

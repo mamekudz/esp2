@@ -38,24 +38,28 @@ void CpuHarness::setNmiVector(uint16_t addr) {
     write16(0xFFFA, addr);
 }
 
-void CpuHarness::load(uint16_t addr, const uint8_t* bytes, size_t len) {
+void CpuHarness::load(uint16_t addr, const uint8_t *bytes, size_t len) {
     for (size_t i = 0; i < len; ++i) {
         mem_[static_cast<uint16_t>(addr + i)] = bytes[i];
     }
 }
 
-uint8_t CpuHarness::harnessRead(void* ctx, uint16_t address) {
-    auto* h = static_cast<CpuHarness*>(ctx);
+uint8_t CpuHarness::harnessRead(void *ctx, uint16_t address) {
+    auto *h = static_cast<CpuHarness *>(ctx);
     if (h->trace_) {
         ++h->traceCount_;
     }
     return h->mem_[address];
 }
 
-void CpuHarness::harnessWrite(void* ctx, uint16_t address, uint8_t value) {
-    auto* h = static_cast<CpuHarness*>(ctx);
+void CpuHarness::harnessWrite(void *ctx, uint16_t address, uint8_t value) {
+    auto *h = static_cast<CpuHarness *>(ctx);
     if (h->trace_) {
         ++h->traceCount_;
+    }
+    if (h->writeProtectLo_ <= h->writeProtectHi_ && address >= h->writeProtectLo_ &&
+        address <= h->writeProtectHi_) {
+        return;
     }
     h->mem_[address] = value;
 }

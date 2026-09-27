@@ -392,7 +392,16 @@ static void indy() { /* (indirect),Y*/
     }
 }
 
+/* One-shot: after RMW putvalue, secondary ALU ops (SBC/CMP/ORA/…) must use the
+ * ALU-modified byte even when write6502 is ignored (ROM / write-protect). */
+static uint8 rmw_use_alu = 0;
+static ushort rmw_alu_value = 0;
+
 static ushort getvalue() {
+    if (rmw_use_alu) {
+        rmw_use_alu = 0;
+        return rmw_alu_value;
+    }
     if (addrtable[opcode] == acc) return((ushort)a);
         else return((ushort)read6502(ea));
 }
@@ -898,36 +907,50 @@ static void tya() {
 
     static void dcp() {
         dec();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         cmp();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
 
+    /* ISB/ISC: INC then SBC with incremented byte. ESP][ patch: secondary
+     * getvalue must not re-read ROM after a discarded write (Galaxian $FB). */
     static void isb() {
         inc();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         sbc();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
 
     static void slo() {
         asl();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         ora();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
 
     static void rla() {
         rol();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         and();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
 
     static void sre() {
         lsr();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         eor();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
 
     static void rra() {
         ror();
+        rmw_use_alu = 1;
+        rmw_alu_value = (ushort)(result & 0x00FF);
         adc();
         if (penaltyop && penaltyaddr) clockticks6502--;
     }
@@ -951,23 +974,36 @@ static void tya() {
         }
     }
 
-    /* NMOS $9C SHY abs,X: store Y & (HIBYTE(base)+1) — unstable but widely used.
-     * Use eabasehi (base before index), not ea after adding X. */
+    /* NMOS $9C SHY abs,X: store Y & (HIBYTE(base)+1).
+     * Unstable page-cross: rewrite EA high byte to the stored value
+     * (SingleStepTests/65x02 9c.json). */
     static void shy() {
         const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
-        putvalue((ushort)(y & hb));
+        const uint8 v = (uint8)(y & hb);
+        if (penaltyaddr) {
+            ea = (ushort)(((ushort)v << 8) | (ea & 0x00FFu));
+        }
+        putvalue((ushort)v);
     }
 
-    /* NMOS $9E SHX abs,Y: store X & (HIBYTE(base)+1). */
+    /* NMOS $9E SHX abs,Y: store X & (HIBYTE(base)+1); same page-cross rule. */
     static void shx() {
         const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
-        putvalue((ushort)(x & hb));
+        const uint8 v = (uint8)(x & hb);
+        if (penaltyaddr) {
+            ea = (ushort)(((ushort)v << 8) | (ea & 0x00FFu));
+        }
+        putvalue((ushort)v);
     }
 
-    /* NMOS $9F/$93 AHX/SHA: store A & X & (HIBYTE(base)+1). */
+    /* NMOS $9F/$93 AHX/SHA: store A & X & (HIBYTE(base)+1); same page-cross rule. */
     static void ahx() {
         const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
-        putvalue((ushort)(a & x & hb));
+        const uint8 v = (uint8)(a & x & hb);
+        if (penaltyaddr) {
+            ea = (ushort)(((ushort)v << 8) | (ea & 0x00FFu));
+        }
+        putvalue((ushort)v);
     }
 #else
     #define lax nop
