@@ -14,23 +14,89 @@
 > Hardware, Firmware, APIs, Dokumentation und Kompatibilität können
 > sich noch ändern.
 
-**ESP][** ist ein experimentelles Hobby-/Open-Source-Projekt: ein miniaturisierter, in sich geschlossener **Apple-II-Emulator** auf dem Board **Waveshare ESP32-S3-Touch-AMOLED-1.64**.
+**ESP][** ist ein experimentelles Hobby-/Open-Source-Projekt: ein miniaturisierter, in sich geschlossener **Apple-II- / Apple-II+-kompatibler Rechner** auf dem Board **Waveshare ESP32-S3-Touch-AMOLED-1.64** — Rechner, Display und virtuelles Disk II im Taschenformat.
 
 Paket-/Repo-Identifier (ASCII): `esp2` — sichtbarer Projektname bleibt **ESP][**.
 
 ### Wichtiger Status-Hinweis
 
 - ESP][ ist **nicht fertig**.
-- Die **Apple-II-Emulation ist noch nicht vollständig** und **noch nicht** in die ESP32-Firmware integriert.
-- Verifizierte **Phase-1-Hardware** (Display, Touch, microSD, …) bedeutet **nicht**, dass der komplette Emulator auf dem Gerät läuft.
-- Host-getestete Emulator-Komponenten (`HOST_VERIFIED`) sind von **ESP32-getesteten** Teilen zu unterscheiden.
-- Controller-/Medien-Kompatibilität und Disk-II bleiben in Entwicklung.
+- **HOST_VERIFIED** (Desktop-Tests) und **physisch verifiziert** (ESP32-S3 / CO5300) klar trennen.
+- **Apple-System-ROMs** und **kommerzielle Diskettenabbilder** (z. B. Galaxian) liegen **nicht** im Repository — sie bleiben **user-supplied lokale Runtime-Assets**.
+- Ein sichtbares Playfield bedeutet **nicht** automatisch „vollständig spielbar“ (Gamepad/Audio können noch ungetestet sein).
+
+---
+
+## Aktueller Meilenstein: Galaxian auf physischem ESP][
+
+**`GALAXIAN_ESP32 = PASS`**
+
+Echte Apple-II-Software läuft auf dem Board über den normalen Maschinenpfad — kein native Port, kein fertiges Screenshot-Overlay:
+
+```
+Apple-II+-System-ROM (user-supplied)
+    → Disk II + Galaxian.dsk (user-supplied)
+    → NMOS 6502 (fake6502)
+    → Apple-II-Video-RAM (HGR)
+    → HGR-Renderer (Sharp / Artifact Color)
+    → Presentation (Classic / optional Landscape)
+    → CO5300 AMOLED
+```
+
+Physisch verifiziert (Kurzfassung):
+
+| Check | Ergebnis |
+| --- | --- |
+| Apple II+ Reset / interaktiver ROM-Start | PASS (`$FA62`, INTERACTIVE) |
+| Galaxian-DSK-Upload (Device-SHA-256) | PASS |
+| Disk-Mount / Autostart-Boot | PASS |
+| Cracktro → Windows-CDC-Tastatur **A** → zweiter Disk-Load | PASS |
+| Erkennbares Galaxian-HGR-Playfield | PASS |
+| Emulierte Geschwindigkeit | ≈ **1,023 MHz** |
+| Stabilität | >60 s ohne SPI-Panic / Watchdog |
+| Windows-Tastatur-Bridge | PASS |
+| 8BitDo-Gameplay | **NOT_TESTED** (kein XInput während des Laufs) |
+| Physischer Lautsprecher / Bluetooth-Audio | **NOT_TESTED** |
+
+Zwei generische Disk-II-Genauigkeitsfixes haben den Weg freigemacht (keine Galaxian-Hacks): physische Address-Field-Sektor-IDs und Half-Track-Stepper — Details in `docs/apple2/boot-forensics.md` / `docs/apple2/disk-ii.md`.
+
+---
+
+## Damals und heute
+
+Während des Wehrdienstes durfte ich meinen Apple II mitnehmen. Er reiste im Koffer — Rechner, Monitor, Laufwerke und Zubehör. Diese Konfiguration zu transportieren bedeutete eine Menge Hardware zu schleppen.
+
+Heute zielt ESP][ auf dieselbe Idee eines in sich geschlossenen Apple-II-Erlebnisses — auf einem ESP32-S3 mit winzigem AMOLED, microSD und virtuellem Disk II. Das Speicherproblem ist weitgehend gelöst; **das menschliche Auge ist jetzt die limitierende Peripherie**. Eine Lupe könnte das nützlichste optionale Zubehör sein.
+
+### Wie viele Disketten passen auf 2 TB?
+
+Ein standardmäßiges DOS-3.3-Apple-II-5,25″-Diskettenabbild enthält:
+
+```
+35 Tracks × 16 Sektoren × 256 Bytes = 143 360 Bytes ≈ 140 KiB
+```
+
+Nominally **2 TB** (= 2 000 000 000 000 Bytes) Rohkapazität fassen etwa:
+
+```
+2 000 000 000 000 / 143 360 ≈ 13,95 Millionen
+```
+
+rohe **140-KiB-DSK-Äquivalente** — rund **13,95 Millionen** Apple-II-Disketten.
+
+Das ist theoretisch: Dateisystem-Overhead, andere ESP][-Dateien und größere Formate (WOZ/NIB) sind nicht eingerechnet. Es ist **keine** WOZ-Zählung.
+
+Bei illustrativen ~**1,5 mm** pro physischer Diskette wäre der Stapel etwa:
+
+```
+13,95e6 × 1,5 mm ≈ 20,9 km ≈ 21 km
+```
+
+Disketten hoch. Die Dicke ist eine Spaß-Näherung — keine Labormessung.
 
 ---
 
 ## Aktueller Status
-
-Klar getrennt:
 
 | Stufe | Bedeutung |
 | --- | --- |
@@ -41,261 +107,118 @@ Klar getrennt:
 
 ### VERIFIED (physisches Board)
 
-**DISPLAY**
+**DISPLAY / Bring-up**
 
-- CO5300 AMOLED initialisiert
-- Auflösung **280 × 456**
-- Visuell verifiziert (Testmuster / Orientierung)
-- Display-Power: ACTIVE → SCREENSAVER → OFF (CO5300 `displayOff`/`displayOn`)
+- CO5300 AMOLED, **280 × 456**
+- Display-Power: ACTIVE → SCREENSAVER → OFF
+- Touch (FT3168), microSD (SPI), IMU (QMI8658) wie in Phase 1
 
-**TOUCH**
+**Apple II auf ESP32 (Firmware `apple2_text`)**
 
-- FT3168 auf shared I2C
-- SDA **GPIO47**, SCL **GPIO48**
-- Touch-Koordinaten-Mapping verifiziert
+- User-supplied Apple-II+-ROM + interaktiver Start
+- Applesoft-/Keyboard-Latch-Pfad
+- Level-4 Clean-Room-Disk-II-Spotcheck
+- User Disk-II-PROM + DSK-Mount/Boot (Autostart)
+- TEXT / LORES / HGR auf dem CO5300
+- HGR **Sharp** (Mono) — **Classic + Sharp** bleibt Default
+- HGR **Artifact Color** (`ArtifactRenderer`) — unter Galaxian auf dem CO5300 physisch aktiviert (`#ESP2PRESENT COLOR ARTIFACT`)
+- Optionale **Landscape**-Presentation (90° CW + Nearest-Neighbor); Classic bleibt Default; Gehäuse-CAD unverändert
+- Windows-11→USB-CDC-Input-Bridge (Tastatur mit Galaxian verifiziert)
 
-**microSD**
+### HOST_VERIFIED
 
-- SPI: CS **GPIO38**, MOSI **GPIO39**, MISO **GPIO40**, SCLK **GPIO41**
-- SDHC / FAT verifiziert
-- 32-GB-Karte getestet
-- Lesen / Schreiben / Persistenz verifiziert
+- Host-Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe, Disk II (Level 4), Compat-Harness, User-ROM-Loader
+- Media-Import / Katalog / Provenance
+- Keine Apple-ROMs / kommerziellen Disks in Git
 
-**IMU (QMI8658)**
+### PLANNED / NOT_TESTED (Beispiele)
 
-- Erkannt unter I2C-Adresse **0x6B**
-- WHO_AM_I **0x05**, Revision **0x7C**
-- Live-Accelerometer/Gyro verifiziert
-- Physisches Achsen-Mapping noch ausstehend
+- Control Screen, Bluetooth-Tastatur/-Gamepad/-Audio als Primärpfad
+- Lokaler Piezo, verdrahtete Paddles, natives USB-HID-Host
+- WOZ / voller Write-Pfad
+- CRT/Monitor-Effekte (getrennt von Artifact Color)
+- Finale Gehäuse-CAD-Varianten
 
-**Build / Diagnose**
+---
 
-- PlatformIO-Firmware baut und flash
-- Serielle `[TAG]`-Diagnostik für Bring-up
+## Presentation (Classic vs. Landscape)
 
-### HOST_VERIFIED (nur Host-Tooling / Host-Maschine)
+Das sind **Display-Presentation**-Wahlmöglichkeiten — keine Apple-II-Softswitches.
 
-- Media-Import / Katalog / Provenance-Gates (`media:import`, apple2js-Katalog)
-- Host-seitige Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe, Disk II (Level-4 Clean-Room-Bootpfad), Real-Software-Kompatibilitäts-Harness, User-ROM-Loader (`npm run test:apple2`)
-- Synthetische Test-ROM / keine Apple-ROMs im Repo (optionale lokale User-ROM unter `local/roms/`; Maschinen-Config-Beispiel `config/apple2.local.example.json`)
+| Modus | Rolle |
+| --- | --- |
+| **Classic** (Default) | 280×192-Viewport — verifizierte Baseline / Gehäuse-Orientierung |
+| **Landscape** (optional) | 90° CW + Nearest-Neighbor-Skalierung auf 280×456, Seitenverhältnis erhalten |
 
-### PLANNED
+| HGR-Farbe | Rolle |
+| --- | --- |
+| **Sharp** | Klares Mono |
+| **Artifact Color** | Composite-Paar / High-Bit-Phase → RGB565 |
 
-Alles unter [Geplante Funktionen](#geplante-funktionen) — inkl. ESP32-Integration des Emulators, Disk II, Bluetooth-Eingabe/-Audio, Control Screen.
+Physische Galaxian-Presentation-Matrix (Emulation bleibt ≈1,023 MHz):
+
+| Modus | Viewport / Out | Notiz |
+| --- | --- | --- |
+| Classic + Sharp | 280×192 @ (0,48) | Default-Baseline |
+| Classic + Artifact | 280×192 @ (0,48) | Höhere Render-Kosten; Farbpfad aktiv |
+| Landscape + Sharp | 280×408 @ (0,24) | Voller 280×192-Frame, Seitenverhältnis erhalten |
+| Landscape + Artifact | 280×408 @ (0,24) | Kandidat für lesbareres Bild auf dem winzigen AMOLED |
+
+Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
+
+**Landscape-Gehäuse:** nur `LANDSCAPE_ENCLOSURE_VARIANT = CANDIDATE` — gleiches 1,64″-Board, mögliche spätere Monitor-Geometrie. **Kein CAD in diesem Meilenstein.** Waveshare 1,64″ bleibt **VERIFIED_BASELINE**.
 
 ---
 
 ## Hardware
 
-Zielplattform:
-
 | | |
 | --- | --- |
 | Board | Waveshare ESP32-S3-Touch-AMOLED-1.64 |
 | MCU | ESP32-S3 |
-| Flash / PSRAM | 16 MB Flash, 8 MB PSRAM |
+| Flash / PSRAM | 16 MB Flash, 8 MB PSRAM |
 | Display | 1,64″ AMOLED, **280 × 456**, Controller **CO5300** |
 | Touch | **FT3168** |
-| Speicher | microSD |
-| Funk | Wi-Fi, Bluetooth LE |
+| Storage | microSD |
+| Radio | Wi-Fi, Bluetooth LE |
 | IMU | **QMI8658** (falls bestückt) |
-| Build | **PlatformIO** (kein Arduino-IDE-Hauptprojekt) |
-
-Geplante Zusatzhardware: Piezo/Lokal-Lautsprecher, physischer Reset/Control-Taster, Bluetooth-Tastatur/-Gamepad/-Kopfhörer, später verdrahtete Analog-Paddles.
+| Build | **PlatformIO** |
 
 ---
 
-## Geplante Funktionen
-
-### Apple-II-Emulation
-
-Host-seitige Maschine + **fake6502** (CC0) unter `third_party/fake6502/` — **HOST_VERIFIED** (Boot-Readiness Level 4 erreicht; Level 5 = **READY_FOR_REAL_SOFTWARE_TEST** über Kompatibilitäts-Harness). Firmware-Integration auf dem ESP32: **noch nicht** (siehe `docs/architecture/esp32-port-readiness.md`). Keine Apple-ROMs im Repo (nur synthetische / Clean-Room-Test-Firmware). Siehe `docs/apple2/roms.md`, `docs/apple2/boot-readiness.md`, `docs/apple2/compatibility-testing.md`.
-
-### Kompatibilität (Beispiel)
+## Kompatibilität (Auszug)
 
 | Titel | Host | ESP32 |
 | --- | --- | --- |
-| ESP][ Boot Test | COMPLETED_TEST_PATH | NOT_TESTED |
-| Choplifter | BLOCKED_MISSING_ASSET | NOT_TESTED |
-| Night Mission | BLOCKED_MISSING_ASSET | NOT_TESTED |
-| Star Blazer | BLOCKED_MISSING_ASSET (Audio SUBJECTIVE_REFERENCE) | NOT_TESTED |
+| Galaxian | PASS / PLAYFIELD | **PASS / PLAYFIELD** (Input/Audio partiell) |
+| ESP][ Boot Test | COMPLETED_TEST_PATH | Level-4 Spot PASS |
+| Little Brick Out | NOT_TESTED | NOT_TESTED (später LORES/Paddle) |
 
-Vollständige Matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ inkompatibel.
-
-### Virtuelle Disk II / Media-Schicht
-
-Getrennt vom Core: Disk-II-Controller → Virtual Disk → Drive 1/2 → Image auf microSD. Host-seitiger Standard-Disk-II-Bootpfad implementiert und regressionstestet (DSK/DO, PO, NIB-Fixtures; WOZ / voller Schreibpfad **PLANNED**). Keine eingebetteten kommerziellen Disk-Images im Repo.
-
-### Touch-Bedienung
-
-Primär Control Screen, Bibliothek, Disk-Management, Settings — **nicht** als Apple-II-Eingabe. **PLANNED** (UI), Touch-Hardware: siehe VERIFIED.
-
-### Bluetooth
-
-- Tastatur (HID → Hotkeys + Apple-Tastatur) — **PLANNED**
-- Gamepad (Referenz 8BitDo SN30 Pro) — **PLANNED**
-- Audio (Kopfhörer; BLE/Classic-Machbarkeit experimentell klären) — **PLANNED**
-
-### Lokales Audio
-
-Piezo / einfacher Wandler aus Apple-II-Speaker-Toggle — **PLANNED** (V1-Ziel).
-
-### Anzeigemodi
-
-- **LANDSCAPE_STANDALONE** — Entwicklung ohne Gehäuse — **PLANNED** (Viewport-Konzept)
-- **PORTRAIT_APPLE2_CASE** — vertikales Monitor-Viewport im Miniaturgehäuse — **PLANNED**
-- **CONTROL_SCREEN** — Touch-UI, Emulation darf weiterlaufen — **PLANNED**
-
-### Videofarben
-
-Unabhängig von CRT-Effekten:
-
-| Modus | Ziel |
-| --- | --- |
-| Composite Color | Authentische Artifact-Farben |
-| White monochrome | Echtes Mono, nicht entsättigtes Composite |
-| Green phosphor | Grünes Monitor-Mono |
-| Amber phosphor | Bernsteinfarbenes Monitor-Mono |
-
-Host-Renderer: **HOST_VERIFIED**; ESP32-Pfad: **PLANNED**.
-
-### Display-Effekte (optional)
-
-Sharp / Monitor / CRT-TV, Stärke OFF–HIGH — **PLANNED**, unabhängig von der Farbmodus-Wahl.
-
-### Miniatur-Apple-II-Gehäuse
-
-Basis + Monitor + Disk-II, Board senkrecht im Monitor, USB-C seitlich zugänglich — CAD **nicht** aktuelle Priorität — **PLANNED**.
+Vollmatrix: `docs/compatibility/titles.json`. Nur user-supplied Medien.
 
 ---
 
 ## Entwicklung
 
-Inkrementell, PlatformIO, bestehende Board-Init nicht ohne Grund ersetzen. Agenten lesen zuerst `CLAUDE.md`.
+Inkrementell, PlatformIO. Agenten lesen zuerst `CLAUDE.md`.
 
 ### µGulp / Gulp
 
 ```bash
 npm install
-npx gulp help          # Aufgabenliste
-npx gulp docs          # README.md + README.de-DE.md
-npx gulp docs:en-US    # nur englische README
-npx gulp docs:de-DE    # nur deutsche README
-npx gulp backup:git    # Git-Checkpoint (explizit, kein Auto-Commit)
-npx gulp backup:nas    # NAS-Kopie (0–3 Ziele)
-npx gulp backup:all    # docs → Git → NAS
+npx gulp help
+npx gulp docs
+npx gulp backup:git
+npx gulp backup:nas
+npx gulp backup:all
 ```
 
-Dokumentationsquellen:
+Quellen: `dev/docs/readme/en-US.src.md` → `README.md`, `de-DE.src.md` → `README.de-DE.md`.
 
-- `dev/docs/readme/en-US.src.md` → `README.md`
-- `dev/docs/readme/de-DE.src.md` → `README.de-DE.md`
-
-Generierte READMEs nicht manuell pflegen.
-
-### NAS-Backup konfigurieren
-
-1. `config/nas.targets.example` nach `config/nas.targets.local` kopieren
-2. Bis zu drei Pfade setzen (`NAS_TARGET_1` … `NAS_TARGET_3`)
-3. Oder Umgebungsvariablen gleichen Namens setzen
-
-`nas.targets.local` ist gitignored. Maximal drei Ziele; fehlende Ziele werden einzeln übersprungen.
-
-NAS-Backup sichert wertvolle **lokale/heruntergeladene** Bäume (`local/apple2`, `local/roms`, `_refs`, `3dprint`), die **gitignored** bleiben. Git-Eignung ≠ NAS-Eignung — siehe `docs/tooling/backup.md`. Disposable Caches (`node_modules`, `.pio`, …) bleiben ausgeschlossen.
-
-Dry-Run: `ESP2_NAS_DRY_RUN=1`.
-
-### Git-Backup
-
-Expliziter Checkpoint (`backup: ESP][ YYYY-MM-DD HH:mm`), inkl. **CLAUDE.md**, Quellen, Docs, PlatformIO-Config. Kein Force-Push, kein `reset --hard`. Ohne Remote: nur lokaler Commit bzw. klarer Hinweis. Preview: `ESP2_BACKUP_GIT_DRY_RUN=1`.
+NAS-/Git-Backup: siehe englische README / `docs/tooling/backup.md`.
 
 ---
 
-## µGulp-ready
+## Lizenz / Drittanbieter
 
-Dieses Repository nutzt den **µGulp**-Automatisierungsworkflow für:
-
-- Dokumentationsgenerierung (`gulp docs`)
-- Lokalisierung der README-Quellen (en-US / de-DE)
-- Infrastruktur-Validierung (`npm run test:infra`)
-- Git-Checkpoints (`gulp backup:git`)
-- NAS-Backup, sofern konfiguriert (`gulp backup:nas` / `backup:all`)
-
-Weitere Plattform-/Flash-Tasks laufen über PlatformIO und projekteigene Gulp-Wrapper.
-
-µGulp-Ready-Badge: offizielles Artwork unter `docs/assets/microgulp-ready.png` ([Regeln](https://microgulp.dev/de/ready/)).
-
----
-
-## Bauen mit PlatformIO
-
-```bash
-pio run
-pio run -t upload
-pio device monitor
-```
-
-Umgebung: `bringup` in `platformio.ini` (pioarduino / ESP32-S3, Arduino-GFX für CO5300). Upload-/Monitor-Port lokal anpassen (z. B. COM5).
-
----
-
-## Bedienung (Ziel)
-
-| Eingabe | Rolle |
-| --- | --- |
-| Bluetooth-Tastatur | Emulator-Hotkeys + Apple-II-Tastatur |
-| Bluetooth-Gamepad | Joystick / Buttons |
-| Touch | Control Screen / Bibliothek |
-| Verdrahtete Paddles | Später, gemeinsames Joystick-Abstrakt |
-
-**PLANNED** außer verifiziertem Touch-Hardware-Pfad.
-
----
-
-## Speicher / virtuelle Disks
-
-microSD mit Bibliotheksstruktur (z. B. `/apple2/games/<id>/game.json` + Images). Firmware und Medien getrennt. Nutzer stellen legal erworbene Images selbst bereit. Metadaten dürfen existieren, auch wenn das Image fehlt (`media not installed`).
-
-Entwicklungskatalog/Referenz: [apple2js](https://github.com/whscullin/apple2js) (MIT für den Emulator — **nicht** für Drittmedien). ESP][ ist nicht mit apple2js affiliated. Nutzer importieren legal erworbene Images offline (`media:import`); kommerzielle Titel bleiben `USER_SUPPLIED_ONLY`. Details: `docs/media/apple2js.md`, `docs/media/source-audit.md`.
-
----
-
-## Videomodi
-
-Siehe Tabelle unter Geplante Funktionen. Apple-II-HGR (280 × 192) ist kein gewöhnliches RGB-Bitmap; Artifact-Farbe ist Kernanforderung. Host-Pfad: **HOST_VERIFIED**; Gerät: **PLANNED**.
-
----
-
-## Audio
-
-Speaker-Toggle → Audio-Engine → lokal und/oder Bluetooth — **PLANNED**.
-
----
-
-## Gehäuse
-
-Miniatur-Apple-II-Setup; sichtbares Monitor-Viewport ≠ volles AMOLED — **PLANNED**.
-
----
-
-## Lizenz / rechtliche Hinweise
-
-- Firmware und Projektdokumentation: Open-Source-Hobbyprojekt (Lizenzdatei folgt bei Veröffentlichung).
-- **Keine** kommerziellen Apple-II-ROMs oder urheberrechtlich geschützten Disk-Images in diesem Repository.
-- Nutzer dürfen **legal erworbene** Images lokal auf der microSD verwenden.
-- „Apple II“ und verwandte Marken gehören ihren Rechteinhabern; dieses Projekt ist unabhängig und nicht von Apple endorsed.
-- [apple2js](https://github.com/whscullin/apple2js) wird nur als Entwicklungsreferenz / Katalogquelle genutzt; die MIT-Lizenz des Emulators deckt keine kommerziellen Disk-Images der Website ab.
-
----
-
-## Kurzüberblick Status
-
-| Bereich | Stufe |
-| --- | --- |
-| PlatformIO-Build / Flash / Serial | VERIFIED |
-| CO5300 280×456 Display + Power | VERIFIED |
-| FT3168 Touch (I2C 47/48, Mapping) | VERIFIED |
-| microSD SPI 38–41 | VERIFIED |
-| QMI8658 Live-Sensorik | VERIFIED (Achsen-Mapping offen) |
-| Host Apple-II-Maschine / Media-Tooling | HOST_VERIFIED |
-| Emulator auf ESP32, Disk II, BT, Audio, UI, Gehäuse | PLANNED |
+Firmware und Tooling sind projekteigen, sofern nicht anders vermerkt. Drittanbieter-Code behält seine Lizenzen (z. B. **fake6502** CC0). Proprietäre Apple-ROMs und kommerzielle Diskettenabbilder nicht committen.
