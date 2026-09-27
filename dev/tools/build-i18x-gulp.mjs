@@ -99,23 +99,69 @@ const de = {
     "Extrahiert en-US-Release-Strings und bewahrt vorhandene de-DE-Übersetzungen. Meldet fehlende deutsche Strings — erfindet keine KI-Übersetzungen.",
   'ESP][ device configuration V<version/><context="µDisplayName"/>':
     "ESP][-Gerätekonfiguration V<version/>",
+  'ESP][ device configuration — Galaxian demo V<version/><context="µDisplayName"/>':
+    "ESP][-Gerätekonfiguration — Galaxian-Demo V<version/>",
   'Run device macro V<version/><context="µDisplayName"/>':
     "Geräte-Makro ausführen V<version/>",
-  'Stage and upload /esp2/config/system.json + macros.json from a named profile. Asks for COM port like flash/upload (or set ESP2_PORT). Does not embed media bytes.<context="µDescription"/>':
-    "Stellt /esp2/config/system.json + macros.json aus einem Profil bereit und lädt hoch. Fragt nach COM-Port wie flash/upload (oder ESP2_PORT). Keine Media-Bytes.",
-  'Set ESP2_PORT=COMx to skip the port dialog. Dry-run stages only.<context="µTooltip"/>':
-    "ESP2_PORT=COMx setzen, um den Port-Dialog zu überspringen. Dry-Run stellt nur bereit.",
+  'Interactive ESP][ configuration form (ROM, disks, boot, macro, presentation, screensaver). Save locally or explicitly Apply to device — opening the form uploads nothing.<context="µDescription"/>':
+    "Interaktives ESP][-Konfigurationsformular (ROM, Disks, Boot, Makro, Präsentation, Bildschirmschoner). Lokal speichern oder ausdrücklich auf das Gerät anwenden — Formular öffnen lädt nichts hoch.",
+  'Form only until you choose Apply. Media bytes are never uploaded here.<context="µTooltip"/>':
+    "Nur Formular, bis Sie „Anwenden“ wählen. Media-Bytes werden hier nie hochgeladen.",
   'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Asks for COM port like flash/upload.<context="µDescription"/>':
     "Führt ein benanntes Eingabe-Makro auf einem laufenden ESP][ aus (#ESP2MACRO RUN). Fragt nach COM-Port wie flash/upload.",
-  'Configuration profile<context="task parameter"/>': "Konfigurationsprofil",
-  'Folder under config/device/profiles/ (e.g. galaxian-demo).<context="task parameter"/>':
-    "Ordner unter config/device/profiles/ (z. B. galaxian-demo).",
-  'Dry-run (stage only)<context="task parameter"/>': "Dry-Run (nur bereitstellen)",
+  'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>':
+    "ESP2_PORT=COMx setzen, um den Port-Dialog zu überspringen.",
+  'ESP][ device configuration<context="task parameter"/>': "ESP][-Gerätekonfiguration",
+  'Continue<context="button text"/>': "Weiter",
+  'Preset profile<context="task parameter"/>': "Preset-Profil",
+  'Named presets under config/device/profiles/. Does not upload. Enable “Reload from preset” to replace field values from that file on Continue.<context="task parameter"/>':
+    "Benannte Presets unter config/device/profiles/. Lädt nicht hoch. „Preset neu laden“ ersetzt die Feldwerte aus der Datei bei Weiter.",
+  'Custom (use fields below)<context="task parameter"/>': "Benutzerdefiniert (Felder unten)",
+  'Reload from preset on Continue<context="task parameter"/>': "Preset bei Weiter neu laden",
+  'When on, load the selected preset file (ignores field edits for this run). When off, use the editable fields below.<context="task parameter"/>':
+    "Ein: gewählte Preset-Datei laden (Feldänderungen für diesen Lauf ignorieren). Aus: bearbeitbare Felder unten verwenden.",
+  'Profile name (local save)<context="task parameter"/>': "Profilname (lokales Speichern)",
+  'Saved under local/device/config/ and optionally config/device/profiles/<name>/.<context="task parameter"/>':
+    "Gespeichert unter local/device/config/ und optional config/device/profiles/<name>/.",
+  'System ROM (device path)<context="task parameter"/>': "System-ROM (Gerätepfad)",
+  'Absolute path on the ESP][ SD, e.g. /esp2/roms/system.rom — not a host file upload.<context="task parameter"/>':
+    "Absoluter Pfad auf der ESP][-SD, z. B. /esp2/roms/system.rom — kein Host-Datei-Upload.",
+  'Drive 1 image (device path)<context="task parameter"/>': "Laufwerk-1-Abbild (Gerätepfad)",
+  'e.g. /esp2/disks/Galaxian.dsk — path only; disk bytes are not uploaded by this form.<context="task parameter"/>':
+    "z. B. /esp2/disks/Galaxian.dsk — nur Pfad; Disketten-Bytes lädt dieses Formular nicht hoch.",
+  'Drive 2 image (optional)<context="task parameter"/>': "Laufwerk-2-Abbild (optional)",
+  'Leave empty when unused. Path under /esp2/ only.<context="task parameter"/>':
+    "Leer lassen wenn unbenutzt. Nur Pfade unter /esp2/.",
+  'Boot from disk (Autostart)<context="task parameter"/>': "Von Diskette booten (Autostart)",
+  'Startup macro<context="task parameter"/>': "Startup-Makro",
+  'none<context="task parameter"/>': "keines",
+  'Screen orientation<context="task parameter"/>': "Bildschirmausrichtung",
+  'Classic<context="task parameter"/>': "Klassisch",
+  'Landscape<context="task parameter"/>': "Querformat",
+  'HGR presentation<context="task parameter"/>': "HGR-Darstellung",
+  'Sharp<context="task parameter"/>': "Scharf",
+  'Artifact Color<context="task parameter"/>': "Artefaktfarbe",
+  'Screensaver timeout (seconds, 0 = disabled)<context="task parameter"/>':
+    "Bildschirmschoner-Timeout (Sekunden, 0 = aus)",
+  'Idle seconds before AMOLED screensaver. 0 disables. Unit: seconds.<context="task parameter"/>':
+    "Idle-Sekunden bis AMOLED-Bildschirmschoner. 0 = aus. Einheit: Sekunden.",
+  'Action<context="task parameter"/>': "Aktion",
+  'Save locally writes JSON on the PC only. Apply to device uploads system.json + macros.json (paths only) — never ROM/disk media.<context="task parameter"/>':
+    "Lokal speichern schreibt nur JSON auf dem PC. Auf Gerät anwenden lädt system.json + macros.json (nur Pfade) — nie ROM/Disk-Media.",
+  'Save locally (no device)<context="task parameter"/>': "Lokal speichern (kein Gerät)",
+  'Apply to device (upload config)<context="task parameter"/>': "Auf Gerät anwenden (Config hochladen)",
+  'Serial port for Apply (optional)<context="task parameter"/>': "Serieller Port für Anwenden (optional)",
+  'e.g. COM5. Empty → AskPort dialog. Used only when Action is Apply to device.<context="task parameter"/>':
+    "z. B. COM5. Leer → AskPort-Dialog. Nur bei Aktion „Auf Gerät anwenden“.",
   'Macro id<context="task parameter"/>': "Makro-ID",
-  'Device config profile=<profile/> uploaded=<uploaded/> (paths only; no ROM/disk bytes).<context="task log"/>':
-    "Geräte-Config Profil=<profile/> hochgeladen=<uploaded/> (nur Pfade; keine ROM/Disk-Bytes).",
-  'Uploading device config via <port/><context="task log"/>…':
-    "Geräte-Config wird über <port/> hochgeladen…",
+  'Saved device config locally → <path/> (profile=<profile/>). ROM/disk media were NOT uploaded.<context="task log"/>':
+    "Geräte-Config lokal gespeichert → <path/> (Profil=<profile/>). ROM/Disk-Media wurden NICHT hochgeladen.",
+  'Applying config to device via <port/> (system.json + macros.json only).<context="task log"/>':
+    "Config wird über <port/> auf das Gerät angewendet (nur system.json + macros.json).",
+  'Device config applied. Power-cycle ESP][ to load. Media images were not uploaded.<context="task log"/>':
+    "Geräte-Config angewendet. ESP][ neu starten zum Laden. Media-Abbilder wurden nicht hochgeladen.",
+  'Action=Save locally — no COM port, no upload, no flash.<context="task log"/>':
+    "Aktion=Lokal speichern — kein COM-Port, kein Upload, kein Flash.",
   'Running macro <macro/> on <port/><context="task log"/>…':
     "Makro <macro/> auf <port/> wird ausgeführt…",
   'No serial port — set ESP2_PORT=COMx, fill the port field, or pick a port in the dialog.<context="task error"/>':

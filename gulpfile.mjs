@@ -82,6 +82,13 @@ import {
   CheckReleaseI18xCompleteness,
   UpdateReleaseI18xSources,
 } from "./dev/tools/releases/release-i18x.mjs";
+import {
+  applyConfigToDevice,
+  configFromFormValues,
+  formDefaultsFromConfig,
+  listProfileIds,
+  saveConfigLocal,
+} from "./dev/tools/device-config-form.mjs";
 
 InstallStringExtensions();
 
@@ -1783,7 +1790,162 @@ if (IsMicroGulp()) {
 //================================================================
 
 function _DeviceConfigDisplayName() {
+  try {
+    const d = formDefaultsFromConfig(rootDir);
+    if (d.drive1 && String(d.drive1).toLowerCase().includes("galaxian")) {
+      return 'ESP][ device configuration — Galaxian demo V<version/><context="µDisplayName"/>'.i18xRegister();
+    }
+  } catch {
+    /* defaults */
+  }
   return 'ESP][ device configuration V<version/><context="µDisplayName"/>'.i18xRegister();
+}
+
+/**
+ * Native µGulp µParameters form (same shape as NAS backup).
+ * Opening/rendering this metadata has no I/O side effects.
+ */
+function _DeviceConfigParameters() {
+  const d = formDefaultsFromConfig(rootDir);
+  const presets = [
+    { value: "custom", label: 'Custom (use fields below)<context="task parameter"/>'.i18xRegister() },
+    ...listProfileIds(rootDir).map((id) => ({ value: id, label: id })),
+  ];
+  const macros = (d.macros || ["none"]).map((id) =>
+    id === "none"
+      ? { value: "none", label: 'none<context="task parameter"/>'.i18xRegister() }
+      : { value: id, label: id },
+  );
+  return {
+    title: 'ESP][ device configuration<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "preset",
+        type: "select",
+        default: d.preset,
+        label: 'Preset profile<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Named presets under config/device/profiles/. Does not upload. Enable “Reload from preset” to replace field values from that file on Continue.<context="task parameter"/>'.i18xRegister(),
+        options: presets,
+      },
+      {
+        id: "loadPreset",
+        type: "boolean",
+        default: false,
+        label: 'Reload from preset on Continue<context="task parameter"/>'.i18xRegister(),
+        description:
+          'When on, load the selected preset file (ignores field edits for this run). When off, use the editable fields below.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "profileName",
+        type: "text",
+        default: d.profileName,
+        label: 'Profile name (local save)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Saved under local/device/config/ and optionally config/device/profiles/<name>/.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "rom",
+        type: "text",
+        default: d.rom,
+        required: true,
+        label: 'System ROM (device path)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Absolute path on the ESP][ SD, e.g. /esp2/roms/system.rom — not a host file upload.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "drive1",
+        type: "text",
+        default: d.drive1,
+        label: 'Drive 1 image (device path)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'e.g. /esp2/disks/Galaxian.dsk — path only; disk bytes are not uploaded by this form.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "drive2",
+        type: "text",
+        default: d.drive2,
+        label: 'Drive 2 image (optional)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Leave empty when unused. Path under /esp2/ only.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "bootFromDisk",
+        type: "boolean",
+        default: d.bootFromDisk,
+        label: 'Boot from disk (Autostart)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "startupMacro",
+        type: "select",
+        default: d.startupMacro,
+        label: 'Startup macro<context="task parameter"/>'.i18xRegister(),
+        options: macros,
+      },
+      {
+        id: "orientation",
+        type: "select",
+        default: d.orientation,
+        label: 'Screen orientation<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "classic", label: 'Classic<context="task parameter"/>'.i18xRegister() },
+          { value: "landscape", label: 'Landscape<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "color",
+        type: "select",
+        default: d.color,
+        label: 'HGR presentation<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "sharp", label: 'Sharp<context="task parameter"/>'.i18xRegister() },
+          {
+            value: "artifact",
+            label: 'Artifact Color<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      },
+      {
+        id: "screensaverSeconds",
+        type: "number",
+        default: d.screensaverSeconds,
+        min: 0,
+        max: 86400,
+        step: 1,
+        label: 'Screensaver timeout (seconds, 0 = disabled)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Idle seconds before AMOLED screensaver. 0 disables. Unit: seconds.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "action",
+        type: "select",
+        default: "save_local",
+        label: 'Action<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Save locally writes JSON on the PC only. Apply to device uploads system.json + macros.json (paths only) — never ROM/disk media.<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "save_local",
+            label: 'Save locally (no device)<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "apply_device",
+            label: 'Apply to device (upload config)<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      },
+      {
+        id: "port",
+        type: "text",
+        default: d.port,
+        label: 'Serial port for Apply (optional)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'e.g. COM5. Empty → AskPort dialog. Used only when Action is Apply to device.<context="task parameter"/>'.i18xRegister(),
+        visibleWhen: { action: "apply_device" },
+      },
+    ],
+  };
 }
 
 /**
@@ -1806,56 +1968,67 @@ async function resolveDeviceSerialPort(_title) {
 
 export async function deviceConfig() {
   ReportProgress(0, "device-config");
-  const profile = GetParameter("profile") || "galaxian-demo";
-  const dryRun =
-    GetParameter("dryRun") === true ||
-    GetParameter("dry-run") === true ||
-    GetParameter("dryRun") === "true";
-  let port = "";
-  if (!dryRun) {
-    port = await resolveDeviceSerialPort("Device config upload port");
-    Log('Uploading device config via <port/><context="task log"/>…', { port });
+  // µGulp shows µParameters form before this body runs. No I/O until here.
+  let values = GetParameters();
+  if (!process.env.MICROGULP_PARAMS && !IsMicroGulp()) {
+    // Classic CLI: interactive RequestForm with the same descriptor.
+    values = (await RequestForm(_DeviceConfigParameters())) || {};
   }
-  const args = ["--profile", String(profile)];
-  if (dryRun) {
-    args.push("--dry-run");
-  } else {
-    args.push("--port", String(port));
+  const action = String(values.action || GetParameter("action", "save_local"));
+  const resolved = configFromFormValues(rootDir, {
+    ...values,
+    preset: values.preset ?? GetParameter("preset", "custom"),
+    loadPreset: values.loadPreset ?? GetParameter("loadPreset", false),
+    rom: values.rom ?? GetParameter("rom"),
+    drive1: values.drive1 ?? GetParameter("drive1", ""),
+    drive2: values.drive2 ?? GetParameter("drive2", ""),
+    bootFromDisk: values.bootFromDisk ?? GetParameter("bootFromDisk", false),
+    startupMacro: values.startupMacro ?? GetParameter("startupMacro", "none"),
+    orientation: values.orientation ?? GetParameter("orientation", "classic"),
+    color: values.color ?? GetParameter("color", "sharp"),
+    screensaverSeconds:
+      values.screensaverSeconds ?? GetParameter("screensaverSeconds", 0),
+  });
+  if (!resolved.ok) {
+    throw new Error(`device:config validation failed: ${resolved.errors.join("; ")}`);
   }
-  runNodeCli("dev/tools/esp2-device-config.mjs", args, "device:config");
+  const profileName = String(
+    values.profileName ?? GetParameter("profileName", "local"),
+  ).trim();
+  const preset = String(values.preset ?? "custom");
+  const saved = saveConfigLocal(rootDir, resolved.config, profileName, preset);
   Log(
-    'Device config profile=<profile/> uploaded=<uploaded/> (paths only; no ROM/disk bytes).<context="task log"/>',
-    { profile, uploaded: dryRun ? "no" : "yes" },
+    'Saved device config locally → <path/> (profile=<profile/>). ROM/disk media were NOT uploaded.<context="task log"/>',
+    { path: saved.localSystem, profile: profileName || "local" },
   );
+
+  if (action === "apply_device") {
+    const port = await resolveDeviceSerialPort("Apply device config — serial port");
+    Log(
+      'Applying config to device via <port/> (system.json + macros.json only).<context="task log"/>',
+      { port },
+    );
+    applyConfigToDevice(rootDir, port);
+    Log(
+      'Device config applied. Power-cycle ESP][ to load. Media images were not uploaded.<context="task log"/>',
+    );
+  } else {
+    Log(
+      'Action=Save locally — no COM port, no upload, no flash.<context="task log"/>',
+    );
+  }
   ReportProgress(1, "device-config");
 }
 _Tag(deviceConfig, {
   gulpName: "device:config",
   µDisplayName: () => _DeviceConfigDisplayName(),
   µDescription:
-    'Stage and upload /esp2/config/system.json + macros.json from a named profile. Asks for COM port like flash/upload (or set ESP2_PORT). Does not embed media bytes.<context="µDescription"/>',
+    'Interactive ESP][ configuration form (ROM, disks, boot, macro, presentation, screensaver). Save locally or explicitly Apply to device — opening the form uploads nothing.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog. Dry-run stages only.<context="µTooltip"/>',
+    'Form only until you choose Apply. Media bytes are never uploaded here.<context="µTooltip"/>',
   µGroup: 'Device Storage<context="µGroup"/>',
   µOrder: 60,
-  µParameters: [
-    {
-      name: "profile",
-      type: "string",
-      optional: true,
-      default: "galaxian-demo",
-      µDisplayName: 'Configuration profile<context="task parameter"/>',
-      µDescription:
-        'Folder under config/device/profiles/ (e.g. galaxian-demo).<context="task parameter"/>',
-    },
-    {
-      name: "dryRun",
-      type: "boolean",
-      optional: true,
-      default: false,
-      µDisplayName: 'Dry-run (stage only)<context="task parameter"/>',
-    },
-  ],
+  µParameters: _DeviceConfigParameters(),
 });
 
 export async function deviceMacroRun() {
