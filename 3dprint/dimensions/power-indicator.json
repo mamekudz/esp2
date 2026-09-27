@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "status": "PROVISIONAL",
+  "notes": [
+    "POWER is NOT a keyboard key and is NOT connected to the brown keyboard carrier.",
+    "Visual position referenced from keylayout_example.png (far bottom-left).",
+    "ESP][ implementation: recessed illuminated indicator from above."
+  ],
+  "provenance": {
+    "positionalReference": {
+      "localPath": "dev/drafts/keylayout_example.png",
+      "purpose": "historical POWER location relative to space bar",
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    "implementation": {
+      "status": "FIXED",
+      "see": "ENCLOSURE-SPEC.md §7"
+    }
+  },
+  "role": "recessed_illuminated_power_indicator",
+  "notAKey": true,
+  "notOnKeyboardCarrier": true,
+  "insertion": "from_above",
+  "colorRoles": {
+    "body": "POWER_WHITE_TRANSLUCENT",
+    "legend": "POWER_LEGEND_BLACK"
+  },
+  "geometry": {
+    "faceWidthMm": { "value": 5.5, "status": "PROVISIONAL", "notes": "≈1u at provisional unitMm" },
+    "faceDepthMm": { "value": 5.5, "status": "PROVISIONAL" },
+    "bodyHeightMm": { "value": 3.0, "status": "PROVISIONAL" },
+    "recessBelowBeigeMm": { "value": 0.4, "status": "PROVISIONAL" },
+    "shoulderWidthMm": { "value": 0.6, "status": "PROVISIONAL" },
+    "legendText": "POWER",
+    "legendStyle": "sans_label_black_on_translucent",
+    "status": "PROVISIONAL"
+  },
+  "optics": {
+    "status": "PROVISIONAL",
+    "ledPart": "LED-PWR",
+    "ledSelection": "PENDING_COMPONENT_SELECTION",
+    "lightCavity": {
+      "description": "Keep-out under indicator for white mini LED; no final optics in this milestone",
+      "status": "PROVISIONAL"
+    },
+    "isolation": "Prevent light bleed into keyboard bay"
+  },
+  "positionRelativeToKeyboard": {
+    "status": "DERIVED_FROM_REFERENCE_IMAGE",
+    "notes": "Left of space bar, front row band — exact mm TBD with enclosure freeze",
+    "approxOffsetFromSpaceLeftMm": { "value": -8.0, "status": "PROVISIONAL" },
+    "approxAlignWithSpaceRow": true
+  },
+  "printOrientation": {
+    "recommendation": "Legend face up; stem/shoulder down for recess registration",
+    "status": "PROVISIONAL"
+  }
+}

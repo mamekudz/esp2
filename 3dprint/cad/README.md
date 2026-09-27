@@ -2,12 +2,14 @@
 
 | Subfolder | Purpose |
 | --- | --- |
-| `source/` | Future parameterized B-Rep generators / editable native sources |
-| `step/` | Exported STEP for Plasticity / exchange |
+| `source/` | Parameterized editable sources (OpenSCAD → Plasticity refine) |
+| `source/esp2_mechanical_skeleton.scad` | Enclosure layout / collision study |
+| `source/esp2_keyboard_reference.scad` | Keyboard + POWER + legend coupon + badge carrier |
+| `step/` | Local exports (gitignored `*.stp`; regenerate via tools) |
 | `parasolid/` | Parasolid when tooling permits |
 | `reference-bodies/` | Pointers / copies of vendor bodies used as references |
 
-**Do not** start final enclosure CAD in this milestone.
+Keyboard/badge milestone produces **reference** geometry, not the final enclosure shell.
 
 Official Waveshare STEP (reference body):
 

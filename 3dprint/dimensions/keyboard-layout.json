@@ -1,0 +1,285 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "layoutUnits": "u",
+  "status": "PROVISIONAL",
+  "ABSOLUTE_SCALE": "PROVISIONAL",
+  "notes": [
+    "Relative layout DERIVED_FROM_REFERENCE_IMAGE: dev/drafts/keylayout_example.png",
+    "Absolute millimetres use provisional unitMm to fit the enclosure keyboard envelope — not pixel-scaled from the screenshot.",
+    "POWER is NOT a keyboard key — see dimensions/power-indicator.json.",
+    "Brown keys = one printed part with hidden carrier webs. White legends = separate printable geometry."
+  ],
+  "provenance": {
+    "visualReference": {
+      "localPath": "dev/drafts/keylayout_example.png",
+      "sourceSite": "scullinsteel.com / Apple ][js",
+      "purpose": "orthographic keyboard layout / legend / relative-position reference",
+      "assetClass": "LOCAL_WORKING_REFERENCE",
+      "GIT_TRACKED": "ACCORDING_TO_DEV_DRAFTS_POLICY",
+      "NAS_BACKED_UP": "YES",
+      "REDISTRIBUTABLE": "UNKNOWN",
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    "absoluteScaleBasis": {
+      "status": "PROVISIONAL",
+      "method": "Fit relative layout into enclosure keyboard envelope from esp2_mechanical_skeleton / enclosure.json",
+      "notUsed": "image pixel → mm"
+    }
+  },
+  "coordinateSystem": {
+    "see": "dimensions/coordinate-system.json",
+    "localOrigin": "front-left of brown keyboard insert envelope (space-bar row toward −localY / front)",
+    "localX": "left → right (same as enclosure +X)",
+    "localY": "front → rear (space at small Y, number row at larger Y)",
+    "localZ": "bottom → top (key tops +Z)",
+    "insertionDirection": "+Z from below into beige upper openings",
+    "status": "FIXED"
+  },
+  "parameters": {
+    "unitMm": {
+      "value": 5.5,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL",
+      "notes": "1u ≈ 5.5 mm so ~15.6u layout ≈ 86 mm key field within ~110 mm keyboard zone"
+    },
+    "keyGapU": {
+      "value": 0.08,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE",
+      "provenance": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    "keyHeightU": {
+      "value": 1.0,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE",
+      "provenance": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    "rowPitchU": {
+      "value": 1.12,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE",
+      "provenance": "DERIVED_FROM_REFERENCE_IMAGE",
+      "notes": "Includes key height + inter-row gap"
+    },
+    "keyTopHeightMm": {
+      "value": 1.2,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL"
+    },
+    "keyTopChamferMm": {
+      "value": 0.25,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL"
+    },
+    "carrierPlateThicknessMm": {
+      "value": 1.6,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL"
+    },
+    "carrierWebThicknessMm": {
+      "value": 0.8,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL",
+      "notes": "Hidden below key tops; not visible from normal viewing angle"
+    },
+    "carrierWebDepthBelowKeyTopMm": {
+      "value": 0.9,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL"
+    },
+    "legendInlayDepthMm": {
+      "value": 0.35,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL",
+      "notes": "Shallow recess for white legend insert + adhesive"
+    },
+    "legendInsertThicknessMm": {
+      "value": 0.4,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL"
+    },
+    "legendStrokeCandidateAMm": {
+      "value": 0.25,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL",
+      "notes": "0.2 mm nozzle — aggressive readable stroke"
+    },
+    "legendStrokeCandidateBMm": {
+      "value": 0.35,
+      "status": "PROVISIONAL",
+      "provenance": "PROVISIONAL",
+      "notes": "0.2 mm nozzle — safer stroke"
+    },
+    "intendedLegendNozzleMm": {
+      "value": 0.2,
+      "status": "FIXED",
+      "provenance": "DOCUMENTED"
+    }
+  },
+  "colorRoles": {
+    "KEYBOARD_BROWN": {
+      "appliesTo": ["key tops", "hidden carrier", "webs"],
+      "filamentBrand": null,
+      "status": "FIXED_ROLE"
+    },
+    "LEGEND_WHITE": {
+      "appliesTo": ["key legends", "legend test coupon"],
+      "filamentBrand": null,
+      "status": "FIXED_ROLE"
+    }
+  },
+  "architecture": {
+    "brownCarrier": {
+      "status": "FIXED",
+      "description": "One-piece FDM part: visible key tops + concealed connecting webs + common carrier plate",
+      "printColorRole": "KEYBOARD_BROWN",
+      "functionalSwitches": false
+    },
+    "hiddenWebs": {
+      "status": "FIXED",
+      "description": "Webs under key tops link all keys so the insert installs as one unit; webs stay below the viewing plane through key gaps"
+    },
+    "legends": {
+      "status": "FIXED",
+      "description": "Separate WHITE printable geometry; shallow inlay recesses on brown key tops; adhesive registration; row-strip carriers allowed where microscopic loose glyphs are impractical",
+      "method": "shallow_inlay_insert",
+      "multiMaterialPrinterRequired": false,
+      "fontStrategy": "Recognizable Apple-II-like sans, printable at miniature scale — exact historical font identity not required"
+    },
+    "enclosureInterface": {
+      "status": "PROVISIONAL",
+      "insertion": "from below",
+      "retentionCandidates": ["screws_from_below", "controlled_adhesive_assist"],
+      "see": "dimensions/keyboard-envelope.json"
+    }
+  },
+  "rows": [
+    {
+      "id": "row_number",
+      "index": 0,
+      "name": "number/symbol",
+      "staggerU": 0.0,
+      "yU": 4.48,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    {
+      "id": "row_qwerty",
+      "index": 1,
+      "name": "QWERTY",
+      "staggerU": 0.35,
+      "yU": 3.36,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    {
+      "id": "row_asdf",
+      "index": 2,
+      "name": "ASDF",
+      "staggerU": 0.55,
+      "yU": 2.24,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    {
+      "id": "row_zxcv",
+      "index": 3,
+      "name": "ZXCV",
+      "staggerU": 0.85,
+      "yU": 1.12,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    },
+    {
+      "id": "row_space",
+      "index": 4,
+      "name": "Space",
+      "staggerU": 2.2,
+      "yU": 0.0,
+      "status": "DERIVED_FROM_REFERENCE_IMAGE"
+    }
+  ],
+  "keys": [
+    {"id": "k_1", "row": "row_number", "order": 0, "xU": 0.0, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "1", "secondaryLegend": "!", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_2", "row": "row_number", "order": 1, "xU": 1.08, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "2", "secondaryLegend": "\"", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_3", "row": "row_number", "order": 2, "xU": 2.16, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "3", "secondaryLegend": "#", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_4", "row": "row_number", "order": 3, "xU": 3.24, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "4", "secondaryLegend": "$", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_5", "row": "row_number", "order": 4, "xU": 4.32, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "5", "secondaryLegend": "%", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_6", "row": "row_number", "order": 5, "xU": 5.4, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "6", "secondaryLegend": "&", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_7", "row": "row_number", "order": 6, "xU": 6.48, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "7", "secondaryLegend": "'", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_8", "row": "row_number", "order": 7, "xU": 7.56, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "8", "secondaryLegend": "(", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_9", "row": "row_number", "order": 8, "xU": 8.64, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "9", "secondaryLegend": ")", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_0", "row": "row_number", "order": 9, "xU": 9.72, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "single", "primaryLegend": "0", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_colon", "row": "row_number", "order": 10, "xU": 10.8, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": ":", "secondaryLegend": "*", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_minus", "row": "row_number", "order": 11, "xU": 11.88, "yU": 4.48, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "-", "secondaryLegend": "=", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_reset", "row": "row_number", "order": 12, "xU": 12.96, "yU": 4.48, "wU": 1.35, "hU": 1.0, "keyType": "special", "primaryLegend": "RESET", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+
+    {"id": "k_esc", "row": "row_qwerty", "order": 0, "xU": 0.35, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "special", "primaryLegend": "ESC", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_q", "row": "row_qwerty", "order": 1, "xU": 1.43, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "Q", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_w", "row": "row_qwerty", "order": 2, "xU": 2.51, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "W", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_e", "row": "row_qwerty", "order": 3, "xU": 3.59, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "E", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_r", "row": "row_qwerty", "order": 4, "xU": 4.67, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "R", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_t", "row": "row_qwerty", "order": 5, "xU": 5.75, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "T", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_y", "row": "row_qwerty", "order": 6, "xU": 6.83, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "Y", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_u", "row": "row_qwerty", "order": 7, "xU": 7.91, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "U", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_i", "row": "row_qwerty", "order": 8, "xU": 8.99, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "I", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_o", "row": "row_qwerty", "order": 9, "xU": 10.07, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "O", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_p", "row": "row_qwerty", "order": 10, "xU": 11.15, "yU": 3.36, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "P", "secondaryLegend": "@", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_rept", "row": "row_qwerty", "order": 11, "xU": 12.23, "yU": 3.36, "wU": 1.25, "hU": 1.0, "keyType": "special", "primaryLegend": "REPT", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_return", "row": "row_qwerty", "order": 12, "xU": 13.56, "yU": 3.36, "wU": 1.6, "hU": 1.0, "keyType": "special", "primaryLegend": "RETURN", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+
+    {"id": "k_ctrl", "row": "row_asdf", "order": 0, "xU": 0.55, "yU": 2.24, "wU": 1.25, "hU": 1.0, "keyType": "special", "primaryLegend": "CTRL", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_a", "row": "row_asdf", "order": 1, "xU": 1.88, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "A", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_s", "row": "row_asdf", "order": 2, "xU": 2.96, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "S", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_d", "row": "row_asdf", "order": 3, "xU": 4.04, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "D", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_f", "row": "row_asdf", "order": 4, "xU": 5.12, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "F", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_g", "row": "row_asdf", "order": 5, "xU": 6.2, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "G", "secondaryLegend": "BELL", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_h", "row": "row_asdf", "order": 6, "xU": 7.28, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "H", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_j", "row": "row_asdf", "order": 7, "xU": 8.36, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "J", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_k", "row": "row_asdf", "order": 8, "xU": 9.44, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "K", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_l", "row": "row_asdf", "order": 9, "xU": 10.52, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "L", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_semicolon", "row": "row_asdf", "order": 10, "xU": 11.6, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": ";", "secondaryLegend": "+", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_left", "row": "row_asdf", "order": 11, "xU": 12.68, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "special", "primaryLegend": "←", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "glyph_arrow", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_right", "row": "row_asdf", "order": 12, "xU": 13.76, "yU": 2.24, "wU": 1.0, "hU": 1.0, "keyType": "special", "primaryLegend": "→", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "glyph_arrow", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+
+    {"id": "k_shift_l", "row": "row_zxcv", "order": 0, "xU": 0.85, "yU": 1.12, "wU": 1.55, "hU": 1.0, "keyType": "special", "primaryLegend": "SHIFT", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_z", "row": "row_zxcv", "order": 1, "xU": 2.48, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "Z", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_x", "row": "row_zxcv", "order": 2, "xU": 3.56, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "X", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_c", "row": "row_zxcv", "order": 3, "xU": 4.64, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "C", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_v", "row": "row_zxcv", "order": 4, "xU": 5.72, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "V", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_b", "row": "row_zxcv", "order": 5, "xU": 6.8, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "B", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_n", "row": "row_zxcv", "order": 6, "xU": 7.88, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "N", "secondaryLegend": "^", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_m", "row": "row_zxcv", "order": 7, "xU": 8.96, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "alpha", "primaryLegend": "M", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_single", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_comma", "row": "row_zxcv", "order": 8, "xU": 10.04, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": ",", "secondaryLegend": "<", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_period", "row": "row_zxcv", "order": 9, "xU": 11.12, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": ".", "secondaryLegend": ">", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_slash", "row": "row_zxcv", "order": 10, "xU": 12.2, "yU": 1.12, "wU": 1.0, "hU": 1.0, "keyType": "dual", "primaryLegend": "/", "secondaryLegend": "?", "legendPlacement": "primary_center_secondary_above", "legendStyle": "sans_dual", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+    {"id": "k_shift_r", "row": "row_zxcv", "order": 11, "xU": 13.28, "yU": 1.12, "wU": 1.35, "hU": 1.0, "keyType": "special", "primaryLegend": "SHIFT", "secondaryLegend": null, "legendPlacement": "center", "legendStyle": "sans_label", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": "LEGEND_WHITE", "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png"},
+
+    {"id": "k_space", "row": "row_space", "order": 0, "xU": 2.2, "yU": 0.0, "wU": 9.5, "hU": 1.0, "keyType": "space", "primaryLegend": null, "secondaryLegend": null, "legendPlacement": "none", "legendStyle": "none", "bodyColorRole": "KEYBOARD_BROWN", "legendColorRole": null, "confidence": "DERIVED_FROM_REFERENCE_IMAGE", "source": "keylayout_example.png", "notes": "≈9.5u — IMAGE_DERIVED proportion; not modern 6.25u"}
+  ],
+  "specialKeysRepresented": ["ESC", "CTRL", "SHIFT", "RETURN", "RESET", "REPT", "←", "→", "SPACE"],
+  "excludedFromKeyboard": {
+    "POWER": {
+      "reason": "Recessed illuminated indicator — separate part",
+      "see": "dimensions/power-indicator.json"
+    }
+  },
+  "legendTestCoupon": {
+    "id": "legend_test_coupon_v1",
+    "status": "PROVISIONAL",
+    "purpose": "0.2 mm nozzle readability — do not print in this milestone; geometry prepared only",
+    "difficultGlyphs": ["W", "M", "@", "%", "&", "SHIFT", "RETURN", "←", "→", "!", "?", ";", ":"],
+    "strokeCandidatesMm": [0.25, 0.35],
+    "seeCad": "cad/source/esp2_keyboard_reference.scad module legend_test_coupon()"
+  },
+  "printOrientation": {
+    "brownKeyboardCarrier": {
+      "recommendation": "Key tops facing +Z (up); carrier plate on bed",
+      "supports": "Minimal if webs/chamfers designed for FDM; avoid painting legends on bed",
+      "status": "PROVISIONAL"
+    },
+    "whiteLegends": {
+      "recommendation": "Legend face up; thin inserts flat on bed",
+      "nozzleMm": 0.2,
+      "status": "PROVISIONAL"
+    },
+    "legendTestCoupon": {
+      "recommendation": "Flat on bed; 0.2 mm nozzle; 0.08–0.12 mm layer",
+      "status": "PROVISIONAL"
+    }
+  }
+}

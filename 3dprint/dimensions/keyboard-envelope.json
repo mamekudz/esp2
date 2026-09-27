@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "status": "PROVISIONAL",
+  "notes": [
+    "Outer envelope for the brown one-piece keyboard insert and beige opening interface.",
+    "Does not redesign the full enclosure — interface keep-outs only.",
+    "ABSOLUTE_SCALE follows keyboard-layout.json unitMm (PROVISIONAL)."
+  ],
+  "provenance": {
+    "layout": "dimensions/keyboard-layout.json",
+    "scaleStatus": "PROVISIONAL"
+  },
+  "coordinateSystem": {
+    "see": "dimensions/keyboard-layout.json",
+    "insertionDirection": "+Z from below"
+  },
+  "keyField": {
+    "widthU": 15.16,
+    "depthU": 5.48,
+    "widthMm": { "value": 83.38, "status": "PROVISIONAL", "formula": "widthU * unitMm" },
+    "depthMm": { "value": 30.14, "status": "PROVISIONAL", "formula": "depthU * unitMm" },
+    "status": "DERIVED_FROM_REFERENCE_IMAGE"
+  },
+  "insertEnvelope": {
+    "widthMm": { "value": 92.0, "status": "PROVISIONAL", "notes": "Key field + side margins for carrier/retention" },
+    "depthMm": { "value": 38.0, "status": "PROVISIONAL", "notes": "Key field + front/rear margins" },
+    "thicknessMm": { "value": 4.0, "status": "PROVISIONAL", "notes": "Carrier + key top stack" },
+    "status": "PROVISIONAL"
+  },
+  "beigeOpening": {
+    "status": "PROVISIONAL",
+    "clearanceMm": { "value": 0.25, "status": "UNKNOWN" },
+    "notes": "Opening slightly larger than visible key silhouette; carrier flanges seat below beige"
+  },
+  "retention": {
+    "status": "PROVISIONAL",
+    "preferred": "screws_from_below",
+    "optionalAssist": "controlled_adhesive",
+    "screwBosses": {
+      "count": 4,
+      "status": "PROVISIONAL",
+      "notes": "Corner flanges — do not freeze boss geometry until upper-shell walls exist"
+    },
+    "adhesiveZones": {
+      "status": "PROVISIONAL",
+      "notes": "Optional thin pads on lower carrier flanges"
+    }
+  },
+  "lowerRetentionSurface": {
+    "status": "PROVISIONAL",
+    "description": "Carrier plate underside seats against beige ledge; screws clamp from below"
+  },
+  "clearance": {
+    "keyToBezelMm": { "value": null, "status": "UNKNOWN", "see": "enclosure.json fitTolerances" },
+    "webNotVisibleThroughGaps": { "status": "FIXED", "intent": true }
+  }
+}

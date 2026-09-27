@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "units": "mm",
+  "status": "PROVISIONAL",
+  "notes": [
+    "ESP][ badge carrier — project identity only.",
+    "Apple ][js badge image is LOCAL_WORKING_REFERENCE for layering/proportions — do NOT copy wording, Apple logo, or artwork into CAD.",
+    "Manufacturing path: white printed carrier → laser/printed film graphic → clear resin/adhesive → smooth face."
+  ],
+  "provenance": {
+    "visualReference": {
+      "localPath": "dev/drafts/logo example.png",
+      "sourceSite": "scullinsteel.com / Apple ][js",
+      "purpose": "badge layering / relief / proportion language only",
+      "assetClass": "LOCAL_WORKING_REFERENCE",
+      "NAS_BACKED_UP": "YES",
+      "REDISTRIBUTABLE": "UNKNOWN",
+      "copyIntoEsp2Product": false
+    },
+    "esp2Identity": {
+      "status": "FIXED",
+      "rule": "Visible branding must remain ESP][-specific; no Apple trademark logo as product mark"
+    }
+  },
+  "manufacturingConcept": {
+    "status": "FIXED",
+    "stack": [
+      "WHITE printed badge carrier",
+      "laser_or_printed_film_graphic",
+      "transparent_resin_or_clear_adhesive_layer"
+    ],
+    "finish": "smooth glossy face",
+    "artworkInCad": "placeholder envelope only — no final artwork this milestone"
+  },
+  "geometry": {
+    "envelopeWidthMm": { "value": 22.0, "status": "PROVISIONAL" },
+    "envelopeHeightMm": { "value": 8.0, "status": "PROVISIONAL" },
+    "carrierThicknessMm": { "value": 1.2, "status": "PROVISIONAL" },
+    "graphicRecessDepthMm": { "value": 0.25, "status": "PROVISIONAL" },
+    "cornerRadiusMm": { "value": 1.5, "status": "PROVISIONAL", "notes": "Inspired by rounded badge language — not a copy of Apple ][js outline" },
+    "adhesiveSurface": "carrier backside / enclosure recess floor",
+    "locatingFeatures": {
+      "status": "PROVISIONAL",
+      "description": "Optional shallow pins or asymmetric outline later — not cut into full enclosure yet"
+    }
+  },
+  "enclosureMount": {
+    "status": "PROVISIONAL",
+    "type": "shallow_recess_adhesive",
+    "cutIntoFullEnclosure": false,
+    "notes": "Reference carrier only; recess in beige upper deferred"
+  },
+  "colorRoles": {
+    "carrier": "WHITE",
+    "graphicFilm": "PROJECT_ARTWORK_TBD",
+    "clearCoat": "TRANSPARENT_RESIN"
+  },
+  "printOrientation": {
+    "recommendation": "Graphic face up; flat on bed",
+    "status": "PROVISIONAL"
+  }
+}

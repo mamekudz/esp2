@@ -102,13 +102,29 @@ Retrieval date: **2026-09-26**. Images **not** mirrored into Git (rights / redun
 
 ---
 
-## 7. Redistribution policy
+## 7. Keyboard / badge working references (LOCAL)
+
+Retrieval / presence: files already under `dev/drafts/` (do **not** re-download duplicates).
+
+| Local filename | Source | Purpose | Asset class | NAS | Redistribution / license |
+| --- | --- | --- | --- | --- | --- |
+| `dev/drafts/keylayout_example.png` | scullinsteel.com / Apple ][js (visual reference) | Orthographic Apple II keyboard layout, legends, relative positions | `LOCAL_WORKING_REFERENCE` | **YES** | **UNKNOWN** — do not publish/copy elsewhere merely because useful |
+| `dev/drafts/logo example.png` | scullinsteel.com / Apple ][js (visual reference) | Badge layering / relief / proportion language only | `LOCAL_WORKING_REFERENCE` | **YES** | **UNKNOWN** — **do not** copy Apple ][js wording or Apple logo into ESP][ CAD |
+
+Git tracking: follow current `dev/drafts` repository policy (do not change solely for this milestone).
+
+ESP][ machine-readable derivatives (project-authored): `dimensions/keyboard-layout.json`, `keyboard-envelope.json`, `power-indicator.json`, `badge-carrier.json`. CAD: `cad/source/esp2_keyboard_reference.scad`.
+
+---
+
+## 8. Redistribution policy
 
 | Asset class | In public Git? |
 | --- | --- |
 | Project-authored specs / JSON / OpenSCAD skeleton | Yes |
 | Waveshare STEP / DWG / PDF / size JPG | Local under `reference/waveshare/` — **gitignored**; URL in this file |
 | Third-party paddle/joystick photos | URL metadata only unless license clearly permits |
-| Copyrighted Apple logo artwork | Never as redistributable CAD art |
+| Copyrighted Apple logo / Apple ][js badge artwork | Never as redistributable CAD art; reference images stay local |
+| Project-authored keyboard/badge reference SCAD + JSON | Yes |
 
 If redistribution is unclear: keep URL + metadata only.

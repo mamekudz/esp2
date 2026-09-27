@@ -75,21 +75,30 @@ Fit/tolerance parameters remain **explicit** (`enclosure.json` → currently UNK
 
 | Item | Spec |
 | --- | --- |
-| Color | BROWN structural part |
-| Structure | **All normal visible keycaps = one printed part** linked by hidden bridges/webs below the surface |
+| Color | BROWN structural part (`KEYBOARD_BROWN`) |
+| Structure | **One-piece insert**: visible key tops + **hidden carrier webs** + common carrier plate |
 | Insertion | From **below** through beige key openings |
-| Fixation | Screws and/or defined adhesive surfaces from below |
-| Legends | WHITE printable geometry (0.2 mm nozzle); track min stroke / depth / alignment |
+| Fixation | Prefer **screws from below**; controlled adhesive assist optional (boss geometry not frozen) |
+| Legends | Separate **WHITE** printable geometry (`LEGEND_WHITE`); shallow inlay + adhesive; **0.2 mm nozzle** |
+| Functional switches | **None** — visual/mechanical reproduction only |
+| Absolute scale | **PROVISIONAL** — relative layout from orthographic reference; not pixel→mm |
+| Machine-readable | `dimensions/keyboard-layout.json`, `dimensions/keyboard-envelope.json` |
+| CAD reference | `cad/source/esp2_keyboard_reference.scad` |
 
 Do **not** model normal keys as dozens of individually assembled pieces.
 
+Do **not** permanently merge the keyboard into the beige upper-shell CAD.
+
+**Legends:** vector/CAD geometry (not a screenshot texture). Prefer shallow recesses on brown key tops with white inserts; row-strip carriers allowed where microscopic loose glyphs are impractical. Legend test coupon prepared for stroke candidates 0.25 / 0.35 mm (`legend_test_coupon` in keyboard-layout.json).
+
 ## 7. POWER indicator — FIXED intent
 
-- **Not** a key or switch; no movement.
-- Separate **WHITE / TRANSLUCENT** insert with **BLACK** “POWER” lettering.
+- **Not** a key or switch; no movement; **not** part of the brown keyboard carrier.
+- Separate **WHITE / TRANSLUCENT** body (`POWER_WHITE_TRANSLUCENT`) with **BLACK** “POWER” lettering (`POWER_LEGEND_BLACK`).
 - Inserted from **above**, intentionally **recessed** below beige surface.
-- Illuminated from below by white mini LED (`LED-PWR`).
-- CAD must later provide: locating shoulder, insertion depth, hidden retention, light cavity, isolation.
+- Illuminated from below by white mini LED (`LED-PWR`) — final optics deferred (`PENDING_COMPONENT_SELECTION`).
+- Machine-readable: `dimensions/power-indicator.json`.
+- CAD reference: `power_indicator()` in `cad/source/esp2_keyboard_reference.scad`.
 - Real ON/OFF is the **rear** power switch (`PWR-01`).
 
 ## 8. Drives — FIXED intent
@@ -150,12 +159,13 @@ Contains:
 
 Do **not** trap/compress the LiPo with screw bosses.
 
-## 14. Apple badge / logo inserts — FIXED intent
+## 14. ESP][ badge / logo inserts — FIXED intent
 
-- Separate **WHITE** printed carriers.
+- Separate **WHITE** printed carriers (`dimensions/badge-carrier.json`).
 - Finish path: white print → laser-print film / logo print → transparent resin coating → glossy surface.
-- Shallow locating recesses.
-- **Do not** ship copyrighted logo artwork in generated CAD until redistribution is resolved — placeholder geometry only.
+- Shallow locating recesses (not cut into full enclosure in this milestone).
+- Visual layering may be **inspired** by Apple ][js badge reference (`dev/drafts/logo example.png`) — **do not** copy Apple ][js wording, Apple logo, or trademark artwork into ESP][ product CAD.
+- ESP][ product identity remains project-specific (placeholder envelope only until artwork is finalized).
 
 ## 15. Print color groups
 

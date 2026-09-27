@@ -79,6 +79,50 @@ def main() -> int:
     if not skel.is_file():
         errors.append("missing mechanical skeleton SCAD")
 
+    kbd = load(ROOT / "dimensions" / "keyboard-layout.json")
+    kenv = load(ROOT / "dimensions" / "keyboard-envelope.json")
+    power = load(ROOT / "dimensions" / "power-indicator.json")
+    badge = load(ROOT / "dimensions" / "badge-carrier.json")
+
+    if kbd.get("ABSOLUTE_SCALE") != "PROVISIONAL":
+        errors.append("keyboard ABSOLUTE_SCALE must remain PROVISIONAL until measured")
+    keys = kbd.get("keys") or []
+    ids = [k.get("id") for k in keys]
+    if len(ids) != len(set(ids)):
+        errors.append("keyboard key IDs must be unique")
+    if not ids:
+        errors.append("keyboard-layout.json has no keys")
+    for k in keys:
+        for dim in ("xU", "yU", "wU", "hU"):
+            if k.get(dim, -1) < 0:
+                errors.append(f"key {k.get('id')} has negative {dim}")
+        if k.get("wU", 0) <= 0 or k.get("hU", 0) <= 0:
+            errors.append(f"key {k.get('id')} has non-positive size")
+        if not k.get("confidence"):
+            errors.append(f"key {k.get('id')} missing confidence/provenance")
+    if any(i and i.lower().startswith("k_power") for i in ids):
+        errors.append("POWER must not appear as a keyboard key id")
+    if "POWER" not in (kbd.get("excludedFromKeyboard") or {}):
+        errors.append("POWER must be listed under excludedFromKeyboard")
+    if not power.get("notAKey") or not power.get("notOnKeyboardCarrier"):
+        errors.append("power-indicator must be notAKey and notOnKeyboardCarrier")
+    if power.get("insertion") != "from_above":
+        errors.append("POWER insertion must be from_above")
+    special = set(kbd.get("specialKeysRepresented") or [])
+    for need in ("ESC", "CTRL", "SHIFT", "RETURN", "RESET", "REPT", "SPACE"):
+        if need not in special:
+            errors.append(f"special key {need} missing from specialKeysRepresented")
+    space = next((k for k in keys if k.get("id") == "k_space"), None)
+    if not space or space.get("wU", 0) < 8:
+        errors.append("space bar relative width missing or implausibly small")
+    if kenv.get("retention", {}).get("preferred") != "screws_from_below":
+        errors.append("keyboard envelope retention preferred should be screws_from_below")
+    if badge.get("provenance", {}).get("visualReference", {}).get("copyIntoEsp2Product") is not False:
+        errors.append("badge carrier must not copy Apple ][js artwork into product")
+    kbd_scad = ROOT / "cad" / "source" / "esp2_keyboard_reference.scad"
+    if not kbd_scad.is_file():
+        errors.append("missing esp2_keyboard_reference.scad")
+
     step_report = ROOT / "dimensions" / "step-inspection.json"
     if list((ROOT / "reference" / "waveshare").rglob("*.stp")):
         if not step_report.is_file():

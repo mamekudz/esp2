@@ -50,6 +50,24 @@
       "fineNozzleMm": 0.2,
       "status": "FIXED",
       "useFor": ["keyboard legends", "small inserts", "visual details"]
+    },
+    "keyboard": {
+      "see": ["dimensions/keyboard-layout.json", "dimensions/keyboard-envelope.json"],
+      "structure": "one-piece BROWN insert with hidden webs",
+      "legends": "separate WHITE printable geometry",
+      "insertion": "from below",
+      "absoluteScale": "PROVISIONAL",
+      "status": "FIXED_INTENT"
+    },
+    "powerIndicator": {
+      "see": "dimensions/power-indicator.json",
+      "notAKey": true,
+      "insertion": "from above",
+      "status": "FIXED_INTENT"
+    },
+    "badgeCarrier": {
+      "see": "dimensions/badge-carrier.json",
+      "status": "PROVISIONAL"
     }
   },
   "originalAppleIIReference": {

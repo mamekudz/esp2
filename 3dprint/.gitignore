@@ -19,6 +19,7 @@ cad/reference-bodies/*.step
 printable/**/*.stl
 printable/**/*.3mf
 cad/step/*.stp
+cad/step/*.stl
 cad/parasolid/*
 !cad/parasolid/.gitkeep
 !cad/step/.gitkeep
