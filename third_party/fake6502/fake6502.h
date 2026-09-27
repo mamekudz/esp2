@@ -226,7 +226,7 @@ uint32 instructions = 0;
 uint32 clockticks6502 = 0;
 uint32 clockgoal6502 = 0;
 ushort oldpc, ea, reladdr, value, result;
-uint8 opcode, oldstatus;
+uint8 opcode, oldstatus, eabasehi; /* high byte of EA before index (SHY/SHX/AHX) */
 void reset6502();
 void nmi6502();
 void irq6502();
@@ -241,7 +241,7 @@ static uint32 instructions = 0;
 static uint32 clockticks6502 = 0;
 static uint32 clockgoal6502 = 0; 
 static ushort oldpc, ea, reladdr, value, result;
-static uint8 opcode, oldstatus;
+static uint8 opcode, oldstatus, eabasehi;
 #endif
 /*externally supplied functions*/
 extern uint8 read6502(ushort address);
@@ -339,6 +339,7 @@ static void abso() { /*absolute*/
 static void absx() { /*absolute,X*/
     ushort startpage;
     ea = ((ushort)read6502(pc) | ((ushort)read6502(pc+1) << 8));
+    eabasehi = (uint8)((ea >> 8) & 0xFFu);
     startpage = ea & 0xFF00;
     ea += (ushort)x;
 
@@ -352,6 +353,7 @@ static void absx() { /*absolute,X*/
 static void absy() { /*absolute,Y*/
     ushort startpage;
     ea = ((ushort)read6502(pc) | ((ushort)read6502(pc+1) << 8));
+    eabasehi = (uint8)((ea >> 8) & 0xFFu);
     startpage = ea & 0xFF00;
     ea += (ushort)y;
 
@@ -381,6 +383,7 @@ static void indy() { /* (indirect),Y*/
     eahelp = (ushort)read6502(pc++);
     eahelp2 = (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); /*zero-page wraparound*/
     ea = (ushort)read6502(eahelp) | ((ushort)read6502(eahelp2) << 8);
+    eabasehi = (uint8)((ea >> 8) & 0xFFu);
     startpage = ea & 0xFF00;
     ea += (ushort)y;
 
@@ -948,16 +951,23 @@ static void tya() {
         }
     }
 
-    /* NMOS $9C SHY abs,X: store Y & (HIBYTE(ea)+1) — unstable but widely used. */
+    /* NMOS $9C SHY abs,X: store Y & (HIBYTE(base)+1) — unstable but widely used.
+     * Use eabasehi (base before index), not ea after adding X. */
     static void shy() {
-        const uint8 hb = (uint8)(((ea >> 8) + 1) & 0xFFu);
+        const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
         putvalue((ushort)(y & hb));
     }
 
-    /* NMOS $9E SHX abs,Y: store X & (HIBYTE(ea)+1). */
+    /* NMOS $9E SHX abs,Y: store X & (HIBYTE(base)+1). */
     static void shx() {
-        const uint8 hb = (uint8)(((ea >> 8) + 1) & 0xFFu);
+        const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
         putvalue((ushort)(x & hb));
+    }
+
+    /* NMOS $9F/$93 AHX/SHA: store A & X & (HIBYTE(base)+1). */
+    static void ahx() {
+        const uint8 hb = (uint8)((eabasehi + 1) & 0xFFu);
+        putvalue((ushort)(a & x & hb));
     }
 #else
     #define lax nop
@@ -971,6 +981,7 @@ static void tya() {
     #define sbx nop
     #define shy nop
     #define shx nop
+    #define ahx nop
 #endif
 
 
@@ -1005,7 +1016,7 @@ static void (*optable[256])() = {
 /* 6 */      rts,  adc,  nop,  rra,  nop,  adc,  ror,  rra,  pla,  adc,  ror,  nop,  jmp,  adc,  ror,  rra, /* 6 */
 /* 7 */      bvs,  adc,  nop,  rra,  nop,  adc,  ror,  rra,  sei,  adc,  nop,  rra,  nop,  adc,  ror,  rra, /* 7 */
 /* 8 */      nop,  sta,  nop,  sax,  sty,  sta,  stx,  sax,  dey,  nop,  txa,  nop,  sty,  sta,  stx,  sax, /* 8 */
-/* 9 */      bcc,  sta,  nop,  nop,  sty,  sta,  stx,  sax,  tya,  sta,  txs,  nop,  shy,  sta,  shx,  nop, /* 9 */
+/* 9 */      bcc,  sta,  nop,  ahx,  sty,  sta,  stx,  sax,  tya,  sta,  txs,  nop,  shy,  sta,  shx,  ahx, /* 9 */
 /* A */      ldy,  lda,  ldx,  lax,  ldy,  lda,  ldx,  lax,  tay,  lda,  tax,  nop,  ldy,  lda,  ldx,  lax, /* A */
 /* B */      bcs,  lda,  nop,  lax,  ldy,  lda,  ldx,  lax,  clv,  lda,  tsx,  lax,  ldy,  lda,  ldx,  lax, /* B */
 /* C */      cpy,  cmp,  nop,  dcp,  cpy,  cmp,  dec,  dcp,  iny,  cmp,  dex,  sbx,  cpy,  cmp,  dec,  dcp, /* C */

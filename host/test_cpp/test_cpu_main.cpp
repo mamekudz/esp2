@@ -9,7 +9,7 @@ using namespace esp_bracket;
 
 static int g_failures = 0;
 
-static void expect(bool ok, const char* name) {
+static void expect(bool ok, const char *name) {
     if (!ok) {
         std::fprintf(stderr, "FAIL  %s\n", name);
         ++g_failures;
@@ -18,7 +18,7 @@ static void expect(bool ok, const char* name) {
     }
 }
 
-static void expectEq(uint32_t got, uint32_t want, const char* name) {
+static void expectEq(uint32_t got, uint32_t want, const char *name) {
     if (got != want) {
         std::fprintf(stderr, "FAIL  %s (got %u want %u)\n", name, got, want);
         ++g_failures;
@@ -27,7 +27,7 @@ static void expectEq(uint32_t got, uint32_t want, const char* name) {
     }
 }
 
-static void runProgram(CpuHarness& mem, Cpu6502& cpu, uint16_t start, uint32_t maxSteps) {
+static void runProgram(CpuHarness &mem, Cpu6502 &cpu, uint16_t start, uint32_t maxSteps) {
     mem.setResetVector(start);
     cpu.setCallbacks(&mem, CpuHarness::harnessRead, CpuHarness::harnessWrite);
     cpu.reset();
@@ -50,13 +50,13 @@ static void testLdaSta() {
     CpuHarness mem;
     Cpu6502 cpu;
     const uint8_t prog[] = {
-        0xA9, 0x42, // LDA #$42
+        0xA9, 0x42,       // LDA #$42
         0x8D, 0x00, 0x02, // STA $0200
-        0xA2, 0x99, // LDX #$99
+        0xA2, 0x99,       // LDX #$99
         0x8E, 0x01, 0x02, // STX $0201
-        0xA0, 0x11, // LDY #$11
+        0xA0, 0x11,       // LDY #$11
         0x8C, 0x02, 0x02, // STY $0202
-        0x00, // BRK
+        0x00,             // BRK
     };
     mem.load(0x8000, prog, sizeof(prog));
     mem.setIrqVector(0x9000);
@@ -71,11 +71,12 @@ static void testAdcSbcCmp() {
     CpuHarness mem;
     Cpu6502 cpu;
     const uint8_t prog[] = {
-        0x18, // CLC
-        0xA9, 0x10, // LDA #$10
-        0x69, 0x05, // ADC #$05
+        0x18,             // CLC
+        0xA9, 0x10,       // LDA #$10
+        0x69, 0x05,       // ADC #$05
         0x8D, 0x10, 0x02, // STA $0210
-        0xE9, 0x03, // SBC #$03 (carry still set from ADC? after ADC of 0x15, C clear if no carry out)
+        0xE9, 0x03, // SBC #$03 (carry still set from ADC? after ADC of 0x15, C clear if no carry
+                    // out)
         // After ADC #$05: A=0x15, C=0. SBC without SEC subtracts with borrow.
         // Better sequence:
     };
@@ -85,8 +86,8 @@ static void testAdcSbcCmp() {
     // CMP #12 => Z=1
     const uint8_t prog2[] = {
         0x18, 0xA9, 0x10, 0x69, 0x05, 0x8D, 0x10, 0x02, // store 0x15
-        0x38, 0xE9, 0x03, 0x8D, 0x11, 0x02, // store 0x12
-        0xC9, 0x12, // CMP #$12
+        0x38, 0xE9, 0x03, 0x8D, 0x11, 0x02,             // store 0x12
+        0xC9, 0x12,                                     // CMP #$12
         0x00,
     };
     mem.load(0x8000, prog2, sizeof(prog2));
@@ -104,10 +105,10 @@ static void testBranchesJmpJsr() {
     Cpu6502 cpu;
     // LDA #0; BEQ +2; LDA #1; (skipped) LDA #2; STA $0200; JMP cont; ...
     const uint8_t prog[] = {
-        0xA9, 0x00, // LDA #0
-        0xF0, 0x02, // BEQ +2
-        0xA9, 0xFF, // skipped
-        0xA9, 0x55, // LDA #55
+        0xA9, 0x00,       // LDA #0
+        0xF0, 0x02,       // BEQ +2
+        0xA9, 0xFF,       // skipped
+        0xA9, 0x55,       // LDA #55
         0x20, 0x10, 0x80, // JSR $8010
         0x4C, 0x20, 0x80, // JMP $8020
         // $8010:
@@ -149,8 +150,7 @@ static void testStackPushPop() {
         0x48,       // PHA
         0xA9, 0x00, // LDA #0
         0x68,       // PLA
-        0x8D, 0x00, 0x02,
-        0x00,
+        0x8D, 0x00, 0x02, 0x00,
     };
     mem.load(0x8000, p, sizeof(p));
     mem.setIrqVector(0x9000);
@@ -166,13 +166,11 @@ static void testZeroPageIndexedIndirect() {
     mem.write8(0x11, 0x03); // ($10) -> $0300
     mem.write8(0x0300, 0x5A);
     const uint8_t p[] = {
-        0xA2, 0x00, // LDX #0
-        0xA1, 0x10, // LDA ($10,X)
-        0x8D, 0x20, 0x02,
-        0xA0, 0x00, // LDY #0
-        0xB1, 0x10, // LDA ($10),Y
-        0x8D, 0x21, 0x02,
-        0x00,
+        0xA2, 0x00,                   // LDX #0
+        0xA1, 0x10,                   // LDA ($10,X)
+        0x8D, 0x20, 0x02, 0xA0, 0x00, // LDY #0
+        0xB1, 0x10,                   // LDA ($10),Y
+        0x8D, 0x21, 0x02, 0x00,
     };
     mem.load(0x8000, p, sizeof(p));
     mem.setIrqVector(0x9000);
@@ -186,7 +184,8 @@ static void testFlags() {
     CpuHarness mem;
     Cpu6502 cpu;
     const uint8_t p[] = {
-        0xA9, 0x00, // LDA #0 -> Z
+        0xA9,
+        0x00, // LDA #0 -> Z
         0x00,
     };
     mem.load(0x8000, p, sizeof(p));
@@ -279,6 +278,34 @@ static void testSbxCb() {
     expect((cpu.registers().status & 0x01) != 0, "SBX carry set");
 }
 
+/** NMOS $9F AHX abs,Y and $9C SHY abs,X store masking. */
+static void testAhxShy() {
+    CpuHarness mem;
+    Cpu6502 cpu;
+    // SHY $8080,X with Y=0,X=0 → store 0 at $8080
+    // AHX $9000,Y with A=$FF,X=$0F,Y=0 → ea=$9000, store FF&0F&($90+1)=FF&0F&91=$01
+    mem.write8(0x8080, 0xAA);
+    mem.write8(0x9000, 0x00);
+    const uint8_t p[] = {
+        0xA0, 0x00,       // LDY #0
+        0xA2, 0x00,       // LDX #0
+        0x9C, 0x80, 0x80, // SHY $8080,X
+        0xA9, 0xFF,       // LDA #$FF
+        0xA2, 0x0F,       // LDX #$0F
+        0x9F, 0x00, 0x90, // AHX $9000,Y
+        0x00,
+    };
+    mem.load(0x8000, p, sizeof(p));
+    mem.setResetVector(0x8000);
+    cpu.setCallbacks(&mem, CpuHarness::harnessRead, CpuHarness::harnessWrite);
+    cpu.reset();
+    for (int i = 0; i < 6; ++i) {
+        cpu.step();
+    }
+    expectEq(mem.read8(0x8080), 0x00, "SHY Y=0 stores 0");
+    expectEq(mem.read8(0x9000), 0x01, "AHX A&X&(H+1)");
+}
+
 int main() {
     testReset();
     testLdaSta();
@@ -290,6 +317,7 @@ int main() {
     testNmiIrq();
     testPageCrossCycles();
     testSbxCb();
+    testAhxShy();
     if (g_failures) {
         std::fprintf(stderr, "\n%d CPU test(s) failed\n", g_failures);
         return 1;
