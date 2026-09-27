@@ -1453,3 +1453,33 @@ Compatibility claims require recorded evidence (see
   `local/roms/`, `_refs/`, gitignored `3dprint` vendor dumps.
 - Disposable caches (`node_modules`, `.pio`, …) stay out of NAS backup.
 - Details: `docs/tooling/backup.md`.
+
+
+## RELEASES.json (permanent)
+
+Root `RELEASES.json` is the canonical consolidated **en-US** ESP][ project
+history. Contributor notes live in `dev/releases/<developer>.json` (e.g.
+`dev/releases/MAM.json`).
+
+**Source language:** always en-US for `RELEASES.json` and `dev/releases/*.json`.
+Do **not** author parallel translated RELEASES source files. Translations belong
+to the existing i18x system (`i18x/gulp/releases/`).
+
+**Context:** every user-visible / translatable release string carries exactly one
+`<context="release info"/>`. Machine/identity values (versions, dates, hashes,
+URLs, paths, UUIDs, model IDs, numbers) are **not** tagged. Context
+normalization is idempotent.
+
+**Merge:** consolidate contributor entries newer than **30 days** that are not
+already present (fingerprint identity = version + stripped text). Deterministic
+and idempotent.
+
+**Development vs translation:** normal merge/docs/context-fix must **not**
+auto-invoke AI translation. Explicit `releases:i18x-update` extracts sources and
+preserves valid de-DE; pre-publication must then ensure completeness.
+
+**µGulp:** `releases:update`, `releases:history`, `releases:context-check`,
+`releases:context-fix`, `releases:i18x-update` live under the **Docs** group.
+Do not flatten or replace the existing µGulp catalog when extending RELEASES.
+
+Details: `docs/releases/README.md`.

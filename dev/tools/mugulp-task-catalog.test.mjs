@@ -79,6 +79,24 @@ function stripContext(phrase) {
   return String(phrase || "").replace(/<context="[^"]+"\/>$/, "");
 }
 
+/**
+ * Dynamic µDisplayName may be a function (e.g. release-history status).
+ * Resolve to the registered i18x phrase string for catalog checks.
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function resolveMetaPhrase(value) {
+  let v = value;
+  if (typeof v === "function") {
+    try {
+      v = v();
+    } catch {
+      return null;
+    }
+  }
+  return typeof v === "string" && v.length > 0 ? v : null;
+}
+
 test("canonical manifest exists and lists unique task IDs", () => {
   const manifest = loadCanonicalManifest();
   assert.ok(Array.isArray(manifest.tasks) && manifest.tasks.length > 0);
@@ -136,9 +154,13 @@ test("canonical tasks expose µDisplayName / µGroup matching manifest group", a
   for (const entry of manifest.tasks) {
     const fn = tasks.get(entry.id);
     assert.ok(fn, `missing task ${entry.id}`);
-    const dn = fn["\u00b5DisplayName"];
+    const rawDn = fn["\u00b5DisplayName"];
+    const dn = resolveMetaPhrase(rawDn);
     const group = fn["\u00b5Group"];
-    if (!dn || typeof dn !== "string") bad.push(`${entry.id}: missing µDisplayName`);
+    if (rawDn == null) bad.push(`${entry.id}: missing µDisplayName`);
+    else if (typeof rawDn !== "string" && typeof rawDn !== "function") {
+      bad.push(`${entry.id}: µDisplayName must be string or function`);
+    } else if (!dn) bad.push(`${entry.id}: µDisplayName did not resolve to string`);
     else if (dn === entry.id) bad.push(`${entry.id}: µDisplayName equals technical id`);
     else if (MOJIBAKE_MARKERS.some((m) => dn.includes(m)))
       bad.push(`${entry.id}: mojibake in µDisplayName`);
@@ -163,9 +185,13 @@ test("en-US and de-DE cover canonical display names + groups", async () => {
   const missingDe = [];
   for (const entry of manifest.tasks) {
     const fn = tasks.get(entry.id);
-    const dn = fn["\u00b5DisplayName"];
+    const dn = resolveMetaPhrase(fn["\u00b5DisplayName"]);
     const group = fn["\u00b5Group"];
     for (const phrase of [dn, group]) {
+      if (!phrase) {
+        missingEn.push(`${entry.id}: (unresolved µDisplayName)`);
+        continue;
+      }
       if (!(phrase in en)) missingEn.push(`${entry.id}: ${phrase}`);
       if (!(phrase in de)) missingDe.push(`${entry.id}: ${phrase}`);
       else {

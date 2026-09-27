@@ -7,6 +7,7 @@
 //   Media / apple2js / Apple II/* / Device Storage
 //
 // Classic CLI also: git:status | backup:nas | backup:list | backup:verify
+// Release history: releases:update | releases:history | releases:context-*
 // No help clutter. Default = docs (safe).
 //================================================================
 
@@ -27,6 +28,9 @@ import {
   RevealTask,
   SetTaskEmphasis,
   SetGroupState,
+  NotifyTasksChanged,
+  GetLid,
+  LogAccordion,
 } from "gulp-mu-gulp-api";
 import {
   ComposeReadme,
@@ -60,10 +64,33 @@ import {
   bindApple2ReadinessAttention,
   computeApple2MediaReadiness,
 } from "./dev/tools/apple2-local/mugulp-readiness.mjs";
+import { GetProjectVersionLabel } from "./dev/tools/project-version.mjs";
+import { ReleasesPaths } from "./dev/tools/releases/paths.mjs";
+import {
+  CountPendingContributorMerges,
+  MergeDeveloperReleases,
+} from "./dev/tools/releases/release-merge.mjs";
+import {
+  BuildReleaseHistoryAccordion,
+  FormatReleaseHistoryText,
+} from "./dev/tools/releases/release-history.mjs";
+import {
+  CheckReleaseContexts,
+  FixReleaseContexts,
+} from "./dev/tools/releases/release-context-audit.mjs";
+import {
+  CheckReleaseI18xCompleteness,
+  UpdateReleaseI18xSources,
+} from "./dev/tools/releases/release-i18x.mjs";
 
 InstallStringExtensions();
 
-export const µI18xContext = { project: "esp2", product: "ESP][" };
+const rootDirEarly = dirname(fileURLToPath(import.meta.url));
+export const µI18xContext = {
+  project: "esp2",
+  product: "ESP][",
+  version: GetProjectVersionLabel(rootDirEarly),
+};
 
 /** Dashboard start layout for µGroup sections (nested Apple II groups). */
 export const µGroups = {
@@ -92,7 +119,11 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
  */
 function _Tag(_task, _meta) {
   if (_meta.gulpName) _task.displayName = _meta.gulpName;
-  if (_meta.µDisplayName) _task.µDisplayName = _meta.µDisplayName.i18xRegister();
+  if (typeof _meta.µDisplayName === "function") {
+    _task.µDisplayName = _meta.µDisplayName;
+  } else if (_meta.µDisplayName) {
+    _task.µDisplayName = _meta.µDisplayName.i18xRegister();
+  }
   if (_meta.µDescription) _task.µDescription = _meta.µDescription.i18xRegister();
   if (_meta.µTooltip) _task.µTooltip = _meta.µTooltip.i18xRegister();
   if (_meta.µGroup) _task.µGroup = _meta.µGroup.i18xRegister();
@@ -105,7 +136,37 @@ function _Tag(_task, _meta) {
     _task.µExecutionRestrictions = _meta.µExecutionRestrictions;
   }
   if (_meta.µParameters) _task.µParameters = _meta.µParameters;
+  if (_meta.µAttention != null) _task.µAttention = _meta.µAttention;
+  if (_meta.µAttentionTooltip) {
+    _task.µAttentionTooltip = _meta.µAttentionTooltip.i18xRegister();
+  }
+  if (_meta.µAttentionWatch) _task.µAttentionWatch = _meta.µAttentionWatch;
   return _task;
+}
+
+function _ReleaseMergeOptions() {
+  const paths = ReleasesPaths(rootDir);
+  return {
+    developerDir: paths.developerDir,
+    releasesPath: paths.releasesPath,
+    maxAgeDays: 30,
+  };
+}
+
+function _PendingReleaseMerges() {
+  return CountPendingContributorMerges(_ReleaseMergeOptions());
+}
+
+/** Keep i18x keys stable — never bake numbers into the registered phrase. */
+function _ReleasesUpdateDisplayName() {
+  if (_PendingReleaseMerges() <= 0) {
+    return 'Release history up to date V<version/><context="µDisplayName"/>'.i18xRegister();
+  }
+  return 'Update release history — pending V<version/><context="µDisplayName"/>'.i18xRegister();
+}
+
+function _ReleasesHistoryDisplayName() {
+  return 'Release history V<version/><context="µDisplayName"/>'.i18xRegister();
 }
 
 //================================================================
@@ -557,6 +618,189 @@ _Tag(docsDeDE, {
   µExecutionConcurrency: false,
 });
 
+//================================================================
+// RELEASES — Docs group (en-US history; no auto-translate on merge)
+//================================================================
+
+export async function RELEASES_UPDATE() {
+  ReportProgress(0, "releases-update");
+  Log(
+    'Merging contributor notes (dev/releases/*.json) into RELEASES.json…<context="task log"/>'
+  );
+  const summary = MergeDeveloperReleases({
+    ..._ReleaseMergeOptions(),
+    write: true,
+  });
+  Log(
+    'scanned=<scanned format="int"/> new=<merged format="int"/> duplicates=<duplicates format="int"/> expired=<expired format="int"/> invalid=<invalid format="int"/><context="task log"/>',
+    {
+      scanned: summary.scanned,
+      merged: summary.merged,
+      duplicates: summary.duplicates,
+      expired: summary.expired,
+      invalid: summary.invalid,
+    }
+  );
+  µI18xContext.version = GetProjectVersionLabel(rootDir);
+  SetTaskEmphasis("RELEASES_UPDATE", null);
+  NotifyTasksChanged();
+  ReportProgress(1, "releases-update");
+  PlaySignal("success");
+  return summary;
+}
+_Tag(RELEASES_UPDATE, {
+  gulpName: "releases:update",
+  µDisplayName: () => _ReleasesUpdateDisplayName(),
+  µDescription:
+    'Merges fresh contributor notes from dev/releases/*.json into RELEASES.json (30-day window, fingerprint duplicates, release-info context tags). Does not auto-translate.<context="µDescription"/>',
+  µTooltip:
+    'ACTION_AVAILABLE when unmerged contributor notes exist — not a build failure. Safe to re-run (idempotent).<context="µTooltip"/>',
+  µGroup: 'Docs<context="µGroup"/>',
+  µIcon: "\uE915",
+  µOrder: 20,
+  µExecutionConcurrency: false,
+  µAttention: () => _PendingReleaseMerges() > 0,
+  µAttentionTooltip:
+    'Unmerged contributor release notes available.<context="µAttentionTooltip"/>',
+  µAttentionWatch: {
+    files: ["RELEASES.json", "dev/releases"],
+    intervalMs: 10_000,
+  },
+});
+
+export async function RELEASES_HISTORY() {
+  ReportProgress(0, "releases-history");
+  const paths = ReleasesPaths(rootDir);
+  let lid = "en-US";
+  try {
+    const active = typeof GetLid === "function" ? GetLid() : null;
+    if (active === "de-DE" || active === "en-US") lid = active;
+  } catch {
+    /* CLI */
+  }
+  const accordion = BuildReleaseHistoryAccordion({
+    releasesPath: paths.releasesPath,
+    root: rootDir,
+    lid,
+    maxReleases: 12,
+  });
+  Log(
+    'Release history: <count format="int"/> version block(s), <entries format="int"/> info line(s).<context="task log"/>',
+    { count: accordion.items.length, entries: accordion.entryCount }
+  );
+  if (typeof LogAccordion === "function") {
+    LogAccordion(accordion);
+  } else {
+    process.stdout.write(FormatReleaseHistoryText(accordion));
+  }
+  ReportProgress(1, "releases-history");
+  PlaySignal("success");
+  return accordion;
+}
+_Tag(RELEASES_HISTORY, {
+  gulpName: "releases:history",
+  µDisplayName: () => _ReleasesHistoryDisplayName(),
+  µDescription:
+    'Shows localized ESP][ release history from RELEASES.json (date, version, info lines). Does not dump raw JSON.<context="µDescription"/>',
+  µTooltip:
+    'Read-only history view. Translations: i18x/gulp/releases/{en-US,de-DE}.json.<context="µTooltip"/>',
+  µGroup: 'Docs<context="µGroup"/>',
+  µIcon: "\uE914",
+  µOrder: 21,
+  µExecutionConcurrency: true,
+});
+
+export async function RELEASES_CONTEXT_CHECK() {
+  ReportProgress(0, "releases-context-check");
+  const result = CheckReleaseContexts({ root: rootDir });
+  Log(
+    'Context CHECK scanned=<scanned format="int"/> issues=<issues format="int"/><context="task log"/>',
+    { scanned: result.scanned, issues: result.issues.length }
+  );
+  for (const issue of result.issues.slice(0, 40)) {
+    Warn(
+      'context <kind/> at <path/><context="task warning"/>',
+      { kind: issue.kind, path: issue.path }
+    );
+  }
+  ReportProgress(1, "releases-context-check");
+  if (!result.ok) {
+    PlaySignal("error");
+    throw new Error(`RELEASES context CHECK failed (${result.issues.length} issue(s))`);
+  }
+  PlaySignal("success");
+  return result;
+}
+_Tag(RELEASES_CONTEXT_CHECK, {
+  gulpName: "releases:context-check",
+  µDisplayName: 'Release context CHECK V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Read-only: verifies release-info context tags on translatable strings; flags machine-data tags.<context="µDescription"/>',
+  µGroup: 'Docs<context="µGroup"/>',
+  µIcon: "\u2713",
+  µOrder: 22,
+  µExecutionConcurrency: true,
+});
+
+export async function RELEASES_CONTEXT_FIX() {
+  ReportProgress(0, "releases-context-fix");
+  const result = FixReleaseContexts({ root: rootDir, write: true });
+  Log(
+    'Context FIX changed=<changed/> issuesSeen=<n format="int"/><context="task log"/>',
+    { changed: result.changed ? "yes" : "no", n: result.issuesFixed }
+  );
+  const recheck = CheckReleaseContexts({ root: rootDir });
+  ReportProgress(1, "releases-context-fix");
+  if (!recheck.ok) {
+    PlaySignal("error");
+    throw new Error(`RELEASES context FIX left ${recheck.issues.length} issue(s)`);
+  }
+  PlaySignal("success");
+  return result;
+}
+_Tag(RELEASES_CONTEXT_FIX, {
+  gulpName: "releases:context-fix",
+  µDisplayName: 'Release context FIX V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Normalizes RELEASES.json release-info context tags (idempotent). Does not auto-translate.<context="µDescription"/>',
+  µGroup: 'Docs<context="µGroup"/>',
+  µIcon: "\u270E",
+  µOrder: 23,
+  µExecutionConcurrency: false,
+});
+
+export async function RELEASES_I18X_UPDATE() {
+  ReportProgress(0, "releases-i18x");
+  const extracted = UpdateReleaseI18xSources({ root: rootDir, write: true });
+  Log(
+    'Release i18x: bodies=<bodies format="int"/> missingDe=<missing format="int"/> staleDropped=<stale format="int"/><context="task log"/>',
+    {
+      bodies: extracted.bodies,
+      missing: extracted.missingDe.length,
+      stale: extracted.staleDe.length,
+    }
+  );
+  for (const body of extracted.missingDe.slice(0, 20)) {
+    Warn('missing de-DE release translation: <text/><context="task warning"/>', {
+      text: body.slice(0, 80),
+    });
+  }
+  const complete = CheckReleaseI18xCompleteness(rootDir);
+  ReportProgress(1, "releases-i18x");
+  PlaySignal(complete.complete ? "success" : "warning");
+  return { extracted, complete };
+}
+_Tag(RELEASES_I18X_UPDATE, {
+  gulpName: "releases:i18x-update",
+  µDisplayName: 'Release i18x update V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Extracts en-US release strings and preserves existing de-DE translations. Reports missing German strings — does not invent AI translations.<context="µDescription"/>',
+  µGroup: 'Docs<context="µGroup"/>',
+  µIcon: "\uE90A",
+  µOrder: 24,
+  µExecutionConcurrency: false,
+});
+
 export async function BACKUP_GIT() {
   ReportProgress(0, "backup-git");
   const result = await RunGitBackup(rootDir, {
@@ -662,6 +906,11 @@ gulp.task("backup:git", BACKUP_GIT);
 gulp.task("backup:all", BACKUP_ALL);
 gulp.task("docs:en-US", docsEnUS);
 gulp.task("docs:de-DE", docsDeDE);
+gulp.task("releases:update", RELEASES_UPDATE);
+gulp.task("releases:history", RELEASES_HISTORY);
+gulp.task("releases:context-check", RELEASES_CONTEXT_CHECK);
+gulp.task("releases:context-fix", RELEASES_CONTEXT_FIX);
+gulp.task("releases:i18x-update", RELEASES_I18X_UPDATE);
 // backup:nas is a first-party alias task (see catalog recovery block)
 
 

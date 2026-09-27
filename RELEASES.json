@@ -1,0 +1,80 @@
+{
+	"releases": [
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
+			"date": "2026-09-27 17:00",
+			"beta": true,
+			"info": [
+				"Galaxian runs on physical ESP][ hardware (PHYSICALLY_VERIFIED): Apple II+ ROM, Disk II Autostart, NMOS 6502, HGR playfield on the CO5300 AMOLED — not a native port or screenshot overlay.<context=\"release info\"/>",
+				"Physical presentation modes: Classic (default) and optional Landscape; HGR Sharp and Artifact Color via shared ArtifactRenderer (emulation ≈1.023 MHz).<context=\"release info\"/>",
+				"Windows CDC keyboard bridge physically verified for Galaxian cracktro→A→second disk load; 8BitDo gameplay NOT_TESTED; physical audio NOT_TESTED.<context=\"release info\"/>",
+				"Landscape presentation preserves full 280×192 with edge-preserving nearest-neighbor scale after CW 90° (SCORE/HISCORE edges retained).<context=\"release info\"/>",
+				"Disk II accuracy: physical Address Field sector mapping and half-track stepper distance corrected (generic fixes; not Galaxian-specific hacks).<context=\"release info\"/>",
+				"Keyboard print reference: parametric Brown one-piece carrier + white 0.2 mm-nozzle legend architecture and separate POWER indicator (DOCUMENTED / PROVISIONAL absolute scale).<context=\"release info\"/>",
+				"Introduced RELEASES.json with µGulp release-history workflow (en-US source, 30-day contributor merge, release-info context tags).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 9,
+			"date": "2026-09-27 12:00",
+			"beta": true,
+			"info": [
+				"Windows CDC input bridge and serial media tooling for physical software bring-up (PHYSICALLY_VERIFIED path for keyboard latch injection).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 8,
+			"date": "2026-09-26 18:00",
+			"beta": true,
+			"info": [
+				"microSD remount on SPI3 and hardened Disk II boot path for Waveshare AMOLED board (PHYSICALLY_VERIFIED mount/boot diagnostics).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 7,
+			"date": "2026-09-26 12:00",
+			"beta": true,
+			"info": [
+				"User-supplied Apple II+ ROM runs interactively on ESP32-S3 with Level-4 Disk II spot checks (PHYSICALLY_VERIFIED ROM startup / HOST_VERIFIED emulator suite).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 6,
+			"date": "2026-09-26 10:00",
+			"beta": true,
+			"info": [
+				"Mechanical reference assembly and enclosure specification foundation for Plasticity-ready CAD (DOCUMENTED; enclosure design not complete).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 5,
+			"date": "2026-09-25 20:00",
+			"beta": true,
+			"info": [
+				"NAS backup policy: valuable gitignored local/reference assets backed independently of Git eligibility (DOCUMENTED).<context=\"release info\"/>"
+			]
+		},
+		{
+			"main": 0,
+			"minor": 0,
+			"revision": 1,
+			"date": "2026-09-20 12:00",
+			"beta": true,
+			"info": [
+				"ESP][ project foundation: PlatformIO bring-up, µGulp task catalog, CLAUDE.md engineering standards.<context=\"release info\"/>"
+			]
+		}
+	]
+}

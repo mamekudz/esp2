@@ -38,6 +38,11 @@
     { "id": "docs", "group": "Docs", "i18x": true },
     { "id": "docs:en-US", "group": "Docs", "i18x": true },
     { "id": "docs:de-DE", "group": "Docs", "i18x": true },
+    { "id": "releases:update", "group": "Docs", "i18x": true },
+    { "id": "releases:history", "group": "Docs", "i18x": true },
+    { "id": "releases:context-check", "group": "Docs", "i18x": true },
+    { "id": "releases:context-fix", "group": "Docs", "i18x": true },
+    { "id": "releases:i18x-update", "group": "Docs", "i18x": true },
 
     { "id": "git:status", "group": "Git", "i18x": true },
     { "id": "backup:git", "group": "Git", "i18x": true },

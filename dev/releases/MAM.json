@@ -1,0 +1,15 @@
+{
+	"author": "MAM",
+	"contributions": [
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
+			"date": "2026-09-27 17:00",
+			"beta": true,
+			"info": [
+				"Introduced RELEASES.json with µGulp release-history workflow (en-US source, 30-day contributor merge, release-info context tags)."
+			]
+		}
+	]
+}
