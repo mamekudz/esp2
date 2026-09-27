@@ -105,11 +105,12 @@ buildTest("test_level4", join(root, "host/test_cpp/test_level4.cpp"));
 buildTest("test_perf", join(root, "host/test_cpp/test_perf.cpp"));
 buildTest("test_video_dirty", join(root, "host/test_cpp/test_video_dirty.cpp"));
 
-// Build interactive console + esp2_host (do not run — waits for stdin)
+// Build interactive console + esp2_host + boot_forensic (do not run — waits / needs media)
 {
   const mains = [
     ["host_console", join(root, "host/test_cpp/host_console.cpp")],
     ["esp2_host", join(root, "host/test_cpp/esp2_host.cpp")],
+    ["boot_forensic", join(root, "host/test_cpp/boot_forensic.cpp")],
   ];
   for (const [name, mainCpp] of mains) {
     if (!existsSync(mainCpp)) continue;

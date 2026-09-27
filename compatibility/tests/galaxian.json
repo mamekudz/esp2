@@ -29,14 +29,14 @@
     "Input/audio success not required for this smoke milestone"
   ],
   "knownIssues": [
-    "AppleIIGo lacks II+ Autostart slot-scan; host uses generic --boot-disk → $C600",
-    "After clean-room Slot-6 + DOS boot0 loads 16 T0 sectors and JMP $B100, execution stays in $B1xx (encrypted/HGR-looking page) with no HGR/title; DIAGNOSTIC force $B700 stack-smashes in JSR $B706 obfuscation without RTS",
-    "Failure class D (boot payload loads; post-boot0 execution fails). Not yet proven to require proprietary Apple motherboard ROM (E). Disk JSON→DSK conversion is lossless (F ruled out for sector bytes).",
+    "AppleIIGo lacks II+ Autostart slot-scan; host uses generic --boot-disk -> $C600",
+    "FIRST BAD EVENT (natural Zero RAM): after 16-sector load + JMP $B100, stub loops $B100-$B17E; LDY $80B8@$B13D reads 0; SHY@$B169 with Y=0 clears $8080; BEQ@$B17E always taken. See docs/apple2/boot-forensics.md",
+    "Failure class D (boot payload loads; post-boot0 execution fails). ORIGINAL_APPLE_ROM_NOT_YET_IMPLICATED in natural window. Disk JSON->DSK lossless (F ruled out).",
     "Attract-mode detection is heuristic from host diagnostics/text dump"
   ],
   "hostStatus": "BOOT",
   "esp32Status": "NOT_TESTED",
   "inputStatus": "NOT_TESTED",
   "audioStatus": "NOT_TESTED",
-  "notes": "Furthest host evidence: BOOT (Slot-6 + boot0 + 16 sector loads + patches at $B10B/$B10C/$B8CB + JMP $B100). No TITLE_SCREEN/ATTRACT_MODE. Physical bring-up deferred until host visible-state gate passes. No title-specific emulator hacks applied."
+  "notes": "Furthest host evidence: BOOT (Slot-6 + boot0 + 16 sector loads + patches + JMP $B100). No TITLE_SCREEN/ATTRACT_MODE. Forensic tooling: host/.out/boot_forensic.exe. Generic fixes this pass: clean-room $41/$3D=0 handoff; NMOS AHX $93/$9F; SHY/SHX/AHX use eabasehi. Physical deferred."
 }

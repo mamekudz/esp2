@@ -1,0 +1,24 @@
+﻿# Metadata-only Galaxian boot handoff fixture (no copyrighted code bytes).
+# ROM sha256=6cb7e317e0036e4e006bc1c32fa79858d6d5c030a31a52d76a301c71020a10dd
+# DISK sha256=b1e85b78b689a64c5787893c4954d309a8d20e4d1d4a551dc4d9cb5dc132c2d1
+# Path: AppleIIGo + cleanroom Slot-6 + --boot-disk + RamInit Zero
+pc=0842
+A=52
+X=60
+Y=00
+SP=FD
+P=25
+cycle=15773
+B10B=38
+B10C=2E
+B8CB=52
+zp26=00
+zp27=B0
+zp2B=60
+zp3D=00
+zp41=00
+target=B100
+first_bad_event=B13D_LDY_80B8_zero_then_B169_SHY_clear_8080_BEQ_loop
+sectors_loaded=16
+rom_calls_before_divergence=0
+ORIGINAL_APPLE_ROM_NOT_YET_IMPLICATED=1
