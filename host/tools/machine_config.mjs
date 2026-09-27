@@ -91,6 +91,72 @@ export function identifyAsset(filePath) {
   };
 }
 
+/** Public-domain AppleIIGo replacement — not an Apple II+ Applesoft image. */
+export const APPLEIIGO_SHA256 =
+  "6cb7e317e0036e4e006bc1c32fa79858d6d5c030a31a52d76a301c71020a10dd";
+
+/**
+ * Locate a user-supplied 12 KiB motherboard ROM suitable for Apple II+ titles
+ * that require Applesoft ROM *data* (not AppleIIGo). Searches only ignored
+ * local ROM directories + explicit cfg.rom. Never downloads.
+ *
+ * @param {object} cfg machine config
+ * @returns {{ present: boolean, path?: string, sha256?: string, size?: number, type?: string, reason?: string }}
+ */
+export function resolveUserAppleIIPlusRom(cfg = {}) {
+  const candidates = [];
+  if (cfg.rom) candidates.push(cfg.rom);
+  if (cfg.motherboardRom) candidates.push(cfg.motherboardRom);
+  const dirs = [
+    path.join(root, "local/roms"),
+    path.join(root, "local/apple2/user"),
+  ];
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+    for (const name of fs.readdirSync(dir)) {
+      if (!/\.(rom|bin)$/i.test(name)) continue;
+      if (/appleiigo/i.test(name)) continue;
+      candidates.push(path.join(dir, name));
+    }
+  }
+  // Also honor config/roms.local.json motherboardRom if present
+  const romsLocal = path.join(root, "config/roms.local.json");
+  if (fs.existsSync(romsLocal)) {
+    try {
+      const j = JSON.parse(fs.readFileSync(romsLocal, "utf8"));
+      if (j.motherboardRom) candidates.push(path.resolve(root, j.motherboardRom));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const seen = new Set();
+  for (const c of candidates) {
+    const abs = path.isAbsolute(c) ? c : path.join(root, c);
+    if (seen.has(abs)) continue;
+    seen.add(abs);
+    const id = identifyAsset(abs);
+    if (!id.present || id.size !== 12288) continue;
+    if (String(id.sha256).toLowerCase() === APPLEIIGO_SHA256) continue;
+    if (/appleiigo/i.test(path.basename(abs))) continue;
+    return {
+      present: true,
+      path: abs,
+      sha256: id.sha256,
+      size: id.size,
+      type: id.type,
+      profileHint: "AppleIIPlus_user_supplied",
+    };
+  }
+  return {
+    present: false,
+    reason: "NO_USER_APPLE_II_PLUS_ROM",
+    expectedSize: 12288,
+    searchPaths: ["local/roms/", "local/apple2/user/", "config/roms.local.json"],
+    devicePath: "/esp2/roms/system.rom",
+  };
+}
+
 export function resolveUserMediaPath(catalogFile) {
   if (!catalogFile) return null;
   const candidates = [

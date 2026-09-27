@@ -10,13 +10,16 @@
   "statuses": [
     "NOT_TESTED",
     "BOOTS",
+    "BOOT",
     "TITLE_SCREEN",
     "INTERACTIVE",
     "PLAYABLE",
     "COMPLETED_TEST_PATH",
     "PARTIAL",
     "FAILS",
-    "BLOCKED_MISSING_ASSET"
+    "BLOCKED_MISSING_ASSET",
+    "BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM",
+    "BLOCKED_REQUIRES_USER_APPLE_II_PLUS_ROM"
   ],
   "titles": [
     {
@@ -29,6 +32,19 @@
       "audio": "n/a",
       "disk": "DSK Level-4 clean-room",
       "notes": "Project-owned CI fixture"
+    },
+    {
+      "id": "galaxian",
+      "title": "Galaxian",
+      "hostStatus": "BOOT",
+      "esp32Status": "NOT_TESTED",
+      "input": "NOT_TESTED",
+      "video": "NOT_TESTED",
+      "audio": "NOT_TESTED",
+      "disk": "USER_SUPPLIED_ONLY",
+      "romDependency": "USER_APPLE_II_PLUS_ROM",
+      "romDependencyReason": "ROM_DATA",
+      "notes": "BOOT under AppleIIGo; Stage B needs Apple II+ Applesoft ROM data at $D5xx. Not PLAYABLE."
     },
     {
       "id": "choplifter",

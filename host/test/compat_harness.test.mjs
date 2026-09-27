@@ -59,7 +59,29 @@ export function testCompatTitlesMatrix() {
   const j = JSON.parse(fs.readFileSync(p, "utf8"));
   assert.equal(j.schemaVersion, 1);
   assert.ok(j.titles.find((t) => t.id === "choplifter"));
+  assert.ok(j.titles.find((t) => t.id === "galaxian"));
   assert.ok(j.statuses.includes("BLOCKED_MISSING_ASSET"));
+  assert.ok(j.statuses.includes("BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM"));
+}
+
+export function testCompatGalaxianUserRomGate() {
+  const t = loadCompatTest("galaxian");
+  assert.equal(t.romDependency, "USER_APPLE_II_PLUS_ROM");
+  assert.equal(t.romDependencyReason, "ROM_DATA");
+  assert.equal(t.hostStatus, "BOOT");
+  const cfg = applyCliOverrides(loadMachineConfig(), {
+    rom: path.join(root, "local/apple2/roms/appleiigo.rom"),
+    disk1: path.join(root, "local/apple2/disks/Galaxian.dsk"),
+  });
+  // Even if AppleIIGo + disk exist, title is blocked without user II+ ROM.
+  const report = evaluateAssetGate(t, cfg);
+  if (report.assets?.disk1?.present) {
+    assert.equal(report.status, "BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM");
+    assert.equal(report.hostStatus, "BOOT");
+    assert.equal(report.evidence.romDependency.reason, "ROM_DATA");
+  } else {
+    assert.equal(report.status, "SKIPPED_NO_MEDIA");
+  }
 }
 
 export function testMachineConfigExample() {

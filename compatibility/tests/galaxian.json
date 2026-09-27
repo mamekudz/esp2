@@ -5,9 +5,13 @@
   "title": "Galaxian",
   "redistribution": "USER_SUPPLIED_ONLY",
   "localTestOnly": true,
-  "machineProfile": "AppleII",
-  "romProfile": "appleiigo",
+  "machineProfile": "AppleIIPlus",
+  "romProfile": "user_ii_plus",
+  "romDependency": "USER_APPLE_II_PLUS_ROM",
+  "romDependencyReason": "ROM_DATA",
+  "appleiigoClassification": "APPLEIIGO_MISSING_REQUIRED_DATA",
   "slot6Mode": "cleanroom",
+  "bootDisk": true,
   "media": {
     "disk1": {
       "catalogFile": "Galaxian.dsk",
@@ -25,18 +29,21 @@
     { "type": "videoModeAny", "modes": ["TEXT", "HGR", "MIXED", "LORES"], "phase": "title_or_start" }
   ],
   "manualSteps": [
+    "Supply a legal 12288-byte Apple II+ system ROM under local/roms/ (or config/roms.local.json)",
     "Confirm title/attract presentation without title-specific emulator hacks",
     "Input/audio success not required for this smoke milestone"
   ],
   "knownIssues": [
-    "AppleIIGo lacks II+ Autostart slot-scan; host uses generic --boot-disk -> $C600",
-    "FIRST BAD EVENT (natural Zero RAM): after 16-sector load + JMP $B100, stub loops $B100-$B17E; LDY $80B8@$B13D reads 0; SHY@$B169 with Y=0 clears $8080; BEQ@$B17E always taken. See docs/apple2/boot-forensics.md",
-    "Failure class D (boot payload loads; post-boot0 execution fails). ORIGINAL_APPLE_ROM_NOT_YET_IMPLICATED in natural window. Disk JSON->DSK lossless (F ruled out).",
+    "AppleIIGo lacks Applesoft image in $D000-$F7FF; Galaxian loader intentionally reads ROM *data* at $D549,Y (ISB) after escaping Zero-RAM Stage A",
+    "STAGE A (RamInit Zero): $B13D/$B169 BEQ loop — cold DRAM residue sensitivity",
+    "STAGE B (Random): operand FB 49 D5 intact from DSK T0; ISB $D549,Y Y=$9E EA=$D5E7; AppleIIGo returns $00; BNE never exits; fall-through is Disk II $C08C/#$AA sync",
+    "CLASSIFICATION=APPLEIIGO_MISSING_REQUIRED_DATA; GATE=BLOCKED_REQUIRES_USER_APPLE_II_PLUS_ROM",
+    "SST: $9C/$9E/$9F/$CB each 10000/10000 PASS — not the current blocker",
     "Attract-mode detection is heuristic from host diagnostics/text dump"
   ],
   "hostStatus": "BOOT",
   "esp32Status": "NOT_TESTED",
   "inputStatus": "NOT_TESTED",
   "audioStatus": "NOT_TESTED",
-  "notes": "Furthest host evidence: BOOT (Slot-6 + boot0 + 16 sector loads + patches + JMP $B100). No TITLE_SCREEN/ATTRACT_MODE. Forensic tooling: host/.out/boot_forensic.exe. Generic fixes this pass: clean-room $41/$3D=0 handoff; NMOS AHX $93/$9F; SHY/SHX/AHX use eabasehi. Physical deferred."
+  "notes": "Furthest host evidence under AppleIIGo: BOOT only. Proven intentional motherboard ROM DATA dependency (no ROM code fetch before hang). User Apple II+ ROM required for further progress. Physical deferred."
 }

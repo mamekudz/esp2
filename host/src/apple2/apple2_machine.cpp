@@ -88,6 +88,15 @@ void HostAppleIIMachine::powerOn(RamInitMode ramInit) {
         // Software that reads uncleared main RAM (e.g. some boot obfuscators)
         // can depend on non-zero bytes. Keep deterministic: all $FF.
         std::memset(bus_.ram(), 0xFF, Apple2Bus::kRamBytes);
+    } else if (ramInit == RamInitMode::Random) {
+        // Deterministic LCG — reproducible "garbage" for titles that read
+        // uncleared RAM. Not cryptographic.
+        uint32_t s = 0xA5A5F00Du;
+        uint8_t *ram = bus_.ram();
+        for (size_t i = 0; i < Apple2Bus::kRamBytes; ++i) {
+            s = s * 1664525u + 1013904223u;
+            ram[i] = static_cast<uint8_t>((s >> 24) & 0xFFu);
+        }
     }
     reset();
 }

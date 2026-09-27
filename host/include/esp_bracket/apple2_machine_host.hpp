@@ -16,6 +16,7 @@ namespace esp_bracket {
 enum class RamInitMode : uint8_t {
     Zero = 0, // deterministic tests
     Ones,     // 0xFF
+    Random,   // deterministic LCG fill (cold-DRAM-like; not secure)
     Unchanged // leave as-is (powerOn with Unchanged skips fill)
 };
 

@@ -3,7 +3,7 @@
  *
  * Usage:
  *   boot_forensic --rom PATH --disk PATH [--boot-disk] [--post-handoff N]
- *                 [--out-dir local/apple2/forensics]
+ *                 [--ram-init zero|ones|random] [--out-dir local/apple2/forensics]
  *
  * Captures a bounded ring trace from natural Slot-6 boot handoff into loaded
  * RAM. Does not modify emulator semantics. Local dumps stay under gitignored
@@ -136,6 +136,7 @@ int main(int argc, char **argv) {
     bool bootDisk = true;
     int postHandoff = 512;
     uint32_t maxBootCycles = 500000;
+    RamInitMode ramInit = RamInitMode::Zero;
 
     for (int i = 1; i < argc; ++i) {
         if (!std::strcmp(argv[i], "--rom") && i + 1 < argc) {
@@ -152,6 +153,18 @@ int main(int argc, char **argv) {
             postHandoff = static_cast<int>(std::strtol(argv[++i], nullptr, 10));
         } else if (!std::strcmp(argv[i], "--max-boot-cycles") && i + 1 < argc) {
             maxBootCycles = static_cast<uint32_t>(std::strtoul(argv[++i], nullptr, 10));
+        } else if (!std::strcmp(argv[i], "--ram-init") && i + 1 < argc) {
+            ++i;
+            if (!std::strcmp(argv[i], "zero")) {
+                ramInit = RamInitMode::Zero;
+            } else if (!std::strcmp(argv[i], "ones")) {
+                ramInit = RamInitMode::Ones;
+            } else if (!std::strcmp(argv[i], "random")) {
+                ramInit = RamInitMode::Random;
+            } else {
+                std::fprintf(stderr, "FAIL --ram-init zero|ones|random\n");
+                return 1;
+            }
         }
     }
 
@@ -186,7 +199,8 @@ int main(int argc, char **argv) {
         std::fprintf(stderr, "FAIL mount\n");
         return 4;
     }
-    m.powerOn(RamInitMode::Zero);
+    m.powerOn(ramInit);
+    std::printf("RAM_INIT mode=%u (0=Zero 1=Ones 2=Random)\n", static_cast<unsigned>(ramInit));
     if (bootDisk) {
         CpuRegisters r = m.cpu().registers();
         std::printf("RESET pc=%04X\n", r.pc);
@@ -202,6 +216,8 @@ int main(int argc, char **argv) {
     OpcodeStat opc[256]{};
     uint32_t romCalls = 0;
     uint16_t firstRomCall = 0, firstRomCaller = 0;
+    uint32_t romDataOps = 0;
+    uint16_t firstRomDataPc = 0, firstRomDataEa = 0;
     uint32_t smcWrites = 0;
     uint16_t firstSmcAddr = 0;
     bool handoffSeen = false;
@@ -322,6 +338,31 @@ int main(int argc, char **argv) {
                 // caller approx previous ring
             }
             ++romCalls;
+        }
+
+        // Absolute / abs,X / abs,Y operand in $D000+ (data fingerprint of motherboard ROM)
+        if (tr.op == 0x0D || tr.op == 0x0E || tr.op == 0x0F || tr.op == 0x1D || tr.op == 0x1E ||
+            tr.op == 0x1F || tr.op == 0x2D || tr.op == 0x2E || tr.op == 0x2F || tr.op == 0x3D ||
+            tr.op == 0x3E || tr.op == 0x3F || tr.op == 0x4D || tr.op == 0x4E || tr.op == 0x4F ||
+            tr.op == 0x5D || tr.op == 0x5E || tr.op == 0x5F || tr.op == 0x6D || tr.op == 0x6E ||
+            tr.op == 0x6F || tr.op == 0x7D || tr.op == 0x7E || tr.op == 0x7F || tr.op == 0x8D ||
+            tr.op == 0x8E || tr.op == 0x8F || tr.op == 0x9D || tr.op == 0x9E || tr.op == 0x9F ||
+            tr.op == 0xAD || tr.op == 0xAE || tr.op == 0xAF || tr.op == 0xBD || tr.op == 0xBE ||
+            tr.op == 0xBF || tr.op == 0xCD || tr.op == 0xCE || tr.op == 0xCF || tr.op == 0xDD ||
+            tr.op == 0xDE || tr.op == 0xDF || tr.op == 0xED || tr.op == 0xEE || tr.op == 0xEF ||
+            tr.op == 0xFD || tr.op == 0xFE || tr.op == 0xFF || tr.op == 0x19 || tr.op == 0x39 ||
+            tr.op == 0x59 || tr.op == 0x79 || tr.op == 0x99 || tr.op == 0xB9 || tr.op == 0xD9 ||
+            tr.op == 0xF9 || tr.op == 0x1B || tr.op == 0x3B || tr.op == 0x5B || tr.op == 0x7B ||
+            tr.op == 0xDB || tr.op == 0xFB) {
+            const uint16_t base =
+                static_cast<uint16_t>(tr.b1 | (static_cast<uint16_t>(tr.b2) << 8));
+            if (base >= 0xD000) {
+                if (!firstRomDataPc) {
+                    firstRomDataPc = tr.pc;
+                    firstRomDataEa = base;
+                }
+                ++romDataOps;
+            }
         }
 
         if (tr.kind == 1) { // JSR
@@ -495,11 +536,17 @@ int main(int argc, char **argv) {
                 m.bus().speaker().edgeCountTotal());
     std::printf("romCalls_in_window=%u firstRom=%04X caller=%04X\n", romCalls, firstRomCall,
                 firstRomCaller);
+    std::printf("romDataOps_abs_base_D000+=%u firstPc=%04X firstBase=%04X\n", romDataOps,
+                firstRomDataPc, firstRomDataEa);
     std::printf("smcWrites=%u firstSmc=%04X\n", smcWrites, firstSmcAddr);
     std::printf("stackAnomalies=%u first=%04X unmatchedRTS=%u first=%04X\n", stackAnomaly,
                 firstStackAnomalyPc, unmatchedRts, firstUnmatchedRts);
-    if (romCalls == 0) {
-        std::printf("ORIGINAL_APPLE_ROM_NOT_YET_IMPLICATED (no $D000+ fetch in window)\n");
+    if (romCalls == 0 && romDataOps == 0) {
+        std::printf("ORIGINAL_APPLE_ROM_NOT_YET_IMPLICATED (no $D000+ fetch/data in window)\n");
+    } else if (romDataOps > 0 && romCalls == 0) {
+        std::printf("MOTHERBOARD_ROM_DATA_DEPENDENCY (abs operand base $D000+; no code fetch)\n");
+    } else {
+        std::printf("MOTHERBOARD_ROM_CODE_FETCH (PC in $D000+)\n");
     }
     return 0;
 }

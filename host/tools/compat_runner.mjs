@@ -8,6 +8,8 @@
  *
  * Statuses: PASS FAIL SKIPPED_NO_SYSTEM_ROM SKIPPED_NO_SLOT6_ROM
  *           SKIPPED_NO_MEDIA UNSUPPORTED_* TIMEOUT BLOCKED_MISSING_ASSET
+ *           BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM
+ *           BLOCKED_REQUIRES_USER_APPLE_II_PLUS_ROM
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -19,6 +21,7 @@ import {
   loadMachineConfig,
   projectRoot,
   resolveLocalApple2Title,
+  resolveUserAppleIIPlusRom,
   resolveUserMediaPath,
 } from "./machine_config.mjs";
 
@@ -127,13 +130,19 @@ export function evaluateAssetGate(test, cfg) {
     if (needRom) {
       const romId = identifyAsset(cfg.rom);
       report.assets.systemRom = romId;
-      if (!romId.present) {
+      // user_ii_plus may temporarily resolve AppleIIGo via local sync; the
+      // romDependency gate below rejects it for titles that need Applesoft data.
+      if (!romId.present && test.romDependency !== "USER_APPLE_II_PLUS_ROM") {
         report.status = "SKIPPED_NO_SYSTEM_ROM";
         report.hostStatus = "BLOCKED_MISSING_ASSET";
         report.evidence.notes.push(
           "Missing system ROM — run gulp apple2:rom:sync for AppleIIGo, or supply user ROM",
         );
         return report;
+      }
+      if (!romId.present && test.romDependency === "USER_APPLE_II_PLUS_ROM") {
+        // Fall through to romDependency gate (clearer status).
+        report.assets.systemRom = { present: false, path: null };
       }
     }
 
@@ -175,6 +184,30 @@ export function evaluateAssetGate(test, cfg) {
       id: test.media?.disk1?.id || "Esp2BootTest",
       type: "project_owned_generated",
     };
+  }
+
+  // Titles that intentionally read Apple II+ Applesoft ROM *data* (not code).
+  // AppleIIGo PD replacement is insufficient — do not auto-download proprietary ROMs.
+  if (test.romDependency === "USER_APPLE_II_PLUS_ROM") {
+    const userRom = resolveUserAppleIIPlusRom(cfg);
+    report.assets.userAppleIIPlusRom = userRom;
+    report.evidence.romDependency = {
+      required: "USER_APPLE_II_PLUS_ROM",
+      reason: test.romDependencyReason || "ROM_DATA",
+      classification: test.appleiigoClassification || "APPLEIIGO_MISSING_REQUIRED_DATA",
+    };
+    if (!userRom.present) {
+      report.status = "BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM";
+      // Furthest proven host state under AppleIIGo remains BOOT — not PLAYABLE.
+      report.hostStatus = test.hostStatus || "BOOT";
+      report.evidence.notes.push(
+        "BLOCKED_REQUIRES_USER_APPLE_II_PLUS_ROM: place a legal 12288-byte Apple II+ system ROM in local/roms/ (or set config/roms.local.json motherboardRom). Runtime device path: /esp2/roms/system.rom. Do not use apple2:rom:sync for this asset (that syncs AppleIIGo PD only).",
+      );
+      return report;
+    }
+    // Prefer the user II+ ROM for subsequent --run.
+    cfg.rom = userRom.path;
+    report.assets.systemRom = identifyAsset(userRom.path);
   }
 
   return report;
@@ -301,7 +334,11 @@ export function runCompatTest(id, opts = {}) {
   if (report.status !== "PASS" && report.status.startsWith("SKIPPED")) {
     return report;
   }
-  if (report.status === "FAIL") {
+  if (
+    report.status === "FAIL" ||
+    report.status === "BLOCKED_MISSING_USER_APPLE_II_PLUS_ROM" ||
+    report.status === "BLOCKED_REQUIRES_USER_APPLE_II_PLUS_ROM"
+  ) {
     return report;
   }
 
@@ -342,6 +379,7 @@ export function runCompatTest(id, opts = {}) {
   if (
     test.romProfile === "appleiigo" ||
     test.romProfile === "replacement_pd" ||
+    test.romProfile === "user_ii_plus" ||
     test.bootDisk === true
   ) {
     args.push("--boot-disk");
