@@ -20,6 +20,7 @@
 
 #include "board_pins.h"
 #include "display_power.h"
+#include "esp2_sd_bus.hpp"
 #include "esp32_sd_storage.hpp"
 #include "i18x_fw.hpp"
 #include "qmi8658_min.h"
@@ -51,7 +52,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_usb_storage";
+static constexpr char kBuildId[] = "apple2_input_bridge";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -95,11 +96,24 @@ static bool g_rom_ok = false;
 static bool g_interactive_ok = false;
 static bool g_basic_ok = false;
 static bool g_level4_ok = false;
+static bool g_galaxianVisibleLogged = false;
+
+/** CDC host→device session (MEDIA owns RX exclusively while active). */
+enum class CdcDevMode : uint8_t { Idle = 0, LiveInput = 1 };
+static volatile CdcDevMode g_cdcMode = CdcDevMode::Idle;
+static volatile bool g_diagQuiet = false; // silence [TAG] logs during MEDIA (CDC contention)
+/** Display must not touch QSPI/SPI while SD media transfer runs (shared SPI host crash). */
+static volatile bool g_sdExclusive = false;
+static char g_mountedDiskPath[96] = {};
+static bool g_diskMounted = false;
+static bool g_slot6UserProm = false;
 
 static uint16_t *g_viewportFb = nullptr;
 static uint8_t *g_hgrBits = nullptr;
 static uint8_t *g_hgrHigh = nullptr;
 static volatile bool g_schedulerGo = false;
+static volatile bool g_emuHold = false; // pause a2emu during SD/boot mutations
+static TaskHandle_t g_dispTaskHandle = nullptr;
 static volatile uint64_t g_emuCyclesAtBoot = 0;
 static volatile uint32_t g_wallStartUs = 0;
 static volatile uint32_t g_dispFrames = 0;
@@ -109,6 +123,9 @@ static volatile uint32_t g_lastRenderUs = 0;
 static portMUX_TYPE g_dirtyMux = portMUX_INITIALIZER_UNLOCKED;
 
 static void logf(const char *tag, const char *fmt, ...) {
+    if (g_diagQuiet || esp2_upload::isSessionActive()) {
+        return;
+    }
     char buf[240];
     va_list args;
     va_start(args, fmt);
@@ -116,6 +133,13 @@ static void logf(const char *tag, const char *fmt, ...) {
     va_end(args);
     Serial.printf("[%s] %s\n", tag, buf);
 }
+
+static void *psramAlloc(size_t n);
+static void markVideoDirty();
+static void pauseMediaForUsb();
+static void emitDiskSnap(const char *tag);
+static void maybeLogDiskHeartbeat();
+static void resyncEmuWallClock();
 
 static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
     return ArtifactRenderer::toRgb565({r, g, b});
@@ -176,14 +200,13 @@ static bool probe_sd() {
         logf("SD", "blocked owner=%s", sdOwnerStateName(g_sdOwner.state()));
         return false;
     }
-    SPI.begin(PIN_SD_SCLK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
-    if (!SD.begin(PIN_SD_CS)) {
+    if (!esp2SdBusBegin()) {
         logf("SD", "[FAIL]");
         g_sdStore.setMounted(false);
         return false;
     }
     g_sdStore.setMounted(true);
-    logf("SD", "mounted owner=%s", sdOwnerStateName(g_sdOwner.state()));
+    logf("SD", "mounted owner=%s bus=SPI3", sdOwnerStateName(g_sdOwner.state()));
     return true;
 }
 
@@ -211,6 +234,9 @@ static void pauseMediaForUsb() {
     g_diskII.clearRom();
     g_a2bus.setSlotDevice(6, nullptr);
     g_dskImage = nullptr; // stale nibble image invalid across ownership change
+    g_slot6UserProm = false;
+    g_diskMounted = false;
+    g_mountedDiskPath[0] = 0;
 }
 
 static bool prepareEsp2Tree() {
@@ -224,6 +250,9 @@ static bool prepareEsp2Tree() {
     }
     if (!SD.exists("/esp2/diagnostics")) {
         SD.mkdir("/esp2/diagnostics");
+    }
+    if (!SD.exists("/esp2/tmp")) {
+        SD.mkdir("/esp2/tmp");
     }
     // Seed project-owned Esp2BootTest if missing.
     if (!g_sdStore.exists(Esp32SdStorageBackend::kBootTestDsk)) {
@@ -288,9 +317,345 @@ static bool leaveUsbStorageMode(bool unsafe) {
     return true;
 }
 
+static bool ensureDskBuffers() {
+    if (!g_dskRaw) {
+        g_dskRaw = static_cast<uint8_t *>(psramAlloc(kDos33ImageBytes));
+    }
+    if (!g_dskImage) {
+        void *mem = psramAlloc(sizeof(Dos33NibbleImage));
+        g_dskImage = mem ? new (mem) Dos33NibbleImage() : nullptr;
+    }
+    return g_dskRaw && g_dskImage;
+}
+
+static void sdExclusiveEnd() {
+    if (g_dispTaskHandle) {
+        vTaskResume(g_dispTaskHandle);
+    }
+    g_sdExclusive = false;
+    g_diagQuiet = false;
+}
+
+static bool sdExclusiveBegin() {
+    g_diagQuiet = true;
+    g_sdExclusive = true;
+    if (g_dispTaskHandle) {
+        vTaskSuspend(g_dispTaskHandle);
+    }
+    delay(40);
+    // Real remount on SPI3 (QSPI owns SPI2). SDFS::begin() no-ops if still mounted.
+    esp2SdBusEnd();
+    g_sdStore.setMounted(false);
+    if (!esp2SdBusBegin()) {
+        Serial.println("#NAK sd");
+        sdExclusiveEnd();
+        return false;
+    }
+    g_sdStore.setMounted(true);
+    return true;
+}
+
+static bool loadDiskIiUserProm() {
+    if (!sdExclusiveBegin()) {
+        return false;
+    }
+    const char *cands[] = {
+        Esp32SdStorageBackend::kDiskIiProm,
+        Esp32SdStorageBackend::kDiskIiPromAlt,
+    };
+    uint8_t prom[DiskIIController::kSlotRomSize];
+    for (const char *p : cands) {
+        if (!g_sdStore.exists(p) || g_sdStore.fileSize(p) != DiskIIController::kSlotRomSize) {
+            continue;
+        }
+        size_t got = 0;
+        if (!g_sdStore.readAll(p, prom, sizeof(prom), &got) || got != sizeof(prom)) {
+            continue;
+        }
+        if (!g_diskII.loadUserRom(prom, sizeof(prom))) {
+            continue;
+        }
+        g_a2bus.setSlotDevice(6, &g_diskII);
+        g_slot6UserProm = true;
+        logf("DISK", "prom=%s size=256 kind=UserSupplied", p);
+        Serial.println("#ACK DISK PROM");
+        sdExclusiveEnd();
+        return true;
+    }
+    logf("DISK", "[FAIL] no Slot-6 PROM at /esp2/roms/diskii.prom");
+    Serial.println("#NAK DISK PROM");
+    sdExclusiveEnd();
+    return false;
+}
+
+static bool mountDiskPath(const char *path) {
+    if (!path || path[0] != '/') {
+        Serial.println("#NAK DISK path");
+        return false;
+    }
+    if (!g_sdOwner.esp2MayUseFat()) {
+        Serial.println("#NAK owner");
+        return false;
+    }
+    g_emuHold = true;
+    delay(10);
+    if (!sdExclusiveBegin()) {
+        g_emuHold = false;
+        return false;
+    }
+    if (!g_sdStore.exists(path)) {
+        Serial.println("#NAK DISK missing");
+        sdExclusiveEnd();
+        g_emuHold = false;
+        return false;
+    }
+    const size_t sz = g_sdStore.fileSize(path);
+    if (sz != kDos33ImageBytes) {
+        Serial.println("#NAK DISK size");
+        sdExclusiveEnd();
+        g_emuHold = false;
+        return false;
+    }
+    if (!ensureDskBuffers()) {
+        Serial.println("#NAK DISK alloc");
+        sdExclusiveEnd();
+        g_emuHold = false;
+        return false;
+    }
+    size_t got = 0;
+    if (!g_sdStore.readAll(path, g_dskRaw, kDos33ImageBytes, &got) || got != kDos33ImageBytes) {
+        Serial.println("#NAK DISK read");
+        sdExclusiveEnd();
+        g_emuHold = false;
+        return false;
+    }
+    if (!g_dskImage->load(g_dskRaw, kDos33ImageBytes, false)) {
+        Serial.println("#NAK DISK nibble");
+        sdExclusiveEnd();
+        g_emuHold = false;
+        return false;
+    }
+    g_dskImage->setWriteProtected(true);
+    g_diskII.attachMedia(1, g_dskImage);
+    strncpy(g_mountedDiskPath, path, sizeof(g_mountedDiskPath) - 1);
+    g_mountedDiskPath[sizeof(g_mountedDiskPath) - 1] = 0;
+    g_diskMounted = true;
+    g_galaxianVisibleLogged = false;
+    logf("DISK", "mount path=%s size=%u", path, static_cast<unsigned>(sz));
+    Serial.printf("#ACK DISK MOUNT path=%s\n", path);
+    g_display_power.notifyActivity("disk_mount");
+    sdExclusiveEnd();
+    g_emuHold = false;
+    return true;
+}
+
+static void resyncEmuWallClock() {
+    // CPU cycle counter restarts on reset; throttle/PERF use deltas from these bases.
+    // Without resync, (cycles - g_emuCyclesAtBoot) underflows and the emu sleeps forever.
+    g_emuCyclesAtBoot = g_cpu.cycles();
+    g_wallStartUs = micros();
+}
+
+static void appleIiResetKeepDisks() {
+    g_a2bus.reset();
+    g_a2bus.speaker().reset();
+    g_a2bus.keyboard().reset();
+    if (g_diskMounted && g_dskImage) {
+        g_diskII.attachMedia(1, g_dskImage);
+    }
+    if (g_slot6UserProm) {
+        g_a2bus.setSlotDevice(6, &g_diskII);
+    }
+    g_diskII.reset();
+    if (g_diskMounted && g_dskImage) {
+        g_diskII.attachMedia(1, g_dskImage);
+    }
+    g_diskII.setRotationIndex(0);
+    g_cpu.reset();
+    resyncEmuWallClock();
+    markVideoDirty();
+    logf("APPLE2", "reset keep_disks=%d slot6=%d", g_diskMounted ? 1 : 0, g_slot6UserProm ? 1 : 0);
+    Serial.println("#ACK APPLE RESET");
+}
+
+static bool bootMountedDisk() {
+    if (!g_rom_ok) {
+        Serial.println("#NAK BOOT no_rom");
+        return false;
+    }
+    if (!g_diskMounted) {
+        Serial.println("#NAK BOOT no_disk");
+        return false;
+    }
+    g_emuHold = true;
+    delay(20);
+    // Always reload Slot-6 PROM — upload/VERIFY clears ROM but may leave stale flags.
+    if (!loadDiskIiUserProm()) {
+        g_emuHold = false;
+        return false;
+    }
+    g_a2bus.clearRam();
+    appleIiResetKeepDisks();
+    // Prove Slot-6 window after reset (Autostart scans $Cn01/$Cn03/$Cn05).
+    emitDiskSnap("POST_RESET");
+    const uint8_t c1 = g_a2bus.peek(0xC601);
+    const uint8_t c3 = g_a2bus.peek(0xC603);
+    const uint8_t c5 = g_a2bus.peek(0xC605);
+    if (!(c1 == 0x20 && c3 == 0x00 && c5 == 0x03)) {
+        Serial.println("#NAK BOOT no_autostart_sig");
+        g_emuHold = false;
+        return false;
+    }
+    g_display_power.notifyActivity("disk_boot");
+    logf("DISK", "boot Autostart path=%s slot6=%d", g_mountedDiskPath, g_slot6UserProm ? 1 : 0);
+    Serial.printf("#ACK DISK BOOT path=%s\n", g_mountedDiskPath);
+    g_emuHold = false;
+    return true;
+}
+
+static void applyLiveKey(uint8_t apple7, bool pressed) {
+    if (pressed) {
+        // Normal Apple II latch path — ROM clears strobe via $C010.
+        g_a2bus.keyboard().keyDown(apple7);
+    } else {
+        g_a2bus.keyboard().keyUp(apple7);
+    }
+    g_display_power.notifyActivity("input");
+}
+
+static void applyLivePad(uint8_t p0, uint8_t p1, bool pb0, bool pb1, bool pb2) {
+    g_a2bus.gameIo().setPaddle(0, p0);
+    g_a2bus.gameIo().setPaddle(1, p1);
+    g_a2bus.gameIo().setButton(0, pb0);
+    g_a2bus.gameIo().setButton(1, pb1);
+    g_a2bus.gameIo().setButton(2, pb2);
+    g_display_power.notifyActivity("input");
+}
+
+static void handleDevCommandLine(const char *line) {
+    if (!line || !line[0]) {
+        return;
+    }
+    if (strcmp(line, "#ESP2USBMSC") == 0) {
+        enterUsbStorageMode();
+        return;
+    }
+    if (strcmp(line, "#ESP2USBMSC LEAVE") == 0) {
+        leaveUsbStorageMode(false);
+        return;
+    }
+    if (strcmp(line, "#ESP2UPLOAD") == 0) {
+        if (g_cdcMode == CdcDevMode::LiveInput) {
+            g_cdcMode = CdcDevMode::Idle;
+            Serial.println("#ESP2INPUT IDLE");
+        }
+        // Quiet diagnostics first — concurrent Serial from PERF/display races HW CDC TX.
+        g_diagQuiet = true;
+        if (!g_sdOwner.esp2MayUseFat()) {
+            Serial.println("#NAK owner");
+            g_diagQuiet = false;
+            return;
+        }
+        pauseMediaForUsb();
+        Serial.println("#ESP2UPLOAD ENTER");
+        Serial.flush();
+        if (!sdExclusiveBegin()) {
+            g_diagQuiet = false;
+            return;
+        }
+        if (!SD.exists("/esp2")) {
+            SD.mkdir("/esp2");
+        }
+        if (!SD.exists("/esp2/roms")) {
+            SD.mkdir("/esp2/roms");
+        }
+        if (!SD.exists("/esp2/disks")) {
+            SD.mkdir("/esp2/disks");
+        }
+        if (!SD.exists("/esp2/tmp")) {
+            SD.mkdir("/esp2/tmp");
+        }
+        if (!SD.exists("/esp2") || !SD.exists("/esp2/roms")) {
+            Serial.println("#NAK mkdir_esp2");
+            sdExclusiveEnd();
+            return;
+        }
+        esp2_upload::runSessionNow();
+        sdExclusiveEnd();
+        return;
+    }
+    if (strcmp(line, "#ESP2INPUT LIVE") == 0) {
+        if (esp2_upload::isSessionActive()) {
+            Serial.println("#NAK INPUT media_active");
+            return;
+        }
+        g_cdcMode = CdcDevMode::LiveInput;
+        Serial.println("#ACK INPUT LIVE");
+        logf("INPUT", "mode=LIVE provider=windows_cdc_bridge");
+        return;
+    }
+    if (strcmp(line, "#ESP2INPUT IDLE") == 0) {
+        g_cdcMode = CdcDevMode::Idle;
+        Serial.println("#ACK INPUT IDLE");
+        return;
+    }
+    if (strncmp(line, "#ESP2INPUT KEY ", 15) == 0) {
+        if (g_cdcMode != CdcDevMode::LiveInput) {
+            Serial.println("#NAK INPUT not_live");
+            return;
+        }
+        unsigned apple = 0;
+        unsigned pressed = 0;
+        if (sscanf(line + 15, "%x %u", &apple, &pressed) != 2) {
+            Serial.println("#NAK INPUT KEY");
+            return;
+        }
+        applyLiveKey(static_cast<uint8_t>(apple & 0x7F), pressed != 0);
+        return;
+    }
+    if (strncmp(line, "#ESP2INPUT PAD ", 15) == 0) {
+        if (g_cdcMode != CdcDevMode::LiveInput) {
+            Serial.println("#NAK INPUT not_live");
+            return;
+        }
+        unsigned p0 = 128, p1 = 128, b0 = 0, b1 = 0, b2 = 0;
+        if (sscanf(line + 15, "%u %u %u %u %u", &p0, &p1, &b0, &b1, &b2) < 2) {
+            Serial.println("#NAK INPUT PAD");
+            return;
+        }
+        applyLivePad(static_cast<uint8_t>(p0 > 255 ? 255 : p0),
+                     static_cast<uint8_t>(p1 > 255 ? 255 : p1), b0 != 0, b1 != 0, b2 != 0);
+        return;
+    }
+    if (strncmp(line, "#ESP2DISK MOUNT ", 16) == 0) {
+        mountDiskPath(line + 16);
+        return;
+    }
+    if (strcmp(line, "#ESP2DISK PROM") == 0) {
+        loadDiskIiUserProm();
+        return;
+    }
+    if (strcmp(line, "#ESP2DISK BOOT") == 0) {
+        bootMountedDisk();
+        return;
+    }
+    if (strcmp(line, "#ESP2APPLE RESET") == 0) {
+        appleIiResetKeepDisks();
+        return;
+    }
+    if (strcmp(line, "#ESP2DIAG SNAP") == 0) {
+        emitDiskSnap("SNAP");
+        Serial.println("#ACK DIAG SNAP");
+        return;
+    }
+}
+
 static void serviceDevSerialCommands() {
-    // Non-blocking peek for development commands (not during upload framing).
-    static char line[48];
+    // MEDIA binary session owns CDC RX — never steal bytes for line parsing.
+    if (esp2_upload::isSessionActive()) {
+        return;
+    }
+    static char line[128];
     static size_t len = 0;
     while (Serial.available()) {
         const int b = Serial.read();
@@ -303,33 +668,120 @@ static void serviceDevSerialCommands() {
             }
             line[len] = 0;
             len = 0;
-            if (strcmp(line, "#ESP2USBMSC") == 0) {
-                enterUsbStorageMode();
-            } else if (strcmp(line, "#ESP2USBMSC LEAVE") == 0) {
-                leaveUsbStorageMode(false);
-            } else             if (strcmp(line, "#ESP2UPLOAD") == 0 || strcmp(line, "#ESP2UPLOAD\r") == 0) {
-                logf("UPLOAD", "enter");
-                g_display_power.notifyActivity("upload");
-                if (!g_sdOwner.esp2MayUseFat()) {
-                    Serial.println("#NAK owner");
-                } else {
-                    pauseMediaForUsb();
-                    g_sdStore.setMounted(true);
-                    esp2_upload::runSessionNow();
-                }
-            }
+            handleDevCommandLine(line);
             continue;
         }
         if (len + 1 < sizeof(line)) {
             line[len++] = static_cast<char>(b);
         } else {
-            len = 0;
+            len = 0; // overflow — resync on next newline
         }
     }
     if (g_usbStorage.active() && g_usbStorage.ejectRequested()) {
         g_usbStorage.clearEjectRequest();
         leaveUsbStorageMode(false);
     }
+}
+
+static void maybeLogGalaxianVisible() {
+    if (g_galaxianVisibleLogged || !g_diskMounted) {
+        return;
+    }
+    // Heuristic only: mounted title path + settled HGR with substantial ink.
+    if (strstr(g_mountedDiskPath, "Galaxian") == nullptr &&
+        strstr(g_mountedDiskPath, "galaxian") == nullptr) {
+        return;
+    }
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    if (vs.text || !vs.hires) {
+        return;
+    }
+    const uint16_t base = vs.page2 ? 0x4000 : 0x2000;
+    unsigned lit = 0;
+    for (uint16_t a = base; a < base + 0x2000; a += 3) {
+        if (g_a2bus.peek(a) & 0x7F) {
+            ++lit;
+        }
+    }
+    const CpuRegisters r = g_cpu.registers();
+    const bool playfieldPc = r.pc >= 0x9000u && r.pc < 0xB000u;
+    // Cracktro (~B1xx–B7xx) can reach ~400 lit; playfield/attract sits in $9000–$AFFF.
+    if (lit < 100) {
+        return;
+    }
+    if (!playfieldPc) {
+        return;
+    }
+    g_galaxianVisibleLogged = true;
+    g_display_power.notifyActivity("galaxian_visible");
+    markVideoDirty();
+    const uint32_t wallUs = micros() - g_wallStartUs;
+    const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
+    Serial.printf("[GALAXIAN] ESP32_VISIBLE pc=$%04X cycles=%llu cps=%.0f video=HGR "
+                  "page2=%d hgr_samples=%u\n",
+                  r.pc, static_cast<unsigned long long>(g_cpu.cycles()), cps, vs.page2 ? 1 : 0,
+                  lit);
+    logf("GALAXIAN", "ESP32_VISIBLE");
+}
+
+static void emitDiskSnap(const char *tag) {
+    const CpuRegisters r = g_cpu.registers();
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    const DiskIIDiagState d = g_diskII.diagState();
+    const char *vmode = vs.text ? "TEXT" : (vs.hires ? "HGR" : "LORES");
+    const uint8_t c0 = g_a2bus.peek(0xC600);
+    const uint8_t c1 = g_a2bus.peek(0xC601);
+    const uint8_t c2 = g_a2bus.peek(0xC602);
+    const uint8_t c3 = g_a2bus.peek(0xC603);
+    const uint8_t c4 = g_a2bus.peek(0xC604);
+    const uint8_t c5 = g_a2bus.peek(0xC605);
+    const char *rk = "none";
+    switch (g_diskII.romKind()) {
+    case DiskIIController::RomKind::Synthetic:
+        rk = "synthetic";
+        break;
+    case DiskIIController::RomKind::CleanRoom:
+        rk = "cleanroom";
+        break;
+    case DiskIIController::RomKind::UserSupplied:
+        rk = "user";
+        break;
+    default:
+        break;
+    }
+    Serial.printf("[DISK][%s] pc=$%04X cycles=%llu video=%s%s page2=%d motor=%d qt=%d "
+                  "drive=%d slot6=%d rom=%s path=%s\n",
+                  tag ? tag : "SNAP", r.pc, static_cast<unsigned long long>(g_cpu.cycles()), vmode,
+                  vs.mixed ? "+MIXED" : "", vs.page2 ? 1 : 0, d.motorOn ? 1 : 0,
+                  d.drive1.quarterTrack, d.selectedDrive, g_slot6UserProm ? 1 : 0, rk,
+                  g_mountedDiskPath[0] ? g_mountedDiskPath : "(none)");
+    Serial.printf("[DISK][%s] C600=%02X %02X %02X %02X %02X %02X "
+                  "autostart_sig=%s\n",
+                  tag ? tag : "SNAP", c0, c1, c2, c3, c4, c5,
+                  (c1 == 0x20 && c3 == 0x00 && c5 == 0x03) ? "yes" : "no");
+    if (!vs.text && vs.hires) {
+        const uint16_t base = vs.page2 ? 0x4000 : 0x2000;
+        unsigned lit = 0;
+        for (uint16_t a = base; a < base + 0x2000; a += 3) {
+            if (g_a2bus.peek(a) & 0x7F) {
+                ++lit;
+            }
+        }
+        Serial.printf("[DISK][%s] hgr_lit=%u\n", tag ? tag : "SNAP", lit);
+    }
+}
+
+static void maybeLogDiskHeartbeat() {
+    if (!g_diskMounted) {
+        return;
+    }
+    static uint32_t lastMs = 0;
+    const uint32_t now = millis();
+    if (lastMs != 0 && (now - lastMs) < 5000) {
+        return;
+    }
+    lastMs = now;
+    emitDiskSnap("HB");
 }
 static Qmi8658Min g_imu_probe;
 static bool probe_imu() {
@@ -655,7 +1107,7 @@ static MachineProfile readProfileOverride() {
 
 static bool findUserRomPath(char outPath[96]) {
     outPath[0] = 0;
-    if (!SD.begin(PIN_SD_CS)) {
+    if (!g_sdStore.beginMounted() && !esp2SdBusBegin()) {
         return false;
     }
     g_sdStore.setMounted(true);
@@ -839,7 +1291,7 @@ static bool level4RegressionSpot() {
     static uint8_t s_prom[DiskIIController::kSlotRomSize];
     static uint8_t s_exp[DiskIIController::kExpansionRomSize];
 
-    if (!SD.begin(PIN_SD_CS)) {
+    if (!g_sdStore.beginMounted() && !esp2SdBusBegin()) {
         logf("DISK", "SKIPPED_NO_SD");
         return false;
     }
@@ -991,11 +1443,17 @@ static void emulatorTask(void *) {
     g_wallStartUs = micros();
     g_emuCyclesAtBoot = g_cpu.cycles();
     for (;;) {
+        if (g_emuHold || g_sdExclusive || esp2_upload::isSessionActive()) {
+            vTaskDelay(pdMS_TO_TICKS(5));
+            continue;
+        }
         g_cpu.runCycles(kExecQuantum);
         syncCycle();
         if (g_diskII.romKind() == DiskIIController::RomKind::CleanRoom) {
             serviceCleanRoomCardRequests(g_a2bus.ram(), g_diskII);
         }
+        maybeLogGalaxianVisible();
+        maybeLogDiskHeartbeat();
         const uint64_t after = g_cpu.cycles();
         const uint64_t emuSince = after - g_emuCyclesAtBoot;
         const uint64_t targetUs = (emuSince * 1000000ULL) / kAppleIiHz;
@@ -1026,7 +1484,7 @@ static void displayTask(void *) {
 
     for (;;) {
         const uint32_t now = millis();
-        serviceDevSerialCommands();
+        // Serial RX is owned exclusively by a2ser (avoids concurrent Serial.read races).
         if (g_usbStorageUi || g_usbStorage.active()) {
             drawUsbStorageScreen();
             vTaskDelay(pdMS_TO_TICKS(100));
@@ -1076,6 +1534,10 @@ static void displayTask(void *) {
             logf("STABILITY", "result=PASS");
         }
 
+        if (g_sdExclusive || esp2_upload::isSessionActive()) {
+            vTaskDelay(pdMS_TO_TICKS(20));
+            continue;
+        }
         if (!g_display_ok || !g_display_power.isInteractive()) {
             vTaskDelay(pdMS_TO_TICKS(40));
             continue;
@@ -1103,8 +1565,10 @@ void setup() {
 #if !ARDUINO_USB_MODE
     USB.begin();
 #endif
+    Serial.setRxBufferSize(8192);
     Serial.begin(115200);
-    Serial.setTxTimeoutMs(0);
+    // Non-zero TX timeout: 0 drops CDC bytes under load (corrupts #ACK lines).
+    Serial.setTxTimeoutMs(100);
     const uint32_t serialWait = millis();
     while (!Serial && (millis() - serialWait) < 3000) {
         delay(10);
@@ -1116,8 +1580,8 @@ void setup() {
     logf("ESP2", "psram=%u heap=%u", ESP.getPsramSize(), ESP.getFreeHeap());
     logf("SD", "owner=%s", sdOwnerStateName(g_sdOwner.state()));
 
-    // Short upload listen (host may already have the port open).
-    if (esp2_upload::pollAndRunSession(12000)) {
+    // Boot-window upload listen. Longer than a typical host flash→open gap.
+    if (esp2_upload::pollAndRunSession(45000)) {
         logf("UPLOAD", "session finished — continuing boot");
     }
 
@@ -1149,23 +1613,17 @@ void setup() {
                  g_sd_ok ? "PASS" : "FAIL", g_imu_ok ? "PASS" : "FAIL",
                  g_rom_ok ? "PASS" : "SKIPPED_NO_ROM", g_basic_ok ? "PASS" : "n/a",
                  g_level4_ok ? "PASS" : "FAIL", sdOwnerStateName(g_sdOwner.state()));
-            xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, nullptr, 0);
+            xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, &g_dispTaskHandle, 0);
             xTaskCreatePinnedToCore(emulatorTask, "a2emu", 8192, nullptr, 1, nullptr, 1);
-            xTaskCreatePinnedToCore(
-                [](void *) {
-                    for (;;) {
-                        serviceDevSerialCommands();
-                        vTaskDelay(pdMS_TO_TICKS(10));
-                    }
-                },
-                "a2ser", 8192, nullptr, 3, nullptr, 0);
             g_schedulerGo = true;
-            logf("SCHED", "tasks started");
+            logf("SCHED", "tasks started (CDC via loop)");
             vTaskDelete(nullptr);
         },
         "a2boot", 24576, nullptr, 1, nullptr, 1);
 }
 
 void loop() {
-    delay(200);
+    // Single CDC RX owner: Arduino loop task (avoids dual Serial.read + failed a2ser create).
+    serviceDevSerialCommands();
+    delay(5);
 }

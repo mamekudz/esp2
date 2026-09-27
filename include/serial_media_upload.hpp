@@ -42,4 +42,7 @@ bool pollAndRunSession(uint32_t listenMs);
  */
 bool runSessionNow();
 
+/** True while a MEDIA binary session owns the CDC RX stream. */
+bool isSessionActive();
+
 } // namespace esp2_upload

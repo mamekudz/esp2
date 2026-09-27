@@ -1,19 +1,21 @@
 #include "serial_media_upload.hpp"
 
 #include "board_pins.h"
-#include "esp_bracket/sha256.hpp"
+#include "esp2_sd_bus.hpp"
 #include "esp32_sd_storage.hpp"
+#include "esp_bracket/sha256.hpp"
 
 #include <Arduino.h>
 #include <SD.h>
-#include <SPI.h>
-#include <cstring>
 #include <cstdio>
+#include <cstring>
 
 namespace esp2_upload {
 namespace {
 
 using esp_bracket::Sha256;
+
+volatile bool g_sessionActive = false;
 
 bool startsWith(const char *s, const char *pfx) {
     if (!s || !pfx) {
@@ -39,7 +41,12 @@ bool ensureParentDirs(const char *absPath) {
         if (*slash == '/') {
             *slash = 0;
             if (!SD.exists(tmp)) {
-                if (!SD.mkdir(tmp)) {
+                (void)SD.mkdir(tmp);
+                delay(5);
+                if (!SD.exists(tmp)) {
+                    Serial.print("#NAK mkdir_path=");
+                    Serial.println(tmp);
+                    Serial.flush();
                     return false;
                 }
             }
@@ -242,6 +249,7 @@ bool handleBeginSession() {
     Serial.print(" sha256=");
     Serial.println(hexExpect);
     Serial.flush();
+    delay(30);
 
     Sha256 hasher;
     uint64_t received = 0;
@@ -343,9 +351,27 @@ bool handleBeginSession() {
             nak("data_seq");
             break;
         }
-        if (!readExact(buf, len, 30000)) {
-            nak("data_body");
-            break;
+        // Prefer block read — more reliable on HW CDC than byte-at-a-time.
+        {
+            size_t bodyGot = 0;
+            const uint32_t bodyT0 = millis();
+            while (bodyGot < len) {
+                const int n =
+                    Serial.readBytes(reinterpret_cast<char *>(buf + bodyGot), len - bodyGot);
+                if (n > 0) {
+                    bodyGot += static_cast<size_t>(n);
+                    continue;
+                }
+                if ((millis() - bodyT0) > 30000) {
+                    nak("data_body");
+                    bodyGot = 0;
+                    break;
+                }
+                delay(1);
+            }
+            if (bodyGot != len) {
+                break;
+            }
         }
         const size_t wrote = out.write(buf, len);
         if (wrote != len) {
@@ -358,6 +384,7 @@ bool handleBeginSession() {
         Serial.print("#ACK DATA seq=");
         Serial.println(seq);
         Serial.flush();
+        delay(5);
     }
 
     free(buf);
@@ -495,6 +522,7 @@ bool pollAndRunSession(uint32_t listenMs) {
     char line[96];
     size_t len = 0;
     uint32_t lastPing = 0;
+    bool any = false;
     while ((millis() - t0) < listenMs) {
         if ((millis() - lastPing) > 1000) {
             lastPing = millis();
@@ -513,12 +541,32 @@ bool pollAndRunSession(uint32_t listenMs) {
                 line[len] = 0;
                 len = 0;
                 if (lineLooksLikeEnter(line)) {
-                    SPI.begin(PIN_SD_SCLK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
-                    if (!SD.begin(PIN_SD_CS)) {
+                    // SPI3 — must not claim SPI2 (CO5300 QSPI host).
+                    if (!esp2SdBusBegin()) {
                         nak("sd");
-                        return false;
+                        return any;
                     }
-                    return runSessionNow();
+                    // Boot-window upload runs before prepareEsp2Tree — seed roots.
+                    if (!SD.exists("/esp2")) {
+                        (void)SD.mkdir("/esp2");
+                    }
+                    if (!SD.exists("/esp2/roms")) {
+                        (void)SD.mkdir("/esp2/roms");
+                    }
+                    if (!SD.exists("/esp2/disks")) {
+                        (void)SD.mkdir("/esp2/disks");
+                    }
+                    if (!SD.exists("/esp2/tmp")) {
+                        (void)SD.mkdir("/esp2/tmp");
+                    }
+                    if (!SD.exists("/esp2")) {
+                        nak("mkdir_esp2");
+                        return any;
+                    }
+                    // Stay in WAIT window so host can chain multiple files.
+                    (void)runSessionNow();
+                    any = true;
+                    lastPing = 0; // reprint WAIT soon
                 }
                 continue;
             }
@@ -530,17 +578,23 @@ bool pollAndRunSession(uint32_t listenMs) {
         }
         delay(1);
     }
-    return false;
+    return any;
 }
 
 bool runSessionNow() {
+    g_sessionActive = true;
     Serial.println("#ESP2UPLOAD READY v1");
     Serial.flush();
     const bool ok = runBinarySession();
     Serial.print("#ESP2UPLOAD DONE result=");
     Serial.println(ok ? "OK" : "FAIL");
     Serial.flush();
+    g_sessionActive = false;
     return true;
+}
+
+bool isSessionActive() {
+    return g_sessionActive;
 }
 
 } // namespace esp2_upload

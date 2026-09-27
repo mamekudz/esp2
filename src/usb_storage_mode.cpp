@@ -1,10 +1,10 @@
 #include "usb_storage_mode.hpp"
 
 #include "board_pins.h"
+#include "esp2_sd_bus.hpp"
 
 #include <Arduino.h>
 #include <SD.h>
-#include <SPI.h>
 #include <cstring>
 
 #include "sd_diskio.h"
@@ -172,9 +172,8 @@ bool UsbStorageMode::leave(bool suspectUnsafeDisconnect) {
         mounted = sdcard_mount(sdPdrv_, "/sd", 5, false);
     }
     if (!mounted) {
-        // Full re-init path
-        SPI.begin(PIN_SD_SCLK, PIN_SD_MISO, PIN_SD_MOSI, PIN_SD_CS);
-        if (SD.begin(PIN_SD_CS)) {
+        // Full re-init path on SPI3 (QSPI owns SPI2).
+        if (esp2SdBusBegin()) {
             sdPdrv_ = discoverPdrv();
             mounted = true;
         }

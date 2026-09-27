@@ -22,6 +22,9 @@ class Esp32SdStorageBackend : public StorageBackend {
     static constexpr const char *kSystemRom = "/esp2/roms/system.rom";
     static constexpr const char *kApple2PlusRom = "/esp2/roms/apple2plus.rom";
     static constexpr const char *kApple2Rom = "/esp2/roms/apple2.rom";
+    /** User-supplied 256-byte Disk II Slot-6 PROM (Autostart path; never in Git). */
+    static constexpr const char *kDiskIiProm = "/esp2/roms/diskii.prom";
+    static constexpr const char *kDiskIiPromAlt = "/esp2/roms/diskii_apple2js_16.prom";
     static constexpr const char *kProfileFile = "/esp2/roms/profile.txt";
 
     bool beginMounted() { return mounted_; }
