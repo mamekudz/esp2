@@ -164,7 +164,8 @@ class DiskIIController : public SlotDevice {
     bool q6_ = false;
     bool q7_ = false;
     uint8_t phases_ = 0;
-    int lastPhase_ = -1;
+    /** Last phase turned ON (0..3); used with kPhaseDeltaQt. Init 0 like apple2js. */
+    int lastPhase_ = 0;
 
     uint8_t latch_ = 0;
     uint32_t lastCycle_ = 0;

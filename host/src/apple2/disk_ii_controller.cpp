@@ -28,7 +28,7 @@ void DiskIIController::reset() {
     q6_ = false;
     q7_ = false;
     phases_ = 0;
-    lastPhase_ = -1;
+    lastPhase_ = 0; // matches apple2js DriveState.phase initial value
     latch_ = 0;
     lastCycle_ = 0;
     rotationIndex_ = 0;
@@ -201,25 +201,36 @@ void DiskIIController::updateStepper(uint8_t phase, bool on) {
     if (phase > 3) {
         return;
     }
-    if (on) {
-        phases_ = static_cast<uint8_t>(phases_ | (1u << phase));
-    } else {
+
+    // Sather / apple2js: head positioning is enabled only while the drive motor
+    // is on. Phase pulses with motor off must not move the arm.
+    if (!motorOn_) {
+        return;
+    }
+
+    if (!on) {
+        // Phase OFF updates the magnet mask only. Movement is modeled on phase
+        // ON transitions (wave / adjacent overlap simplified like apple2js).
         phases_ = static_cast<uint8_t>(phases_ & ~(1u << phase));
         return;
     }
 
-    // Move when an adjacent phase is newly energized (sequence-aware).
-    if (lastPhase_ < 0) {
-        lastPhase_ = static_cast<int>(phase);
-        return;
-    }
-    const int delta = static_cast<int>(phase) - lastPhase_;
-    int step = 0;
-    if (delta == 1 || delta == -3) {
-        step = 1;
-    } else if (delta == -1 || delta == 3) {
-        step = -1;
-    }
+    phases_ = static_cast<uint8_t>(phases_ | (1u << phase));
+
+    // Quarter-track delta when phase Y is turned on while latched phase is X.
+    // Derived from apple2js PHASE_DELTA (half-track units) × 2:
+    //   adjacent ±1 half-track → ±2 quarter-tracks
+    //   skip-one  ±1 full track → ±4 quarter-tracks
+    // Sources: UtA2e p.9-12; apple2js js/cards/disk2.ts; Big Mess o' Wires Disk II.
+    static constexpr int kPhaseDeltaQt[4][4] = {
+        {0, 2, 4, -2},
+        {-2, 0, 2, 4},
+        {-4, -2, 0, 2},
+        {2, -4, -2, 0},
+    };
+
+    const int from = (lastPhase_ >= 0 && lastPhase_ <= 3) ? lastPhase_ : 0;
+    const int step = kPhaseDeltaQt[from][phase];
     if (step != 0) {
         DiskIIDriveState &st = activeDriveState();
         int qt = st.quarterTrack + step;
@@ -236,13 +247,8 @@ void DiskIIController::updateStepper(uint8_t phase, bool on) {
                 traceLine(lastCycle_, "track", st.quarterTrack);
             }
         }
-        lastPhase_ = static_cast<int>(phase);
-    } else if (delta == 0) {
-        lastPhase_ = static_cast<int>(phase);
-    } else {
-        // Non-adjacent: update last phase without huge jumps (magnet snap).
-        lastPhase_ = static_cast<int>(phase);
     }
+    lastPhase_ = static_cast<int>(phase);
 }
 
 void DiskIIController::advanceRotation(uint32_t cycle) {

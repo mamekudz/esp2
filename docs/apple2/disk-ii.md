@@ -133,6 +133,44 @@ Evidence:
 | Host Level-4 | **HOST_VERIFIED** |
 | ESP32 Level-4 (DSK from microSD) | **ESP32_PHYSICALLY_VERIFIED** (PART E) |
 
+## Stepper / head position
+
+Terminology:
+
+| Term | Meaning |
+| --- | --- |
+| Phase PH0..PH3 | Soft-switches `$C0E0`–`$C0E7` (slot 6): magnet coils |
+| Phase mask | Which coils are currently ON |
+| Quarter-track (qt) | Emulator coordinate: **4 qt = 1 DOS track** |
+| Half-track | One adjacent phase step = **2 qt** (real Disk II pole) |
+| Full / DOS track | Two half-track steps = **4 qt**; AF track id / DSK track index |
+| Physical head position | `quarterTrack` arm coordinate |
+| Data track | `wholeTrack = quarterTrack / 4` → nibble stream (DSK/PO/NIB) |
+
+Stable DOS tracks sit on even half-track poles (phase 0 / 2). Half-tracks
+(phase 1 / 3) are used by protection / fine seek. True quarter-track positions
+need overlapping adjacent coils; ESP][ (like apple2js nibble mode) moves on
+**phase ON** only and does not model simultaneous-coil quarter holds.
+
+Movement table (quarter-tracks when phase Y turns ON while latched phase is X),
+matching apple2js `PHASE_DELTA×2` / UtA2e-style sequencing:
+
+```text
+from\to  0   1   2   3
+  0      0  +2  +4  -2
+  1     -2   0  +2  +4
+  2     -4  -2   0  +2
+  3     +2  -4  -2   0
+```
+
+Rules:
+
+- Motor must be ON or phase pulses are ignored
+- Phase OFF never moves the arm
+- Same phase ON again → delta 0
+- DSK/PO/NIB data at half/quarter coords: nearest whole track (`qt/4`), same as
+  apple2js `track >> 2` for nibble images (no blank half-track fabrication)
+
 ## Timing
 
 | Parameter | Value | Label |

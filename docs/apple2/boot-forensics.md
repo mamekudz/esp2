@@ -318,7 +318,38 @@ Fix: after T0S0, set **`$41=0`** and **`$3D=0`** before `JMP $0801`.
 | `RamInitMode::Ones` | Leaves `$B1xx` briefly; stays in `$B0/$B1`; no HGR game paint |
 | Force entry `$B700` | Prior session: JSR `$B706` stack growth without RTS |
 
+## Post-mapping HOST production check (RamInitMode::Zero)
+
+After Address-Field fix (`c9723a9`), Galaxian with production RAM (`Zero`):
+
+| Gate | Result |
+| --- | --- |
+| Handoff `$B100`/`$B700` | T0S1 / T0S7 — **OK** |
+| First HGR | yes (`page2`, cracktro paint) |
+| Visible framebuffer | **"Beautiful Boot / by Mini Appler"** only |
+| Galaxian title/playfield | **NO** — stuck |
+
+Loader seeks outward after splash, then **oscillates forever** between
+quarter-tracks **65 ↔ 66** (T16.25 ↔ T16.50), PC hot in `$BBEB` / `$BA7E`
+(`LDA $C08C,X` / `BPL` wait) and delay `$BC04`. Motor stays on. Lit HGR
+pixels remain ~527 for >60M cycles. Keyboard does not unblock.
+
+```text
+CLASSIFICATION = GALAXIAN_STUCK_STEPPER_HALFTRACK_HUNT
+ROOT_CAUSE     = stepper advanced +1 qt per adjacent phase ON (should be +2 qt)
+FIX            = PHASE_DELTA quarter-track table (apple2js / Disk II half-track)
+HOST_PASS      = YES (menu → key A → Galaxian playfield/attract)
+```
+
+Pre-fix: adjacent phase ON moved **one quarter-track**. Real Disk II / apple2js /
+AppleII_Esp32 advance **one half-track** (two quarter-tracks) per adjacent coil.
+That undershoot produced AF-seek hunting that settled into qt **65↔66**.
+
+Post-fix (`RamInitMode::Zero`): full **Beautiful Boot** menu (A–D), then after
+`$C1` (‘A’) load completes → HGR Galaxian SCORE/HISCORE/formation/SHIPS.
+
+Local frames (gitignored): `galaxian_prod_settled.png`, `galaxian_title.png`.
+
 ## Physical
 
-Out of scope for this forensic milestone (no ESP32 upload / serial / WOZ /
-disk writes).
+Out of scope until HOST_PASS (no ESP32 upload / serial / WOZ / disk writes).

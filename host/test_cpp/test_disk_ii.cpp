@@ -149,29 +149,60 @@ static void testSoftswitches() {
 
 static void testStepper() {
     DiskIIController ctl;
-    ctl.access(0x1, 10, false, 0); // phase0 on
-    ctl.access(0x3, 20, false, 0); // phase1 on → +1
-    expect(ctl.driveState(1).quarterTrack == 1, "step +1");
-    ctl.access(0x1, 30, false, 0); // phase0 on → -1
-    expect(ctl.driveState(1).quarterTrack == 0, "step -1");
 
-    // Bounds
+    // Motor off: phase pulses must not move the head (Sather / apple2js).
+    ctl.access(0x1, 1, false, 0);
+    ctl.access(0x3, 2, false, 0);
+    expect(ctl.driveState(1).quarterTrack == 0, "no step motor off");
+
+    ctl.access(0x9, 10, false, 0); // motor on
+    ctl.access(0x1, 20, false, 0); // PH0 on (establish, delta 0)
+    expect(ctl.driveState(1).quarterTrack == 0, "PH0 on no move");
+
+    // Adjacent ON: +1 half-track = +2 quarter-tracks.
+    ctl.access(0x3, 30, false, 0); // PH1 on
+    expect(ctl.driveState(1).quarterTrack == 2, "adjacent + half track");
+    ctl.access(0x0, 35, false, 0); // PH0 off — no move
+    expect(ctl.driveState(1).quarterTrack == 2, "phase OFF no move");
+
+    // Next adjacent: another half-track → full track from origin.
+    ctl.access(0x5, 40, false, 0); // PH2 on
+    expect(ctl.driveState(1).quarterTrack == 4, "two half → one track");
+
+    // Reverse one half-track.
+    ctl.access(0x3, 50, false, 0); // PH1 on
+    expect(ctl.driveState(1).quarterTrack == 2, "reverse half track");
+
+    // Skip-one phase (0→2): one full track in a single ON (apple2js PHASE_DELTA).
     ctl.driveState(1).quarterTrack = 0;
-    ctl.access(0x7, 40, false, 0);
-    ctl.access(0x5, 50, false, 0);
-    // force many steps down
+    // Force latched phase 0 via PH0 on.
+    ctl.access(0x1, 60, false, 0);
+    ctl.access(0x5, 70, false, 0); // PH2 on from PH0
+    expect(ctl.driveState(1).quarterTrack == 4, "skip-phase +1 track");
+
+    // Track-0 clamp
+    ctl.driveState(1).quarterTrack = 0;
+    ctl.access(0x1, 80, false, 0); // phase 0
     for (int i = 0; i < 20; ++i) {
-        ctl.access(0x1, 100u + static_cast<uint32_t>(i) * 10, false, 0);
-        ctl.access(0x7, 105u + static_cast<uint32_t>(i) * 10, false, 0);
+        ctl.access(0x7, 100u + static_cast<uint32_t>(i) * 10, false, 0); // PH3
+        ctl.access(0x1, 105u + static_cast<uint32_t>(i) * 10, false, 0); // PH0
     }
     expect(ctl.driveState(1).quarterTrack >= 0, "track >= 0");
 
+    // Upper clamp
     ctl.driveState(1).quarterTrack = DiskIIController::kMaxQuarterTrack;
+    ctl.access(0x1, 400, false, 0);
     for (int i = 0; i < 20; ++i) {
-        ctl.access(0x1, 500u + static_cast<uint32_t>(i) * 10, false, 0);
-        ctl.access(0x3, 505u + static_cast<uint32_t>(i) * 10, false, 0);
+        ctl.access(0x3, 500u + static_cast<uint32_t>(i) * 10, false, 0);
+        ctl.access(0x1, 505u + static_cast<uint32_t>(i) * 10, false, 0);
     }
     expect(ctl.driveState(1).quarterTrack <= DiskIIController::kMaxQuarterTrack, "track <= max");
+
+    // Same phase re-asserted: no movement.
+    ctl.driveState(1).quarterTrack = 16;
+    ctl.access(0x1, 700, false, 0);
+    ctl.access(0x1, 710, false, 0);
+    expect(ctl.driveState(1).quarterTrack == 16, "same phase no move");
 }
 
 static void testTwoDrivesIndependent() {
