@@ -4,7 +4,7 @@
 			"main": 0,
 			"minor": 1,
 			"revision": 0,
-			"date": "2026-09-27 17:00",
+			"date": "2026-09-27 20:30",
 			"beta": true,
 			"info": [
 				"Galaxian runs on physical ESP][ hardware (PHYSICALLY_VERIFIED): Apple II+ ROM, Disk II Autostart, NMOS 6502, HGR playfield on the CO5300 AMOLED — not a native port or screenshot overlay.<context=\"release info\"/>",
@@ -13,7 +13,8 @@
 				"Landscape presentation preserves full 280×192 with edge-preserving nearest-neighbor scale after CW 90° (SCORE/HISCORE edges retained).<context=\"release info\"/>",
 				"Disk II accuracy: physical Address Field sector mapping and half-track stepper distance corrected (generic fixes; not Galaxian-specific hacks).<context=\"release info\"/>",
 				"Keyboard print reference: parametric Brown one-piece carrier + white 0.2 mm-nozzle legend architecture and separate POWER indicator (DOCUMENTED / PROVISIONAL absolute scale).<context=\"release info\"/>",
-				"Introduced RELEASES.json with µGulp release-history workflow (en-US source, 30-day contributor merge, release-info context tags).<context=\"release info\"/>"
+				"Introduced RELEASES.json with µGulp release-history workflow (en-US source, 30-day contributor merge, release-info context tags).<context=\"release info\"/>",
+				"Added Green and Amber phosphor monitor appearances plus an optional lightweight CRT/TV display effect, composed independently from Classic/Landscape orientation and Artifact Color.<context=\"release info\"/>"
 			]
 		},
 		{
