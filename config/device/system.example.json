@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "rom": "/esp2/roms/system.rom"
+  },
+  "media": {
+    "drive1": null,
+    "drive2": null
+  },
+  "startup": {
+    "bootFromDisk": false,
+    "macro": ""
+  },
+  "presentation": {
+    "orientation": "classic",
+    "color": "sharp"
+  },
+  "display": {
+    "screensaverSeconds": 0
+  }
+}

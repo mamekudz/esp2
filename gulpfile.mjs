@@ -1782,6 +1782,101 @@ if (IsMicroGulp()) {
 // Device media transfer (development)
 //================================================================
 
+function _DeviceConfigDisplayName() {
+  return 'ESP][ device configuration V<version/><context="µDisplayName"/>'.i18xRegister();
+}
+
+export async function deviceConfig() {
+  ReportProgress(0, "device-config");
+  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const profile = GetParameter("profile") || "galaxian-demo";
+  const dryRun =
+    GetParameter("dryRun") === true ||
+    GetParameter("dry-run") === true ||
+    GetParameter("dryRun") === "true";
+  if (!dryRun && !port) {
+    throw new Error("device:config requires --port COMx (or dryRun)");
+  }
+  const args = ["--profile", String(profile)];
+  if (dryRun) {
+    args.push("--dry-run");
+  } else {
+    args.push("--port", String(port));
+  }
+  runNodeCli("dev/tools/esp2-device-config.mjs", args, "device:config");
+  Log(
+    'Device config profile=<profile/> uploaded=<uploaded/> (paths only; no ROM/disk bytes).<context="task log"/>',
+    { profile, uploaded: dryRun ? "no" : "yes" },
+  );
+  ReportProgress(1, "device-config");
+}
+_Tag(deviceConfig, {
+  gulpName: "device:config",
+  µDisplayName: () => _DeviceConfigDisplayName(),
+  µDescription:
+    'Stage and upload /esp2/config/system.json + macros.json from a named profile (µGulp form). Does not embed media bytes.<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 60,
+  µParameters: [
+    {
+      name: "profile",
+      type: "string",
+      optional: true,
+      default: "galaxian-demo",
+      µDisplayName: 'Configuration profile<context="task parameter"/>',
+      µDescription:
+        'Folder under config/device/profiles/ (e.g. galaxian-demo).<context="task parameter"/>',
+    },
+    {
+      name: "port",
+      type: "string",
+      optional: true,
+      µDisplayName: 'Serial port<context="task parameter"/>',
+      µDescription: 'COMx for upload. Not required with dry-run.<context="task parameter"/>',
+    },
+    {
+      name: "dryRun",
+      type: "boolean",
+      optional: true,
+      default: false,
+      µDisplayName: 'Dry-run (stage only)<context="task parameter"/>',
+    },
+  ],
+});
+
+export async function deviceMacroRun() {
+  ReportProgress(0, "device-macro-run");
+  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const macro = GetParameter("macro") || GetParameter("id") || "galaxian-start";
+  if (!port) {
+    throw new Error("device:macro:run requires --port COMx");
+  }
+  runNodeCli(
+    "dev/tools/esp2-macro-run.mjs",
+    ["--port", String(port), "--macro", String(macro)],
+    "device:macro:run",
+  );
+  ReportProgress(1, "device-macro-run");
+}
+_Tag(deviceMacroRun, {
+  gulpName: "device:macro:run",
+  µDisplayName: 'Run device macro V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Same engine as startup macros.<context="µDescription"/>',
+  µGroup: 'Device Storage<context="µGroup"/>',
+  µOrder: 65,
+  µParameters: [
+    { name: "port", type: "string", optional: false },
+    {
+      name: "macro",
+      type: "string",
+      optional: true,
+      default: "galaxian-start",
+      µDisplayName: 'Macro id<context="task parameter"/>',
+    },
+  ],
+});
+
 export async function deviceUpload() {
   ReportProgress(0, "device-upload");
   const port = GetParameter("port") || process.env.ESP2_PORT || "";
@@ -1844,5 +1939,7 @@ _Tag(deviceUsbStorage, {
   ],
 });
 
+gulp.task("device:config", deviceConfig);
+gulp.task("device:macro:run", deviceMacroRun);
 gulp.task("device:upload", deviceUpload);
 gulp.task("device:usb-storage", deviceUsbStorage);

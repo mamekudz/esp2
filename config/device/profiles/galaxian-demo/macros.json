@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "macros": [
+    {
+      "id": "galaxian-start",
+      "actions": [
+        { "op": "wait", "ms": 8000 },
+        { "op": "waitHires", "ms": 90000 },
+        { "op": "wait", "ms": 2000 },
+        { "op": "key", "code": "A" }
+      ]
+    }
+  ]
+}

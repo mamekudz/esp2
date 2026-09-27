@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "macros": [
+    {
+      "id": "example-return",
+      "actions": [
+        { "op": "wait", "ms": 1000 },
+        { "op": "key", "code": "RETURN" }
+      ]
+    }
+  ]
+}

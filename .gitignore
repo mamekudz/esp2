@@ -81,6 +81,9 @@ config/roms.local.json
 # Local full machine config (personal paths)
 config/apple2.local.json
 
+# Staged device config copies / upload scratch (paths only; never media)
+/local/device/
+
 
 # User-imported library media (local only)
 library/user/

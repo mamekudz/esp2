@@ -80,6 +80,8 @@
 
     { "id": "apple2:device:sync", "group": "Apple II/Device", "i18x": true },
 
+    { "id": "device:config", "group": "Device Storage", "i18x": true },
+    { "id": "device:macro:run", "group": "Device Storage", "i18x": true },
     { "id": "device:upload", "group": "Device Storage", "i18x": true },
     { "id": "device:usb-storage", "group": "Device Storage", "i18x": true }
   ]

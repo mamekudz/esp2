@@ -1455,6 +1455,24 @@ Compatibility claims require recorded evidence (see
 - Details: `docs/tooling/backup.md`.
 
 
+## Persistent device configuration & macros (permanent)
+
+Canonical SD paths:
+
+- `/esp2/config/system.json` — machine / media / startup / presentation / display
+- `/esp2/config/macros.json` — named input macros
+
+Source language for tracked examples: en-US field names (machine JSON, not UI).
+Invalid config must log and fall back to safe defaults (no auto disk) — never brick
+or reboot-loop. Title behavior (e.g. Galaxian demo) lives in **user profiles** under
+`config/device/profiles/`, not in `AppleIIMachine`.
+
+Macro keys use the normal Apple II keyboard latch path. Screensaver idle uses
+**user** activity only (keys/pads/touch), not VRAM/disk/CPU.
+
+Details: `docs/architecture/device-config.md`.
+
+
 ## RELEASES.json (permanent)
 
 Root `RELEASES.json` is the canonical consolidated **en-US** ESP][ project

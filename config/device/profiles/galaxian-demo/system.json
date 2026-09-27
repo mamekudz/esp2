@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "rom": "/esp2/roms/system.rom"
+  },
+  "media": {
+    "drive1": "/esp2/disks/Galaxian.dsk",
+    "drive2": null
+  },
+  "startup": {
+    "bootFromDisk": true,
+    "macro": "galaxian-start"
+  },
+  "presentation": {
+    "orientation": "landscape",
+    "color": "artifact"
+  },
+  "display": {
+    "screensaverSeconds": 300
+  }
+}
