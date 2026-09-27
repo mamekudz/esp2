@@ -101,20 +101,25 @@ const de = {
     "ESP][-Gerätekonfiguration V<version/>",
   'Run device macro V<version/><context="µDisplayName"/>':
     "Geräte-Makro ausführen V<version/>",
-  'Stage and upload /esp2/config/system.json + macros.json from a named profile (µGulp form). Does not embed media bytes.<context="µDescription"/>':
-    "Stellt /esp2/config/system.json + macros.json aus einem Profil bereit und lädt hoch (µGulp-Formular). Keine Media-Bytes.",
-  'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Same engine as startup macros.<context="µDescription"/>':
-    "Führt ein benanntes Eingabe-Makro auf einem laufenden ESP][ aus (#ESP2MACRO RUN). Dieselbe Engine wie Startup-Makros.",
+  'Stage and upload /esp2/config/system.json + macros.json from a named profile. Asks for COM port like flash/upload (or set ESP2_PORT). Does not embed media bytes.<context="µDescription"/>':
+    "Stellt /esp2/config/system.json + macros.json aus einem Profil bereit und lädt hoch. Fragt nach COM-Port wie flash/upload (oder ESP2_PORT). Keine Media-Bytes.",
+  'Set ESP2_PORT=COMx to skip the port dialog. Dry-run stages only.<context="µTooltip"/>':
+    "ESP2_PORT=COMx setzen, um den Port-Dialog zu überspringen. Dry-Run stellt nur bereit.",
+  'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Asks for COM port like flash/upload.<context="µDescription"/>':
+    "Führt ein benanntes Eingabe-Makro auf einem laufenden ESP][ aus (#ESP2MACRO RUN). Fragt nach COM-Port wie flash/upload.",
   'Configuration profile<context="task parameter"/>': "Konfigurationsprofil",
   'Folder under config/device/profiles/ (e.g. galaxian-demo).<context="task parameter"/>':
     "Ordner unter config/device/profiles/ (z. B. galaxian-demo).",
-  'Serial port<context="task parameter"/>': "Serielle Schnittstelle",
-  'COMx for upload. Not required with dry-run.<context="task parameter"/>':
-    "COMx für Upload. Bei Dry-Run nicht nötig.",
   'Dry-run (stage only)<context="task parameter"/>': "Dry-Run (nur bereitstellen)",
   'Macro id<context="task parameter"/>': "Makro-ID",
   'Device config profile=<profile/> uploaded=<uploaded/> (paths only; no ROM/disk bytes).<context="task log"/>':
     "Geräte-Config Profil=<profile/> hochgeladen=<uploaded/> (nur Pfade; keine ROM/Disk-Bytes).",
+  'Uploading device config via <port/><context="task log"/>…':
+    "Geräte-Config wird über <port/> hochgeladen…",
+  'Running macro <macro/> on <port/><context="task log"/>…':
+    "Makro <macro/> auf <port/> wird ausgeführt…",
+  'No serial port — set ESP2_PORT=COMx, fill the port field, or pick a port in the dialog.<context="task error"/>':
+    "Kein serieller Port — ESP2_PORT=COMx setzen, Port-Feld füllen oder Port im Dialog wählen.",
   'Git backup checkpoint<context="µDisplayName"/>': "Git-Backup-Checkpoint",
   'Git Checkpoint Commit<context="µDisplayName"/>': "Git-Checkpoint-Commit",
   'Git Status (Dry-Run)<context="µDisplayName"/>': "Git-Status (Dry-Run)",

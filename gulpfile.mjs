@@ -1786,16 +1786,35 @@ function _DeviceConfigDisplayName() {
   return 'ESP][ device configuration V<version/><context="µDisplayName"/>'.i18xRegister();
 }
 
+/**
+ * Resolve a concrete COMx for device serial tools (upload/macros).
+ * Order: task parameter → ESP2_PORT → AskPort dialog (same as flash/upload).
+ */
+async function resolveDeviceSerialPort(_title) {
+  const fromParam = String(GetParameter("port") || "").trim();
+  if (fromParam) {
+    return fromParam;
+  }
+  const asked = await AskPort(rootDir, _title);
+  if (asked) {
+    return asked;
+  }
+  throw new Error(
+    'No serial port — set ESP2_PORT=COMx, fill the port field, or pick a port in the dialog.<context="task error"/>',
+  );
+}
+
 export async function deviceConfig() {
   ReportProgress(0, "device-config");
-  const port = GetParameter("port") || process.env.ESP2_PORT || "";
   const profile = GetParameter("profile") || "galaxian-demo";
   const dryRun =
     GetParameter("dryRun") === true ||
     GetParameter("dry-run") === true ||
     GetParameter("dryRun") === "true";
-  if (!dryRun && !port) {
-    throw new Error("device:config requires --port COMx (or dryRun)");
+  let port = "";
+  if (!dryRun) {
+    port = await resolveDeviceSerialPort("Device config upload port");
+    Log('Uploading device config via <port/><context="task log"/>…', { port });
   }
   const args = ["--profile", String(profile)];
   if (dryRun) {
@@ -1814,7 +1833,9 @@ _Tag(deviceConfig, {
   gulpName: "device:config",
   µDisplayName: () => _DeviceConfigDisplayName(),
   µDescription:
-    'Stage and upload /esp2/config/system.json + macros.json from a named profile (µGulp form). Does not embed media bytes.<context="µDescription"/>',
+    'Stage and upload /esp2/config/system.json + macros.json from a named profile. Asks for COM port like flash/upload (or set ESP2_PORT). Does not embed media bytes.<context="µDescription"/>',
+  µTooltip:
+    'Set ESP2_PORT=COMx to skip the port dialog. Dry-run stages only.<context="µTooltip"/>',
   µGroup: 'Device Storage<context="µGroup"/>',
   µOrder: 60,
   µParameters: [
@@ -1828,13 +1849,6 @@ _Tag(deviceConfig, {
         'Folder under config/device/profiles/ (e.g. galaxian-demo).<context="task parameter"/>',
     },
     {
-      name: "port",
-      type: "string",
-      optional: true,
-      µDisplayName: 'Serial port<context="task parameter"/>',
-      µDescription: 'COMx for upload. Not required with dry-run.<context="task parameter"/>',
-    },
-    {
       name: "dryRun",
       type: "boolean",
       optional: true,
@@ -1846,11 +1860,9 @@ _Tag(deviceConfig, {
 
 export async function deviceMacroRun() {
   ReportProgress(0, "device-macro-run");
-  const port = GetParameter("port") || process.env.ESP2_PORT || "";
   const macro = GetParameter("macro") || GetParameter("id") || "galaxian-start";
-  if (!port) {
-    throw new Error("device:macro:run requires --port COMx");
-  }
+  const port = await resolveDeviceSerialPort("Device macro serial port");
+  Log('Running macro <macro/> on <port/><context="task log"/>…', { macro, port });
   runNodeCli(
     "dev/tools/esp2-macro-run.mjs",
     ["--port", String(port), "--macro", String(macro)],
@@ -1862,11 +1874,12 @@ _Tag(deviceMacroRun, {
   gulpName: "device:macro:run",
   µDisplayName: 'Run device macro V<version/><context="µDisplayName"/>',
   µDescription:
-    'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Same engine as startup macros.<context="µDescription"/>',
+    'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Asks for COM port like flash/upload.<context="µDescription"/>',
+  µTooltip:
+    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
   µGroup: 'Device Storage<context="µGroup"/>',
   µOrder: 65,
   µParameters: [
-    { name: "port", type: "string", optional: false },
     {
       name: "macro",
       type: "string",
