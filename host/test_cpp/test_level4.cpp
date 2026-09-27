@@ -154,12 +154,60 @@ static void testOptionalUserSlot6Missing() {
     expect(true, "skip path documented");
 }
 
+static void testLevel4BootOnesRam() {
+    auto m = std::make_unique<HostAppleIIMachine>();
+    expect(m->loadSyntheticRom() == RomError::Ok, "ones mb rom");
+    expect(m->mountDisk(DriveId::Drive1, "Esp2BootTest") == MediaResult::Ok, "ones mount");
+    m->diskII().driveState(1).quarterTrack = 0;
+    m->diskII().setRotationIndex(0);
+    m->bus().write(0x03FE, 0);
+    m->bus().write(0x03FF, 0);
+    m->powerOn(RamInitMode::Ones);
+    CpuRegisters r = m->cpu().registers();
+    r.pc = 0xC600;
+    m->cpu().setRegisters(r);
+    bool ok = false;
+    for (int i = 0; i < 300000; ++i) {
+        m->runCycles(100);
+        if (m->bus().peek(0x03FE) == 0x4C && m->bus().peek(0x03FF) == 0x34) {
+            ok = true;
+            break;
+        }
+    }
+    expect(ok, "boot markers Ones RAM");
+}
+
+static void testCleanRoomTrackZeroHandoff() {
+    // After T0S0 denibble path, $41 (track) must be 0 even if RAM was $FF.
+    auto m = std::make_unique<HostAppleIIMachine>();
+    expect(m->loadSyntheticRom() == RomError::Ok, "trk mb");
+    expect(m->mountDisk(DriveId::Drive1, "Esp2BootTest") == MediaResult::Ok, "trk mount");
+    m->powerOn(RamInitMode::Ones);
+    CpuRegisters r = m->cpu().registers();
+    r.pc = 0xC600;
+    m->cpu().setRegisters(r);
+    bool saw0801 = false;
+    uint8_t trackAt0801 = 0xFF;
+    for (int i = 0; i < 200000; ++i) {
+        m->runCycles(1);
+        if (m->cpu().registers().pc == 0x0801) {
+            saw0801 = true;
+            trackAt0801 = m->bus().peek(0x41);
+            break;
+        }
+    }
+    expect(saw0801, "reached $0801");
+    expect(trackAt0801 == 0x00, "ZP $41 track=0 at boot0 entry");
+}
+
 int main() {
     testDenibbleService();
     testLevel4Boot(0);
     testLevel4Boot(37);
     testLevel4Boot(128);
     testLevel4Boot(777);
+    testLevel4BootOnesRam();
+    testCleanRoomTrackZeroHandoff();
     testPoBoot();
     testNibBoot();
     testNoHostSectorShortcut();

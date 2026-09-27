@@ -74,14 +74,18 @@ Vector layout matches documented Disk II PROM offsets (code is project-owned):
 1. PROM `$C600` → `JMP $C800` (boot)
 2. PROM `$C65C` → `JMP $C900` (sector-read; DOS boot0 `JMP $Cn5C`)
 3. EXP `$C800`: motor/drive, find T0S0, copy 343 nibbles → `$0900`, set
-   `$2B=$60`, `$27=$09`, **`LDY #$00`**, denibble handshake `$03FA=$DE` →
-   **`JMP $0801`** (Disk II convention: `$0800` is the sector-count byte, not
-   executable code)
+   `$2B=$60`, `$27=$09`, **`$41=$00` (track)**, **`$3D=$00`**, **`LDY #$00`**,
+   denibble handshake `$03FA=$DE` → **`JMP $0801`** (Disk II convention:
+   `$0800` is the sector-count byte, not executable code)
 4. EXP `$C900`: sector-read handshake `$03F9=$D1` using ZP `$41` (track),
    `$3D` (sector), `$27` (dest page) → **`LDY #$00`** → **`JMP $0801`**
 
 `LDY #0` matches Disk II PROM sector-store exit (Y wraps after 256 stores).
 DOS / title boot loaders often index with Y after `$Cn5C` returns.
+
+`$41=0` / `$3D=0` after T0S0 must not rely on power-on RAM zeros —
+`RamInitMode::Ones` ($FF fill) must still boot. DOS boot0 may assume track 0
+without rewriting `$41`.
 
 `Esp2BootTest` T0S0 also follows the `$0800` parameter / `$0801` entry convention.
 

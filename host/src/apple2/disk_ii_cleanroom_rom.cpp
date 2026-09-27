@@ -177,6 +177,15 @@ bool generateCleanRoomDiskIICard(uint8_t *prom256, uint8_t *expansion2048) {
         d[i++] = 0x09;
         d[i++] = 0x85;
         d[i++] = 0x27; // LDA #$09 / STA $27
+        // DOS boot0 uses ZP $41 as track and $3D as sector. After T0S0 the
+        // controller is on track 0; real PROM-era state leaves track=0. Do not
+        // rely on power-on RAM zeros (Ones/garbage fill must still boot).
+        d[i++] = 0xA9;
+        d[i++] = 0x00;
+        d[i++] = 0x85;
+        d[i++] = 0x41; // LDA #0 / STA $41 (track)
+        d[i++] = 0x85;
+        d[i++] = 0x3D; // STA $3D (sector scratch; boot0 reloads before $Cn5C)
         // Match Disk II PROM exit: Y=0 after sector/nibble store (boot0/boot1 rely on it).
         d[i++] = 0xA0;
         d[i++] = 0x00; // LDY #$00

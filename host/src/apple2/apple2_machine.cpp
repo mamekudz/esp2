@@ -84,6 +84,9 @@ void HostAppleIIMachine::powerOn(RamInitMode ramInit) {
     if (ramInit == RamInitMode::Zero) {
         bus_.clearRam();
     } else if (ramInit == RamInitMode::Ones) {
+        // $FF fill approximates common cold DRAM appearance better than zeros.
+        // Software that reads uncleared main RAM (e.g. some boot obfuscators)
+        // can depend on non-zero bytes. Keep deterministic: all $FF.
         std::memset(bus_.ram(), 0xFF, Apple2Bus::kRamBytes);
     }
     reset();
@@ -233,8 +236,7 @@ MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
                         }
                     }
                     const bool poOrder =
-                        path.size() >= 3 &&
-                        path.compare(path.size() - 3, 3, ".po") == 0;
+                        path.size() >= 3 && path.compare(path.size() - 3, 3, ".po") == 0;
                     if (!img.load(raw.data(), raw.size(), poOrder)) {
                         return MediaResult::InvalidImage;
                     }
@@ -243,8 +245,7 @@ MediaResult HostAppleIIMachine::mountDisk(DriveId id, const char *imageId) {
                     if (slot6RomMode_ == Slot6RomMode::None) {
                         setSlot6RomMode(Slot6RomMode::CleanRoom);
                     }
-                    return drive(id).mount(imageId,
-                                           poOrder ? DiskFormat::Po : DiskFormat::Dsk);
+                    return drive(id).mount(imageId, poOrder ? DiskFormat::Po : DiskFormat::Dsk);
                 }
             }
             return MediaResult::InvalidImage;
