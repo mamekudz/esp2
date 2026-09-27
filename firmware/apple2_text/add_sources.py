@@ -22,7 +22,7 @@ env.BuildSources(
         "-<cpu_harness.cpp>",
         # disk_ii_boot.cpp: decodeSectorFromStream used by clean-room Level-4 path
         "-<gamepad_mapper.cpp>",
-        "-<display_effect.cpp>",
+        # display_effect.cpp: CRT/TV RGB565 pass (presentation only)
     ],
 )
 

@@ -4,12 +4,13 @@
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readFileSync, rmSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   configFromFormValues,
   formDefaultsFromConfig,
+  formDefaultsFromPreset,
   normalizeSystemConfig,
   saveConfigLocal,
   listProfileIds,
@@ -39,9 +40,24 @@ test("galaxian-demo profile normalizes", () => {
   const n = normalizeSystemConfig(raw);
   assert.equal(n.ok, true);
   assert.equal(n.config.presentation.orientation, "landscape");
+  assert.equal(n.config.presentation.monitor, "artifact");
+  assert.equal(n.config.presentation.effect, "clean");
   assert.equal(n.config.presentation.color, "artifact");
   assert.equal(n.config.display.screensaverSeconds, 300);
   assert.equal(n.config.startup.macro, "galaxian-start");
+});
+
+test("formDefaultsFromPreset loads galaxian-demo into editable fields", () => {
+  const d = formDefaultsFromPreset(ROOT, "galaxian-demo");
+  assert.equal(d.preset, "galaxian-demo");
+  assert.equal(d.rom, "/esp2/roms/system.rom");
+  assert.equal(d.drive1, "/esp2/disks/Galaxian.dsk");
+  assert.equal(d.bootFromDisk, true);
+  assert.equal(d.startupMacro, "galaxian-start");
+  assert.equal(d.orientation, "landscape");
+  assert.equal(d.monitor, "artifact");
+  assert.equal(d.effect, "clean");
+  assert.equal(d.screensaverSeconds, 300);
 });
 
 test("form defaults expose editable demo values", () => {
@@ -72,11 +88,14 @@ test("configFromFormValues validates and accepts form fields", () => {
     bootFromDisk: true,
     startupMacro: "galaxian-start",
     orientation: "landscape",
-    color: "artifact",
+    monitor: "artifact",
+    effect: "crt",
     screensaverSeconds: 300,
   });
   assert.equal(ok.ok, true);
   assert.equal(ok.config.media.drive2, null);
+  assert.equal(ok.config.presentation.monitor, "artifact");
+  assert.equal(ok.config.presentation.effect, "crt");
 });
 
 test("saveConfigLocal writes JSON without upload (temp dir sandbox via profile name)", () => {
@@ -88,7 +107,8 @@ test("saveConfigLocal writes JSON without upload (temp dir sandbox via profile n
     bootFromDisk: false,
     startupMacro: "none",
     orientation: "classic",
-    color: "sharp",
+    monitor: "green",
+    effect: "clean",
     screensaverSeconds: 0,
   });
   assert.equal(cfg.ok, true);
@@ -97,52 +117,40 @@ test("saveConfigLocal writes JSON without upload (temp dir sandbox via profile n
   const written = JSON.parse(readFileSync(saved.localSystem, "utf8"));
   assert.equal(written.startup.bootFromDisk, false);
   assert.equal(written.presentation.orientation, "classic");
-  // cleanup profile copy only (keep local/ as gitignored scratch)
+  assert.equal(written.presentation.monitor, "green");
+  assert.equal(written.presentation.effect, "clean");
   rmSync(join(ROOT, "config/device/profiles", tmpName), { recursive: true, force: true });
 });
 
-test("device:config µParameters is a native form wrapper with required fields", async () => {
+test("device:config uses preset step; galaxian-demo fills edit defaults", async () => {
   const mod = await import(pathToFileURL(join(ROOT, "gulpfile.mjs")).href + `?t=${Date.now()}`);
-  const fn = mod.deviceConfig || mod.DEVICE_CONFIG;
-  // Tagged export name
   const task = Object.values(mod).find(
     (v) => typeof v === "function" && v.displayName === "device:config",
   );
   assert.ok(task, "device:config export");
-  const params = task["\u00b5Parameters"];
-  assert.ok(params && typeof params === "object" && !Array.isArray(params));
-  assert.ok(Array.isArray(params.fields));
-  const ids = params.fields.map((f) => f.id);
-  for (const id of [
-    "preset",
-    "rom",
-    "drive1",
-    "drive2",
-    "bootFromDisk",
-    "startupMacro",
-    "orientation",
-    "color",
-    "screensaverSeconds",
-    "action",
-  ]) {
-    assert.ok(ids.includes(id), `missing field ${id}`);
-  }
-  assert.ok(params.fields.every((f) => f.label), "every field has label");
-  const action = params.fields.find((f) => f.id === "action");
-  assert.ok(action.options.some((o) => o.value === "save_local"));
-  assert.ok(action.options.some((o) => o.value === "apply_device"));
-  assert.equal(action.default, "save_local", "Apply must be explicit — default is Save locally");
-  const port = params.fields.find((f) => f.id === "port");
-  assert.deepEqual(port.visibleWhen, { action: "apply_device" });
-  const rom = params.fields.find((f) => f.id === "rom");
-  assert.equal(rom.required, true);
+  assert.equal(
+    typeof mod.buildDeviceConfigEditForm,
+    "undefined",
+    "helper must not be a dashboard export",
+  );
+  const step1 = task["\u00b5Parameters"];
+  assert.ok(step1 && Array.isArray(step1.fields));
+  assert.equal(step1.fields.length, 1);
+  assert.equal(step1.fields[0].id, "preset");
+  assert.equal(step1.fields[0].remember, false);
+
+  const d = formDefaultsFromPreset(ROOT, "galaxian-demo");
+  assert.equal(d.rom, "/esp2/roms/system.rom");
+  assert.equal(d.drive1, "/esp2/disks/Galaxian.dsk");
+  assert.equal(d.orientation, "landscape");
+  assert.equal(d.monitor, "artifact");
+  assert.equal(d.effect, "clean");
+  assert.equal(d.action, "save_local");
 
   const parser = await loadParseParameterDeclaration();
   if (parser?.ParseParameterDeclaration) {
-    const parsed = parser.ParseParameterDeclaration(params);
-    assert.ok(parsed.parameters && parsed.parameters.length >= 10);
-    assert.ok(parsed.title);
-    assert.ok(parsed.submitLabel);
+    const parsed = parser.ParseParameterDeclaration(step1);
+    assert.ok(parsed.parameters && parsed.parameters.length === 1);
   }
 });
 
@@ -154,7 +162,16 @@ test("declaring device:config form metadata performs no upload (no COM spawn)", 
     (v) => typeof v === "function" && v.displayName === "device:config",
   );
   assert.ok(task["\u00b5Parameters"].fields.length > 0);
-  // Merely reading metadata must not require a port or touch SerialPort.
   assert.equal(process.env.ESP2_PORT, undefined);
   if (before !== undefined) process.env.ESP2_PORT = before;
+});
+
+test("setup:first-run is tagged and attention-capable", async () => {
+  const mod = await import(pathToFileURL(join(ROOT, "gulpfile.mjs")).href + `?t=${Date.now() + 2}`);
+  const task = Object.values(mod).find(
+    (v) => typeof v === "function" && v.displayName === "setup:first-run",
+  );
+  assert.ok(task, "setup:first-run export");
+  assert.equal(typeof task["\u00b5Attention"], "function");
+  assert.match(String(task["\u00b5Group"]), /Tools/);
 });

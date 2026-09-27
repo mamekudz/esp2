@@ -1,8 +1,10 @@
 #include "esp_bracket/apple2_bus.hpp"
 #include "esp_bracket/artifact_renderer.hpp"
 #include "esp_bracket/cpu6502.hpp"
+#include "esp_bracket/display_effect.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/lores_decoder.hpp"
+#include "esp_bracket/phosphor.hpp"
 #include "esp_bracket/rom.hpp"
 #include "esp_bracket/soft_switches.hpp"
 #include "esp_bracket/text_decoder.hpp"
@@ -257,12 +259,84 @@ static void testPageAndMixed() {
           "frame text clears hires");
 }
 
+static void testPhosphorLuminance() {
+    uint8_t r = 0, g = 0, b = 0;
+    mapLuminanceToPhosphor(VideoColorMode::MonochromeGreen, 0, &r, &g, &b);
+    check(r == 0 && g == 0 && b == 0, "phosphor green black");
+    mapLuminanceToPhosphor(VideoColorMode::MonochromeGreen, 255, &r, &g, &b);
+    check(r == kPhosphorGreen.r && g == kPhosphorGreen.g && b == kPhosphorGreen.b,
+          "phosphor green peak");
+    mapLuminanceToPhosphor(VideoColorMode::MonochromeGreen, 128, &r, &g, &b);
+    check(g > r && g > b && g < kPhosphorGreen.g, "phosphor green mid intensity");
+
+    mapLuminanceToPhosphor(VideoColorMode::MonochromeAmber, 255, &r, &g, &b);
+    check(r == kPhosphorAmber.r && g == kPhosphorAmber.g && b == kPhosphorAmber.b,
+          "phosphor amber peak");
+    mapLuminanceToPhosphor(VideoColorMode::MonochromeAmber, 64, &r, &g, &b);
+    check(r > b && r < kPhosphorAmber.r, "phosphor amber low intensity");
+
+    const uint8_t lum = luminanceFromRgb888(255, 255, 255);
+    check(lum == 255, "luminance white");
+    check(luminanceFromRgb888(0, 0, 0) == 0, "luminance black");
+}
+
+static void testCrtRgb565Deterministic() {
+    constexpr int W = 8;
+    constexpr int H = 4;
+    uint16_t a[W * H];
+    uint16_t b[W * H];
+    for (int i = 0; i < W * H; ++i) {
+        a[i] = b[i] = ArtifactRenderer::toRgb565({255, 128, 64});
+    }
+    a[0] = b[0] = ArtifactRenderer::toRgb565({0, 0, 0});
+    a[1] = b[1] = ArtifactRenderer::toRgb565({255, 255, 255});
+
+    DisplayEffect::applyRgb565(a, W, H, DisplayEffectMode::Sharp, EffectStrength::Low, false);
+    check(a[1] == b[1], "CRT off leaves CLEAN pixels");
+
+    DisplayEffect::applyRgb565(a, W, H, DisplayEffectMode::CrtTv, EffectStrength::Low, true);
+    DisplayEffect::applyRgb565(b, W, H, DisplayEffectMode::CrtTv, EffectStrength::Low, true);
+    int mism = 0;
+    for (int i = 0; i < W * H; ++i) {
+        if (a[i] != b[i]) {
+            ++mism;
+        }
+    }
+    check(mism == 0, "CRT RGB565 deterministic");
+    // Odd scanlines are dimmed vs even (scanline modulation).
+    check(a[W + 1] != a[1] || a[W] != a[0], "CRT scanline modulates odd rows");
+}
+
+static void testArtifactUnchangedByCleanPath() {
+    using AR = ArtifactRenderer;
+    uint8_t bits[AR::kWidth]{};
+    uint8_t high[40]{};
+    bits[0] = 1;
+    bits[1] = 0;
+    uint16_t lineA[AR::kWidth];
+    uint16_t lineB[AR::kWidth];
+    AR::renderScanlineRgb565(bits, high, VideoColorMode::CompositeColor, lineA);
+    AR::renderScanlineRgb565(bits, high, VideoColorMode::CompositeColor, lineB);
+    DisplayEffect::applyRgb565(lineB, AR::kWidth, 1, DisplayEffectMode::Sharp, EffectStrength::Off,
+                               false);
+    int mism = 0;
+    for (int x = 0; x < AR::kWidth; ++x) {
+        if (lineA[x] != lineB[x]) {
+            ++mism;
+        }
+    }
+    check(mism == 0, "Artifact unchanged when CRT/CLEAN off");
+}
+
 int main() {
     testTextLayout();
     testLoresColors();
     testHgrMapping();
     testArtifact();
     testArtifactRgb565Equivalence();
+    testPhosphorLuminance();
+    testCrtRgb565Deterministic();
+    testArtifactUnchangedByCleanPath();
     testHgrClearExactCycles();
     testPageAndMixed();
 

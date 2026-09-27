@@ -10,12 +10,12 @@
 static int g_fails = 0;
 static uint8_t g_lastKey = 0;
 
-#define CHECK(cond)                                                                            \
-    do {                                                                                       \
-        if (!(cond)) {                                                                         \
-            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);                         \
-            ++g_fails;                                                                         \
-        }                                                                                      \
+#define CHECK(cond)                                                                                \
+    do {                                                                                           \
+        if (!(cond)) {                                                                             \
+            std::printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #cond);                            \
+            ++g_fails;                                                                             \
+        }                                                                                          \
     } while (0)
 
 static void inject(uint8_t k) {
@@ -36,9 +36,30 @@ int main() {
     CHECK(cfg.valid);
     CHECK(cfg.bootFromDisk);
     CHECK(cfg.orientation == esp2_config::Orient::Landscape);
-    CHECK(cfg.color == esp2_config::ColorMode::Artifact);
+    CHECK(cfg.monitor == esp2_config::Monitor::Artifact);
+    CHECK(cfg.effect == esp2_config::Effect::Clean);
+    CHECK(cfg.color() == esp2_config::ColorMode::Artifact);
     CHECK(cfg.screensaverSeconds == 300);
     CHECK(std::strcmp(cfg.startupMacro, "galaxian-start") == 0);
+
+    const char *sysNew = R"JSON({
+  "schemaVersion": 1,
+  "presentation": { "orientation": "classic", "monitor": "green", "effect": "crt" }
+})JSON";
+    auto cfgNew = esp2_config::parseSystemConfigJson(sysNew, std::strlen(sysNew), err, sizeof(err));
+    CHECK(cfgNew.valid);
+    CHECK(cfgNew.monitor == esp2_config::Monitor::Green);
+    CHECK(cfgNew.effect == esp2_config::Effect::Crt);
+    CHECK(cfgNew.orientation == esp2_config::Orient::Classic);
+
+    const char *sysAmber = R"JSON({
+  "schemaVersion": 1,
+  "presentation": { "color": "amber", "effect": "clean" }
+})JSON";
+    auto cfgAmber =
+        esp2_config::parseSystemConfigJson(sysAmber, std::strlen(sysAmber), err, sizeof(err));
+    CHECK(cfgAmber.valid);
+    CHECK(cfgAmber.monitor == esp2_config::Monitor::Amber);
 
     auto badCfg =
         esp2_config::parseSystemConfigJson("{\"schemaVersion\":99}", 20, err, sizeof(err));

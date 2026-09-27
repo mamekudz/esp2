@@ -1,5 +1,7 @@
 #include "esp_bracket/artifact_renderer.hpp"
 
+#include "esp_bracket/phosphor.hpp"
+
 namespace esp_bracket {
 
 ArtifactRenderer::Rgb ArtifactRenderer::compositePair(bool b0, bool b1, bool phaseOdd) {
@@ -21,19 +23,9 @@ uint16_t ArtifactRenderer::toRgb565(Rgb c) {
 }
 
 ArtifactRenderer::Rgb ArtifactRenderer::monoColor(VideoColorMode mode, bool on) {
-    if (!on) {
-        return {0, 0, 0};
-    }
-    switch (mode) {
-    case VideoColorMode::MonochromeGreen:
-        return {32, 255, 32};
-    case VideoColorMode::MonochromeAmber:
-        return {255, 176, 32};
-    case VideoColorMode::MonochromeWhite:
-    case VideoColorMode::CompositeColor:
-    default:
-        return {255, 255, 255};
-    }
+    uint8_t r = 0, g = 0, b = 0;
+    mapLuminanceToPhosphor(mode, on ? 255 : 0, &r, &g, &b);
+    return {r, g, b};
 }
 
 void ArtifactRenderer::render(const uint8_t bits280x192[kWidth * kHeight],

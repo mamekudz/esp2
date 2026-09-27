@@ -185,15 +185,61 @@ SystemConfig parseSystemConfigJson(const char *json, size_t len, char *err, size
             }
         }
     }
-    if (const char *p = findKey(json, len, "color")) {
-        char c[32]{};
-        if (parseStringAfter(p, end, c, sizeof(c))) {
-            if (strcmp(c, "artifact") == 0 || strcmp(c, "artifactColor") == 0) {
-                cfg.color = ColorMode::Artifact;
-            } else if (strcmp(c, "sharp") == 0) {
-                cfg.color = ColorMode::Sharp;
+    // Prefer presentation.monitor; fall back to legacy presentation.color.
+    bool monitorSet = false;
+    if (const char *p = findKey(json, len, "monitor")) {
+        char m[32]{};
+        if (parseStringAfter(p, end, m, sizeof(m))) {
+            if (strcmp(m, "white") == 0 || strcmp(m, "sharp") == 0 || strcmp(m, "mono") == 0 ||
+                strcmp(m, "monochrome") == 0) {
+                cfg.monitor = Monitor::White;
+                monitorSet = true;
+            } else if (strcmp(m, "green") == 0) {
+                cfg.monitor = Monitor::Green;
+                monitorSet = true;
+            } else if (strcmp(m, "amber") == 0) {
+                cfg.monitor = Monitor::Amber;
+                monitorSet = true;
+            } else if (strcmp(m, "artifact") == 0 || strcmp(m, "artifactColor") == 0) {
+                cfg.monitor = Monitor::Artifact;
+                monitorSet = true;
             } else {
-                setErr(err, errLen, "color");
+                setErr(err, errLen, "monitor");
+                cfg.valid = false;
+                return cfg;
+            }
+        }
+    }
+    if (!monitorSet) {
+        if (const char *p = findKey(json, len, "color")) {
+            char c[32]{};
+            if (parseStringAfter(p, end, c, sizeof(c))) {
+                if (strcmp(c, "artifact") == 0 || strcmp(c, "artifactColor") == 0) {
+                    cfg.monitor = Monitor::Artifact;
+                } else if (strcmp(c, "sharp") == 0 || strcmp(c, "white") == 0) {
+                    cfg.monitor = Monitor::White;
+                } else if (strcmp(c, "green") == 0) {
+                    cfg.monitor = Monitor::Green;
+                } else if (strcmp(c, "amber") == 0) {
+                    cfg.monitor = Monitor::Amber;
+                } else {
+                    setErr(err, errLen, "color");
+                    cfg.valid = false;
+                    return cfg;
+                }
+            }
+        }
+    }
+    if (const char *p = findKey(json, len, "effect")) {
+        char e[32]{};
+        if (parseStringAfter(p, end, e, sizeof(e))) {
+            if (strcmp(e, "crt") == 0 || strcmp(e, "crt_tv") == 0 || strcmp(e, "tv") == 0) {
+                cfg.effect = Effect::Crt;
+            } else if (strcmp(e, "clean") == 0 || strcmp(e, "sharp") == 0 ||
+                       strcmp(e, "off") == 0 || strcmp(e, "none") == 0) {
+                cfg.effect = Effect::Clean;
+            } else {
+                setErr(err, errLen, "effect");
                 cfg.valid = false;
                 return cfg;
             }

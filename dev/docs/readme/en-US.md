@@ -1,6 +1,10 @@
 # ESP][
 
-**English** | [Deutsch](README.de-DE.md)
+**ESP][ — An Apple in a hand.**
+
+*Better an Apple in the hand than a dove on the roof.*
+
+*English (below) · [Deutsch](#deutsch)*
 
 <p align="center">
   <a href="https://microgulp.dev/ready/">
@@ -30,44 +34,54 @@ Package / repo identifier (ASCII): `esp2` — the visible project name remains *
 
 **`GALAXIAN_ESP32 = PASS`**
 
-Real Apple II software executes on the board through the normal machine path — not a native port or a canned screenshot:
+Real Apple II software executes on the board through the normal emulator stack — **not** a native Galaxian port, **not** a canned screenshot, **not** a fake firmware animation:
 
 ```
 Apple II+ system ROM (user-supplied)
-    → Disk II + Galaxian.dsk (user-supplied)
-    → NMOS 6502 (fake6502)
-    → Apple II video RAM (HGR)
-    → HGR renderer (Sharp / Artifact Color)
-    → presentation (Classic / optional Landscape)
-    → CO5300 AMOLED
+    → NMOS 6502 emulation
+    → Disk II emulation
+    → Galaxian disk image (user-supplied)
+    → Apple II HGR video memory
+    → Artifact Color renderer (generic HGR path)
+    → physical CO5300 AMOLED
 ```
 
 Physically verified so far (summary):
 
 | Check | Result |
 | --- | --- |
-| Apple II+ reset / interactive ROM startup | PASS (`$FA62`, INTERACTIVE) |
-| Galaxian DSK upload (device SHA-256) | PASS |
-| Disk mount / Autostart boot | PASS |
-| Cracktro → Windows CDC keyboard **A** → second disk load | PASS |
+| Apple II+ reset / interactive ROM startup | PASS |
+| Galaxian DSK mount / Autostart boot | PASS |
+| Cracktro → keyboard **A** → second disk load | PASS |
 | Recognizable Galaxian HGR playfield | PASS |
-| Emulated speed | ≈ **1.023 MHz** |
-| Stability | >60 s without SPI panic / watchdog |
+| Presentation matrix (Orient × Monitor × Effect incl. CRT) | PASS (physical) |
+| Emulated speed | ≈ **1.023 MHz** (Artifact Color raises render cost; clock not slowed) |
+| Stability | multi-minute runs without SPI panic / watchdog |
 | Windows keyboard bridge | PASS |
-| 8BitDo gameplay | **NOT_TESTED** (no XInput device connected during the run) |
+| Startup macro input (`galaxian-start`) | infrastructure **IMPLEMENTED** |
+| 8BitDo gameplay | **NOT_TESTED** |
+| Logitech Dial → paddle path | **DEV** (host bridge; not a physical PASS claim) |
 | Physical speaker / Bluetooth audio | **NOT_TESTED** |
 
-Two generic Disk II accuracy fixes unlocked this path (not Galaxian-specific hacks): physical Address Field sector IDs and half-track stepper distance — details in `docs/apple2/boot-forensics.md` / `docs/apple2/disk-ii.md`.
+Getting real Galaxian running exposed generic Disk II accuracy work (DOS 3.3 physical Address Field mapping and half-track stepper behavior) — not title-specific emulator hacks. Details: `docs/apple2/boot-forensics.md`, `docs/apple2/disk-ii.md`.
 
 ---
 
 ## Then vs. now
 
-During compulsory military service, I was allowed to bring my Apple II with me. It travelled in a suitcase — computer, monitor, disk drives and accessories. Moving that setup meant carrying a lot of hardware.
+During compulsory military service, I was allowed to take my Apple II with me. I transported it in a suitcase. Carrying that setup around was a lot of hardware — a lot of hauling.
 
-Today, ESP][ aims at the same idea of a self-contained Apple II experience on an ESP32-S3 with a tiny AMOLED, microSD, and a virtual Disk II. The storage problem is largely solved; **human eyesight is now the limiting peripheral**. A magnifying glass may be the most useful optional accessory.
+| Then | Now |
+| --- | --- |
+| Apple II in a suitcase | **ESP][ in the hand** |
 
-### How many floppies fit on 2 TB?
+**ESP][ — An Apple in a hand.**
+
+Storage is no longer the limiting factor. **Human eyesight is.** On the tiny AMOLED a magnifying glass may be the most useful optional peripheral.
+
+---
+
+## How many floppies fit on 2 TB?
 
 A standard DOS 3.3 Apple II 5.25″ disk image is:
 
@@ -83,15 +97,99 @@ A nominal **2 TB** (= 2,000,000,000,000 bytes) of raw capacity holds about:
 
 raw **140 KiB DSK-equivalent** images — roughly **13.95 million** Apple II floppies.
 
-That is theoretical: it ignores filesystem overhead, other ESP][ files, and larger formats such as WOZ/NIB. It is **not** a WOZ count.
+That is a **fun theoretical comparison**. It ignores filesystem overhead, other ESP][ files, practical filesystem limits, and larger formats such as WOZ/NIB. It is **not** a WOZ count and does **not** claim a 2 TB card stores 13.95 million WOZ files.
 
 At an illustrative ~**1.5 mm** per physical floppy, that stack would be about:
 
 ```
-13.95e6 × 1.5 mm ≈ 20.9 km ≈ 21 km
+13.95e6 × 1.5 mm ≈ 21 km
 ```
 
 of disks. Thickness is an approximation for fun — not a lab measurement.
+
+---
+
+## Persistent configuration & startup macros
+
+ESP][ can store a **device profile** on the microSD (`/esp2/config/system.json` + `macros.json`):
+
+- system ROM path
+- Drive 1 / Drive 2 image paths
+- boot from disk (Autostart)
+- presentation (orientation + HGR color mode)
+- screensaver idle timeout
+- optional **startup macro**
+- named macros that can also be run manually
+
+This is **generic infrastructure**. Galaxian is one demo profile — not hardcoded title behavior in the emulator core.
+
+Example **galaxian-demo** profile (paths only; media not in Git):
+
+| Field | Value |
+| --- | --- |
+| ROM | `/esp2/roms/system.rom` |
+| Drive 1 | `/esp2/disks/Galaxian.dsk` |
+| Boot from disk | `true` |
+| Orientation | `landscape` |
+| Color | `artifact` |
+| Screensaver | `300` seconds |
+| Startup macro | `galaxian-start` |
+
+**Standalone wording:** the persistent startup path is **implemented** and intended for USB-power-only operation without a PC. Independent confirmation of a plain power-supply **cold boot** to the full Galaxian demo is still being validated — do not treat `STANDALONE_GALAXIAN = PASS` as settled until that check is recorded. Details: `docs/architecture/device-config.md`.
+
+---
+
+## Presentation (Classic vs Landscape)
+
+These are **display presentation** choices. They do not change Apple II soft-switches or VRAM.
+
+**Classic + Sharp** remains the established default baseline.
+
+| Mode | Role |
+| --- | --- |
+| **Classic** (default) | 280×192 viewport on the portrait panel |
+| **Landscape** (optional) | CW 90° + nearest-neighbor scale to use more of the 280×456 panel |
+
+Why Landscape exists: on this tiny AMOLED the Classic Apple II image is extremely small. Landscape rotates and scales the presentation so substantially more of the panel is used.
+
+Measured geometry (current firmware evidence):
+
+| | Viewport |
+| --- | --- |
+| Classic | 280 × 192 @ (0, 48) |
+| Landscape | 280 × 408 @ (0, 24) |
+
+The panel cannot show the full Apple II framebuffer at a perfect integer **2×** scale. Landscape therefore **maximizes usable area while preserving aspect ratio**. It is readable / practical — not pixel-perfect 2× scaling, and not an emulator defect.
+
+Presentation is three independent dimensions (not hard-coded combo modes):
+
+| Dimension | Choices |
+| --- | --- |
+| **Orientation** | Classic · Landscape |
+| **Monitor** | White (mono) · Green · Amber · Artifact Color |
+| **Effect** | Clean (default) · CRT/TV (optional, lightweight) |
+
+| Monitor | Role |
+| --- | --- |
+| **White** | True mono from Apple II bits / luminance (former “Sharp”) |
+| **Green / Amber** | Same mono path → phosphor RGB565 (not a desaturate of Artifact) |
+| **Artifact Color** | Generic Apple II HGR composite / phase → RGB565 (`ArtifactRenderer`) |
+
+Artifact Color is a **generic HGR path**, exercised under Galaxian on the physical AMOLED — not a Galaxian-specific palette. CRT/TV is a separate post-monitor pass (scanline + slight softness; chroma bleed only with Artifact).
+
+Physical checks (emulation stays ≈1.023 MHz): Classic/Landscape × White/Green/Amber/Artifact × Clean, plus Landscape × CRT variants including **Landscape + Artifact + CRT**.
+
+Development CDC: `#ESP2PRESENT MONITOR|EFFECT|ORIENT|STATUS` (legacy `COLOR SHARP|ARTIFACT` still accepted). Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
+
+**Future Landscape enclosure:** `LANDSCAPE_ENCLOSURE_VARIANT = CANDIDATE` only — same current 1.64″ board, possible later rotated monitor geometry. **No CAD yet.** A future larger ESP][ variant may use another board if enough usable rectangular resolution for clean 2× Apple II scaling becomes available; the Waveshare 1.64″ board remains the **VERIFIED_BASELINE**.
+
+---
+
+## Display power / screensaver
+
+AMOLED power management: ACTIVE → SCREENSAVER → OFF (panel only — not ESP32 deep sleep).
+
+While the panel sleeps or is off, **Apple II emulation continues**. User activity (touch / keyboard / pad) wakes the display. Configurable idle timeout (demo profile: 300 s). See `docs/architecture/display-power.md`, `docs/architecture/device-config.md`.
 
 ---
 
@@ -106,72 +204,27 @@ of disks. Thickness is an approximation for fun — not a lab measurement.
 
 ### VERIFIED (physical board)
 
-**DISPLAY / bring-up**
-
-- CO5300 AMOLED, **280 × 456**
-- Display power: ACTIVE → SCREENSAVER → OFF
-- Touch (FT3168), microSD (SPI), IMU (QMI8658) as in Phase-1 bring-up
-
-**Apple II on ESP32 (`apple2_text` firmware)**
-
-- User-supplied Apple II+ ROM load + interactive startup
-- Applesoft / keyboard latch path (basic PRINT checks when ROM supports them)
-- Level-4 clean-room Disk II spot check
-- User Disk II PROM + DSK mount/boot (Autostart)
-- TEXT / LORES / HGR rendering to the CO5300
-- HGR **Sharp** (mono luminance) presentation — **Classic + Sharp** remains the default
-- HGR **Artifact Color** via shared `ArtifactRenderer` — physically exercised under Galaxian on the CO5300 (`#ESP2PRESENT COLOR ARTIFACT`)
-- Optional **Landscape** presentation (CW 90° + nearest-neighbor fit) — Classic remains default; enclosure CAD unchanged
-- Windows 11 → USB CDC input bridge (keyboard verified with Galaxian)
+- CO5300 AMOLED **280 × 456**, touch, microSD, IMU (Phase-1 bring-up)
+- Display power ACTIVE → SCREENSAVER → OFF
+- User-supplied Apple II+ ROM + Disk II + DSK Autostart
+- TEXT / LORES / HGR to the CO5300
+- HGR Sharp + Artifact Color; Classic + Landscape presentations
+- Windows 11 → USB CDC keyboard bridge (Galaxian)
+- Persistent device config + macros (paths on SD)
 
 ### HOST_VERIFIED
 
-- Host Apple II machine: **fake6502**, bus, soft switches, text / LoRes / HGR, artifact color, Disk II (Level-4), compatibility harness, user-ROM loader (`npm run test:apple2`)
+- Host Apple II machine: **fake6502**, bus, video, Disk II, compatibility harness
 - Media import / catalog / provenance gates
 - No Apple ROMs or commercial disks in Git
 
 ### PLANNED / NOT_TESTED (examples)
 
-- Control Screen UI, Bluetooth keyboard/gamepad/audio as primary input/output
-- Local piezo audio path, wired paddles, native USB HID host
-- WOZ / full disk write path
-- CRT/Monitor display effects (separate from Artifact Color)
+- Control Screen UI; Bluetooth keyboard / gamepad / audio as primary I/O
+- Local piezo audio; wired paddles; native USB HID host
+- WOZ / full disk write path; CRT/Monitor display effects
 - Final miniature enclosure CAD variants
-
----
-
-## Presentation (Classic vs Landscape)
-
-These are **display presentation** choices. They do not change Apple II soft-switches or VRAM.
-
-| Mode | Role |
-| --- | --- |
-| **Classic** (default) | 280×192 viewport on the portrait panel — verified baseline / enclosure-oriented |
-| **Landscape** (optional) | CW 90° + nearest-neighbor scale to fit the 280×456 panel, aspect ratio preserved |
-
-| HGR color | Role |
-| --- | --- |
-| **Sharp** | Crisp mono on/off pixels |
-| **Artifact Color** | Composite pair / high-bit phase → RGB565 (`ArtifactRenderer`) |
-
-Physical Galaxian presentation matrix (emulation stays ≈1.023 MHz in all cases):
-
-| Mode | Viewport / out | Notes |
-| --- | --- | --- |
-| Classic + Sharp | 280×192 @ (0,48) | Default baseline |
-| Classic + Artifact | 280×192 @ (0,48) | Higher render cost; color path active |
-| Landscape + Sharp | 280×408 @ (0,24) | Full 280×192 frame, aspect preserved |
-| Landscape + Artifact | 280×408 @ (0,24) | Candidate “playable” view on the tiny AMOLED |
-
-Development CDC:
-
-- `#ESP2PRESENT COLOR SHARP|ARTIFACT`
-- `#ESP2PRESENT ORIENT CLASSIC|LANDSCAPE`
-- `#ESP2PRESENT STATUS`
-
-Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
-
-**Landscape enclosure:** `LANDSCAPE_ENCLOSURE_VARIANT = CANDIDATE` only — same current 1.64″ board, possible future rotated monitor geometry. **No CAD change in this milestone.** Larger alternate display boards remain speculative; the Waveshare 1.64″ board is the **VERIFIED_BASELINE**.
+- **Little Brick Out** — planned later validation candidate for LORES / paddle / Logitech Dial (currently **NOT_TESTED**)
 
 ---
 
@@ -199,10 +252,10 @@ Planned additional hardware: piezo / local speaker, physical reset / control but
 | --- | --- | --- |
 | Galaxian | PASS / PLAYFIELD (HOST) | **PASS / PLAYFIELD** (physical; input/audio partial) |
 | ESP][ Boot Test | COMPLETED_TEST_PATH | Level-4 spot PASS |
-| Little Brick Out | NOT_TESTED | NOT_TESTED (prepared for later LORES/paddle) |
+| Little Brick Out | NOT_TESTED | NOT_TESTED |
 | Choplifter / Night Mission / … | see matrix | NOT_TESTED |
 
-Full matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ incompatible. User-supplied media only.
+Full matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ incompatible. User-supplied media only — Galaxian is a **verified compatibility title**, not bundled firmware media.
 
 ---
 
@@ -221,20 +274,23 @@ Incremental, PlatformIO; do not replace known-working board init without a concr
 ```bash
 npm install
 npx gulp help          # task list
-npx gulp docs          # README.md + README.de-DE.md
-npx gulp docs:en-US    # English README only
-npx gulp docs:de-DE    # German README only
+npx gulp docs          # bilingual README.md (EN + DE) + locale baselines
+npx gulp docs:en-US    # same compose (refresh baselines + README.md)
+npx gulp docs:de-DE    # same compose (refresh baselines + README.md)
 npx gulp backup:git    # Git checkpoint (explicit; no auto-commit)
 npx gulp backup:nas    # NAS copy (0–3 targets)
 npx gulp backup:all    # docs → Git → NAS
 ```
 
-Documentation sources:
+Documentation sources (edit these — not the generated root README):
 
-- `dev/docs/readme/en-US.src.md` → `README.md`
-- `dev/docs/readme/de-DE.src.md` → `README.de-DE.md`
+- `dev/docs/readme/en-US.src.md`
+- `dev/docs/readme/de-DE.src.md`
 
-Do not maintain generated READMEs by hand.
+`npx gulp docs` builds one GitHub `README.md` with English first, then German
+(microCSS style; jump link `#deutsch`). Do not maintain `README.md` by hand.
+
+Detailed project history lives in root **`RELEASES.json`** and the µGulp release-history workflow (`releases:history`) — not duplicated here as a changelog.
 
 ### Configure NAS backup
 

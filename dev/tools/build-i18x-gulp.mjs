@@ -55,6 +55,32 @@ const de = {
     "clean → build für die aktive PlatformIO-Umgebung.",
 
   // Tools
+  'First-run setup (download + config) V<version/><context="µDisplayName"/>':
+    "Erststart-Setup (Download + Config) V<version/>",
+  'For a fresh clone: download redistributable Apple II ROMs and a demo title from the network, prepare the runtime disk, and seed local device configuration. Does not flash firmware or upload to the ESP][.<context="µDescription"/>':
+    "Nach frischem Clone: lädt weiterverbreitbare Apple-II-ROMs und einen Demo-Titel aus dem Netz, bereitet die Laufzeitdiskette vor und setzt die lokale Gerätekonfiguration. Flasht keine Firmware und lädt nichts auf den ESP][ hoch.",
+  'Highlighted after clone when local media/config is missing. Network required for downloads.<context="µTooltip"/>':
+    "Hervorgehoben nach dem Clone, wenn lokale Medien/Config fehlen. Netzwerk für Downloads nötig.",
+  'Fresh clone / missing local media — run first-run setup.<context="µAttentionTooltip"/>':
+    "Frischer Clone / fehlende lokale Medien — Erststart-Setup ausführen.",
+  'ESP][ first-run setup<context="task parameter"/>': "ESP][-Erststart-Setup",
+  'Start setup<context="button text"/>': "Setup starten",
+  'Demo title id (apple2js)<context="task parameter"/>': "Demo-Titel-ID (apple2js)",
+  'Downloads redistributable ROMs and this LOCAL_TEST_ONLY title from the network, prepares a runtime disk, and seeds local/device/config from the matching profile when present.<context="task parameter"/>':
+    "Lädt weiterverbreitbare ROMs und diesen LOCAL_TEST_ONLY-Titel aus dem Netz, bereitet eine Laufzeitdiskette vor und setzt local/device/config aus dem passenden Profil, falls vorhanden.",
+  'ESP][ device configuration — choose profile<context="task parameter"/>':
+    "ESP][-Gerätekonfiguration — Profil wählen",
+  'ESP][ device configuration — edit values<context="task parameter"/>':
+    "ESP][-Gerätekonfiguration — Werte bearbeiten",
+  'Load profile into form<context="button text"/>': "Profil in Formular laden",
+  'Custom (blank / local fields)<context="task parameter"/>':
+    "Benutzerdefiniert (leer / lokale Felder)",
+  'Selecting a named preset (e.g. galaxian-demo) fills the next form from that profile. Nothing is uploaded yet.<context="task parameter"/>':
+    "Ein benanntes Preset (z. B. galaxian-demo) füllt das nächste Formular aus diesem Profil. Noch nichts wird hochgeladen.",
+  'Two-step form: choose a preset (fills fields), then edit/save locally or Apply to device. Opening the form uploads nothing; media bytes are never uploaded here.<context="µDescription"/>':
+    "Zweistufiges Formular: Preset wählen (füllt Felder), dann bearbeiten/lokal speichern oder auf Gerät anwenden. Formular öffnen lädt nichts hoch; Media-Bytes nie hier.",
+  'Pick galaxian-demo (or another preset) first — the next form shows those values. Apply is explicit.<context="µTooltip"/>':
+    "Zuerst galaxian-demo (oder anderes Preset) wählen — das nächste Formular zeigt diese Werte. Anwenden ist ausdrücklich.",
   'List Serial Ports V<version/><context="µDisplayName"/>': "Serielle Ports auflisten V<version/>",
   'Serial Monitor V<version/><context="µDisplayName"/>': "Seriellmonitor V<version/>",
   'Format Check V<version/><context="µDisplayName"/>': "Formatprüfung V<version/>",
@@ -71,6 +97,10 @@ const de = {
   'Compose READMEs V<version/><context="µDisplayName"/>': "READMEs erzeugen V<version/>",
   'Compose README (en-US) V<version/><context="µDisplayName"/>': "README erzeugen (en-US) V<version/>",
   'Compose README (de-DE) V<version/><context="µDisplayName"/>': "README erzeugen (de-DE) V<version/>",
+  'Generates one bilingual README.md (English then German, #deutsch) plus locale baselines from .src.md sources. Does not overwrite sources.<context="µDescription"/>':
+    "Erzeugt eine zweisprachige README.md (Englisch dann Deutsch, #deutsch) sowie Locale-Baselines aus .src.md-Quellen. Überschreibt die Quellen nicht.",
+  'Refreshes locale baselines and the bilingual README.md (same as docs).<context="µDescription"/>':
+    "Aktualisiert Locale-Baselines und die zweisprachige README.md (wie docs).",
   'Update Release History (up to date) V<version/><context="µDisplayName"/>':
     "Release-Historie aktualisieren (aktuell) V<version/>",
   'Update Release History — pending V<version/><context="µDisplayName"/>':
@@ -140,6 +170,13 @@ const de = {
   'Startup macro<context="task parameter"/>': "Startup-Makro",
   'none<context="task parameter"/>': "keines",
   'Screen orientation<context="task parameter"/>': "Bildschirmausrichtung",
+  'Monitor appearance<context="task parameter"/>': "Monitor-Erscheinungsbild",
+  'White / Monochrome<context="task parameter"/>': "Weiß / Monochrom",
+  'Green phosphor<context="task parameter"/>': "Grünphosphor",
+  'Amber phosphor<context="task parameter"/>': "Bernsteinphosphor",
+  'Display effect<context="task parameter"/>': "Display-Effekt",
+  'Clean<context="task parameter"/>': "Clean",
+  'CRT / TV<context="task parameter"/>': "CRT / TV",
   'Classic<context="task parameter"/>': "Klassisch",
   'Landscape<context="task parameter"/>': "Querformat",
   'HGR presentation<context="task parameter"/>': "HGR-Darstellung",

@@ -1,12 +1,15 @@
 <!-- note
 Pflegequelle der deutschen ESP][-README. Nur diese Datei (und en-US.src.md) bearbeiten.
-Danach: npx gulp docs  → erzeugt README.de-DE.md und aktualisiert die Baseline de-DE.md
+Danach: npx gulp docs  → zweisprachige README.md (EN dann DE) + Baselines.
 website-Blöcke können später ergänzt werden; unmarked Text erscheint in der Git-README.
 -->
 
 # ESP][
 
-[English](README.md) | **Deutsch**
+**ESP][ — An Apple in a hand.**
+
+*Better an Apple in the hand than a dove on the roof.*  
+*(bewusst leicht absurde Anspielung auf: „Lieber den Spatz in der Hand als die Taube auf dem Dach.“)*
 
 <p align="center">
   <a href="https://microgulp.dev/de/ready/">
@@ -37,44 +40,54 @@ Paket-/Repo-Identifier (ASCII): `esp2` — sichtbarer Projektname bleibt **ESP][
 
 **`GALAXIAN_ESP32 = PASS`**
 
-Echte Apple-II-Software läuft auf dem Board über den normalen Maschinenpfad — kein native Port, kein fertiges Screenshot-Overlay:
+Echte Apple-II-Software läuft auf dem Board über den normalen Emulator-Stack — **kein** natives Galaxian-Port, **kein** fertiges Screenshot-Overlay, **keine** Fake-Firmware-Animation:
 
 ```
 Apple-II+-System-ROM (user-supplied)
-    → Disk II + Galaxian.dsk (user-supplied)
-    → NMOS 6502 (fake6502)
-    → Apple-II-Video-RAM (HGR)
-    → HGR-Renderer (Sharp / Artifact Color)
-    → Presentation (Classic / optional Landscape)
-    → CO5300 AMOLED
+    → NMOS-6502-Emulation
+    → Disk-II-Emulation
+    → Galaxian-Diskettenabbild (user-supplied)
+    → Apple-II-HGR-Videospeicher
+    → Artifact-Color-Renderer (generischer HGR-Pfad)
+    → physisches CO5300-AMOLED
 ```
 
 Physisch verifiziert (Kurzfassung):
 
 | Check | Ergebnis |
 | --- | --- |
-| Apple II+ Reset / interaktiver ROM-Start | PASS (`$FA62`, INTERACTIVE) |
-| Galaxian-DSK-Upload (Device-SHA-256) | PASS |
-| Disk-Mount / Autostart-Boot | PASS |
-| Cracktro → Windows-CDC-Tastatur **A** → zweiter Disk-Load | PASS |
+| Apple II+ Reset / interaktiver ROM-Start | PASS |
+| Galaxian-DSK-Mount / Autostart-Boot | PASS |
+| Cracktro → Tastatur **A** → zweiter Disk-Load | PASS |
 | Erkennbares Galaxian-HGR-Playfield | PASS |
-| Emulierte Geschwindigkeit | ≈ **1,023 MHz** |
-| Stabilität | >60 s ohne SPI-Panic / Watchdog |
+| Presentation-Matrix (Orient × Monitor × Effekt inkl. CRT) | PASS (physisch geprüft) |
+| Emulierte Geschwindigkeit | ≈ **1,023 MHz** (Artifact Color kostet Renderzeit; Takt nicht abgesenkt) |
+| Stabilität | mehrminütige Läufe ohne SPI-Panic / Watchdog |
 | Windows-Tastatur-Bridge | PASS |
-| 8BitDo-Gameplay | **NOT_TESTED** (kein XInput während des Laufs) |
+| Startup-Makro (`galaxian-start`) | Infrastruktur **IMPLEMENTED** |
+| 8BitDo-Gameplay | **NOT_TESTED** |
+| Logitech Dial → Paddle-Pfad | **DEV** (Host-Bridge; kein physischer PASS-Anspruch) |
 | Physischer Lautsprecher / Bluetooth-Audio | **NOT_TESTED** |
 
-Zwei generische Disk-II-Genauigkeitsfixes haben den Weg freigemacht (keine Galaxian-Hacks): physische Address-Field-Sektor-IDs und Half-Track-Stepper — Details in `docs/apple2/boot-forensics.md` / `docs/apple2/disk-ii.md`.
+Echtes Galaxian hat generische Disk-II-Genauigkeitsarbeit freigelegt (DOS-3.3 Address-Field-Mapping und Half-Track-Stepper) — keine titel-spezifischen Emulator-Hacks. Details: `docs/apple2/boot-forensics.md`, `docs/apple2/disk-ii.md`.
 
 ---
 
 ## Damals und heute
 
-Während des Wehrdienstes durfte ich meinen Apple II mitnehmen. Er reiste im Koffer — Rechner, Monitor, Laufwerke und Zubehör. Diese Konfiguration zu transportieren bedeutete eine Menge Hardware zu schleppen.
+Während des Wehrdienstes durfte ich meinen Apple II mitnehmen. Ich habe ihn im Koffer transportiert. Diese Konfiguration mitzuschleppen war eine Menge Hardware — eine Menge Schleppen.
 
-Heute zielt ESP][ auf dieselbe Idee eines in sich geschlossenen Apple-II-Erlebnisses — auf einem ESP32-S3 mit winzigem AMOLED, microSD und virtuellem Disk II. Das Speicherproblem ist weitgehend gelöst; **das menschliche Auge ist jetzt die limitierende Peripherie**. Eine Lupe könnte das nützlichste optionale Zubehör sein.
+| Damals | Heute |
+| --- | --- |
+| Apple II im Koffer | **ESP][ in der Hand** |
 
-### Wie viele Disketten passen auf 2 TB?
+**ESP][ — An Apple in a hand.**
+
+Speicher ist nicht mehr der limitierende Faktor. **Das menschliche Auge ist es.** Auf dem winzigen AMOLED könnte eine Lupe das nützlichste optionale Zubehör sein.
+
+---
+
+## Wie viele Disketten passen auf 2 TB?
 
 Ein standardmäßiges DOS-3.3-Apple-II-5,25″-Diskettenabbild enthält:
 
@@ -82,7 +95,7 @@ Ein standardmäßiges DOS-3.3-Apple-II-5,25″-Diskettenabbild enthält:
 35 Tracks × 16 Sektoren × 256 Bytes = 143 360 Bytes ≈ 140 KiB
 ```
 
-Nominally **2 TB** (= 2 000 000 000 000 Bytes) Rohkapazität fassen etwa:
+Nominal **2 TB** (= 2 000 000 000 000 Bytes) Rohkapazität fassen etwa:
 
 ```
 2 000 000 000 000 / 143 360 ≈ 13,95 Millionen
@@ -90,15 +103,95 @@ Nominally **2 TB** (= 2 000 000 000 000 Bytes) Rohkapazität fassen et
 
 rohe **140-KiB-DSK-Äquivalente** — rund **13,95 Millionen** Apple-II-Disketten.
 
-Das ist theoretisch: Dateisystem-Overhead, andere ESP][-Dateien und größere Formate (WOZ/NIB) sind nicht eingerechnet. Es ist **keine** WOZ-Zählung.
+Das ist ein **spaßiger theoretischer Vergleich**. Dateisystem-Overhead, andere ESP][-Dateien, praktische Limits und größere Formate (WOZ/NIB) sind nicht eingerechnet. Es ist **keine** WOZ-Zählung und behauptet **nicht**, eine 2‑TB-Karte speichere 13,95 Millionen WOZ-Dateien.
 
 Bei illustrativen ~**1,5 mm** pro physischer Diskette wäre der Stapel etwa:
 
 ```
-13,95e6 × 1,5 mm ≈ 20,9 km ≈ 21 km
+13,95e6 × 1,5 mm ≈ 21 km
 ```
 
 Disketten hoch. Die Dicke ist eine Spaß-Näherung — keine Labormessung.
+
+---
+
+## Persistente Konfiguration & Startup-Makros
+
+ESP][ kann ein **Geräteprofil** auf der microSD speichern (`/esp2/config/system.json` + `macros.json`):
+
+- System-ROM-Pfad
+- Laufwerk-1- / Laufwerk-2-Abbildpfade
+- Boot von Diskette (Autostart)
+- Presentation (Ausrichtung + HGR-Farbmodus)
+- Bildschirmschoner-Idle-Timeout
+- optionales **Startup-Makro**
+- benannte Makros, die auch manuell laufen können
+
+Das ist **generische Infrastruktur**. Galaxian ist ein Demo-Profil — kein fest verdrahtetes Titelverhalten im Emulatorkern.
+
+Beispielprofil **galaxian-demo** (nur Pfade; Medien nicht in Git):
+
+| Feld | Wert |
+| --- | --- |
+| ROM | `/esp2/roms/system.rom` |
+| Drive 1 | `/esp2/disks/Galaxian.dsk` |
+| Boot from disk | `true` |
+| Orientation | `landscape` |
+| Color | `artifact` |
+| Screensaver | `300` Sekunden |
+| Startup-Makro | `galaxian-start` |
+
+**Standalone-Formulierung:** Der persistente Startup-Pfad ist **implementiert** und für Betrieb nur mit USB-Stromversorgung (ohne PC) gedacht. Die unabhängige Bestätigung eines reinen Netzteil-**Kaltstarts** bis zur vollen Galaxian-Demo wird noch validiert — `STANDALONE_GALAXIAN = PASS` ist noch nicht als erledigt zu behandeln. Details: `docs/architecture/device-config.md`.
+
+---
+
+## Presentation (Classic vs. Landscape)
+
+Das sind **Display-Presentation**-Wahlmöglichkeiten — keine Apple-II-Softswitches.
+
+**Classic + Sharp** bleibt die etablierte Default-Baseline.
+
+| Modus | Rolle |
+| --- | --- |
+| **Classic** (Default) | 280×192-Viewport auf dem Hochformat-Panel |
+| **Landscape** (optional) | 90° CW + Nearest-Neighbor-Skalierung, mehr Panel-Fläche |
+
+Warum Landscape: Auf diesem winzigen AMOLED ist das klassische Apple-II-Bild extrem klein. Landscape dreht und skaliert die Darstellung, damit deutlich mehr Panel-Fläche genutzt wird.
+
+Gemessene Geometrie (aktuelle Firmware-Evidenz):
+
+| | Viewport |
+| --- | --- |
+| Classic | 280 × 192 @ (0, 48) |
+| Landscape | 280 × 408 @ (0, 24) |
+
+Das Panel kann den vollständigen Apple-II-Framebuffer nicht in perfekter ganzzahliger **2×**-Skalierung zeigen. Landscape **maximiert nutzbare Fläche bei erhaltenem Seitenverhältnis**. Es ist lesbar/praktisch — kein pixelperfektes 2× und kein Emulator-Defekt.
+
+Presentation besteht aus drei unabhängigen Dimensionen:
+
+| Dimension | Wahl |
+| --- | --- |
+| **Ausrichtung** | Classic · Landscape |
+| **Monitor** | Weiß (Mono) · Grün · Bernstein · Artifact Color |
+| **Effekt** | Clean (Default) · CRT/TV (optional, leichtgewichtig) |
+
+| Monitor | Rolle |
+| --- | --- |
+| **Weiß** | Echtes Mono aus Apple-II-Bits / Luminanz (früher „Sharp“) |
+| **Grün / Bernstein** | Derselbe Mono-Pfad → Phosphor-RGB565 |
+| **Artifact Color** | Generischer Apple-II-HGR-Composite-/Phasen-Pfad → RGB565 |
+
+Artifact Color ist ein **generischer HGR-Pfad**, unter Galaxian auf dem physischen AMOLED ausgeübt — keine Galaxian-spezifische Palette. CRT/TV ist ein separater Post-Monitor-Pass.
+
+**Zukünftiges Landscape-Gehäuse:** nur `LANDSCAPE_ENCLOSURE_VARIANT = CANDIDATE` — gleiches 1,64″-Board, mögliche spätere Monitor-Geometrie. **Noch kein CAD.** Eine spätere größere ESP][-Variante kann ein anderes Board nutzen, wenn genug rechteckige Auflösung für saubere 2×-Skalierung verfügbar wird; Waveshare 1,64″ bleibt **VERIFIED_BASELINE**.
+
+---
+
+## Display-Power / Bildschirmschoner
+
+AMOLED-Power: ACTIVE → SCREENSAVER → OFF (nur Panel — kein ESP32-Deep-Sleep).
+
+Während das Panel schläft oder aus ist, **läuft die Apple-II-Emulation weiter**. Nutzeraktivität (Touch / Tastatur / Pad) weckt das Display. Konfigurierbares Idle-Timeout (Demo-Profil: 300 s). Siehe `docs/architecture/display-power.md`, `docs/architecture/device-config.md`.
 
 ---
 
@@ -113,66 +206,27 @@ Disketten hoch. Die Dicke ist eine Spaß-Näherung — keine Labormessung.
 
 ### VERIFIED (physisches Board)
 
-**DISPLAY / Bring-up**
-
-- CO5300 AMOLED, **280 × 456**
-- Display-Power: ACTIVE → SCREENSAVER → OFF
-- Touch (FT3168), microSD (SPI), IMU (QMI8658) wie in Phase 1
-
-**Apple II auf ESP32 (Firmware `apple2_text`)**
-
-- User-supplied Apple-II+-ROM + interaktiver Start
-- Applesoft-/Keyboard-Latch-Pfad
-- Level-4 Clean-Room-Disk-II-Spotcheck
-- User Disk-II-PROM + DSK-Mount/Boot (Autostart)
+- CO5300 AMOLED **280 × 456**, Touch, microSD, IMU (Phase‑1)
+- Display-Power ACTIVE → SCREENSAVER → OFF
+- User-supplied Apple-II+-ROM + Disk II + DSK-Autostart
 - TEXT / LORES / HGR auf dem CO5300
-- HGR **Sharp** (Mono) — **Classic + Sharp** bleibt Default
-- HGR **Artifact Color** (`ArtifactRenderer`) — unter Galaxian auf dem CO5300 physisch aktiviert (`#ESP2PRESENT COLOR ARTIFACT`)
-- Optionale **Landscape**-Presentation (90° CW + Nearest-Neighbor); Classic bleibt Default; Gehäuse-CAD unverändert
-- Windows-11→USB-CDC-Input-Bridge (Tastatur mit Galaxian verifiziert)
+- HGR Sharp + Artifact Color; Classic- + Landscape-Presentation
+- Windows-11→USB-CDC-Tastatur-Bridge (Galaxian)
+- Persistente Gerätekonfiguration + Makros (Pfade auf der SD)
 
 ### HOST_VERIFIED
 
-- Host-Apple-II-Maschine: **fake6502**, Bus, Soft-Switches, Text/LoRes/HGR, Artifact-Farbe, Disk II (Level 4), Compat-Harness, User-ROM-Loader
+- Host-Apple-II-Maschine: **fake6502**, Bus, Video, Disk II, Compat-Harness
 - Media-Import / Katalog / Provenance
 - Keine Apple-ROMs / kommerziellen Disks in Git
 
 ### PLANNED / NOT_TESTED (Beispiele)
 
-- Control Screen, Bluetooth-Tastatur/-Gamepad/-Audio als Primärpfad
-- Lokaler Piezo, verdrahtete Paddles, natives USB-HID-Host
-- WOZ / voller Write-Pfad
-- CRT/Monitor-Effekte (getrennt von Artifact Color)
+- Control Screen; Bluetooth-Tastatur/-Gamepad/-Audio als Primärpfad
+- Lokaler Piezo; verdrahtete Paddles; natives USB-HID-Host
+- WOZ / voller Write-Pfad; schwerere CRT-Effekte (V1: leichtes CRT/TV bereits vorhanden)
 - Finale Gehäuse-CAD-Varianten
-
----
-
-## Presentation (Classic vs. Landscape)
-
-Das sind **Display-Presentation**-Wahlmöglichkeiten — keine Apple-II-Softswitches.
-
-| Modus | Rolle |
-| --- | --- |
-| **Classic** (Default) | 280×192-Viewport — verifizierte Baseline / Gehäuse-Orientierung |
-| **Landscape** (optional) | 90° CW + Nearest-Neighbor-Skalierung auf 280×456, Seitenverhältnis erhalten |
-
-| HGR-Farbe | Rolle |
-| --- | --- |
-| **Sharp** | Klares Mono |
-| **Artifact Color** | Composite-Paar / High-Bit-Phase → RGB565 |
-
-Physische Galaxian-Presentation-Matrix (Emulation bleibt ≈1,023 MHz):
-
-| Modus | Viewport / Out | Notiz |
-| --- | --- | --- |
-| Classic + Sharp | 280×192 @ (0,48) | Default-Baseline |
-| Classic + Artifact | 280×192 @ (0,48) | Höhere Render-Kosten; Farbpfad aktiv |
-| Landscape + Sharp | 280×408 @ (0,24) | Voller 280×192-Frame, Seitenverhältnis erhalten |
-| Landscape + Artifact | 280×408 @ (0,24) | Kandidat für lesbareres Bild auf dem winzigen AMOLED |
-
-Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
-
-**Landscape-Gehäuse:** nur `LANDSCAPE_ENCLOSURE_VARIANT = CANDIDATE` — gleiches 1,64″-Board, mögliche spätere Monitor-Geometrie. **Kein CAD in diesem Meilenstein.** Waveshare 1,64″ bleibt **VERIFIED_BASELINE**.
+- **Little Brick Out** — geplanter späterer Validierungskandidat für LORES / Paddle / Logitech Dial (derzeit **NOT_TESTED**)
 
 ---
 
@@ -190,6 +244,8 @@ Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
 | IMU | **QMI8658** (falls bestückt) |
 | Build | **PlatformIO** |
 
+Geplante Zusatzhardware: Piezo / lokaler Lautsprecher, physischer Reset-/Control-Taster, Bluetooth-Tastatur/-Gamepad/-Kopfhörer, später verdrahtete Analog-Paddles.
+
 ---
 
 ## Kompatibilität (Auszug)
@@ -198,9 +254,15 @@ Details: `docs/architecture/landscape-presentation.md`, `docs/apple2/video.md`.
 | --- | --- | --- |
 | Galaxian | PASS / PLAYFIELD | **PASS / PLAYFIELD** (Input/Audio partiell) |
 | ESP][ Boot Test | COMPLETED_TEST_PATH | Level-4 Spot PASS |
-| Little Brick Out | NOT_TESTED | NOT_TESTED (später LORES/Paddle) |
+| Little Brick Out | NOT_TESTED | NOT_TESTED |
 
-Vollmatrix: `docs/compatibility/titles.json`. Nur user-supplied Medien.
+Vollmatrix: `docs/compatibility/titles.json`. Nur user-supplied Medien — Galaxian ist ein **verifizierter Kompatibilitätstitel**, kein mitgeliefertes Firmware-Medium.
+
+---
+
+## Emulator-Architektur (kurz)
+
+Getrennte Belange: `apple2/` (CPU, Bus, Video, Disk II) vs. Display-Presentation vs. CDC Media/Input. Diskformate: **DSK/DO**, **PO**, **NIB** auf dem Host; **WOZ** / Writes **PLANNED**. Details: `docs/apple2/`, `CLAUDE.md`.
 
 ---
 
@@ -219,7 +281,9 @@ npx gulp backup:nas
 npx gulp backup:all
 ```
 
-Quellen: `dev/docs/readme/en-US.src.md` → `README.md`, `de-DE.src.md` → `README.de-DE.md`.
+Quellen: `dev/docs/readme/en-US.src.md` und `de-DE.src.md` → eine zweisprachige `README.md` (Englisch zuerst, dann Deutsch; Sprung `#deutsch`).
+
+Ausführliche Projekthistorie: Root-**`RELEASES.json`** und der µGulp-Workflow `releases:history` — hier nicht als Changelog verdoppelt.
 
 NAS-/Git-Backup: siehe englische README / `docs/tooling/backup.md`.
 

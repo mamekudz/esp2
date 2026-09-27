@@ -34,7 +34,6 @@ import {
 } from "gulp-mu-gulp-api";
 import {
   ComposeReadme,
-  ComposeReadmeLocale,
   README_SOURCE_RELATIVE,
   README_SOURCES,
 } from "./dev/tools/readme-compose.mjs";
@@ -46,6 +45,7 @@ import {
   NAS_BACKUP_INCLUDE_FILES,
   NAS_BACKUP_MAX_DESTINATIONS,
   ResolveNasTargets,
+  SaveNasLocalDefaults,
   VerifyBackupContents,
 } from "./dev/tools/nas-backup.mjs";
 import { RunGitBackup } from "./dev/tools/git-backup.mjs";
@@ -86,7 +86,11 @@ import {
   applyConfigToDevice,
   configFromFormValues,
   formDefaultsFromConfig,
+  formDefaultsFromPreset,
   listProfileIds,
+  loadProfileSystemJson,
+  needsFirstRunSetup,
+  normalizeSystemConfig,
   saveConfigLocal,
 } from "./dev/tools/device-config-form.mjs";
 
@@ -416,6 +420,21 @@ function _NasBackupParameters() {
   };
 }
 
+function _NasFormFromParameters() {
+  return {
+    destination1: GetParameter("destination1", ""),
+    destination2: GetParameter("destination2", ""),
+    destination3: GetParameter("destination3", ""),
+    dryRun: GetParameter("dryRun", false) === true,
+  };
+}
+
+/**
+ * Resolve NAS targets for backup / list / verify.
+ * Form slots win only when at least one path is set; otherwise
+ * config/nas.targets.local (and env) apply — so list/verify work after a
+ * form-driven backup that persisted destinations.
+ */
 async function _ResolveNasForRun() {
   if (
     process.env.NAS_TARGET_1 ||
@@ -426,23 +445,8 @@ async function _ResolveNasForRun() {
     return ResolveNasTargets(rootDir, null);
   }
 
-  if (process.env.MICROGULP_PARAMS) {
-    return ResolveNasTargets(rootDir, {
-      destination1: GetParameter("destination1", ""),
-      destination2: GetParameter("destination2", ""),
-      destination3: GetParameter("destination3", ""),
-      dryRun: GetParameter("dryRun", false) === true,
-    });
-  }
-
-  if (IsMicroGulp()) {
-    // µParameters already collected by dashboard before task body
-    return ResolveNasTargets(rootDir, {
-      destination1: GetParameter("destination1", ""),
-      destination2: GetParameter("destination2", ""),
-      destination3: GetParameter("destination3", ""),
-      dryRun: GetParameter("dryRun", false) === true,
-    });
+  if (process.env.MICROGULP_PARAMS || IsMicroGulp()) {
+    return ResolveNasTargets(rootDir, _NasFormFromParameters());
   }
 
   const values = await RequestForm(_NasBackupParameters());
@@ -479,6 +483,27 @@ async function _RunNasBackup() {
     ReportProgress(1, "backup-nas");
     PlaySignal("success");
     return { ok: true, results: [], dryRun: resolved.dryRun };
+  }
+
+  // Remember form destinations for backup:list / backup:verify (gitignored).
+  if (resolved.source === "form") {
+    try {
+      const savedPath = SaveNasLocalDefaults(rootDir, {
+        destination1: resolved.destinations[0] || "",
+        destination2: resolved.destinations[1] || "",
+        destination3: resolved.destinations[2] || "",
+        dryRun: resolved.dryRun,
+      });
+      Log(
+        'Remembered NAS destinations → <path/> (gitignored).<context="task log"/>',
+        { path: savedPath },
+      );
+    } catch (err) {
+      Warn(
+        'Could not write config/nas.targets.local: <message/><context="task warning"/>',
+        { message: err.message },
+      );
+    }
   }
 
   if (resolved.dryRun) {
@@ -559,12 +584,13 @@ async function _RunNasBackup() {
 
 export async function docs() {
   ReportProgress(0, "docs");
-  Log('Composing READMEs from <path/> + de-DE.src.md<context="task log"/>', {
-    path: README_SOURCE_RELATIVE,
-  });
+  Log(
+    'Composing bilingual README.md from <path/> + de-DE.src.md (microCSS style)<context="task log"/>',
+    { path: README_SOURCE_RELATIVE },
+  );
   const result = ComposeReadme({ root: rootDir });
   for (const r of result.results) {
-    const name = README_SOURCES[r.locale].outputRel;
+    const name = README_SOURCES[r.locale].baselineRel;
     if (r.changed) {
       Log('Wrote <path/> (<bytes format="int"/> bytes)<context="task log"/>', {
         path: name,
@@ -573,10 +599,16 @@ export async function docs() {
     } else {
       Log(
         '<path/> already up to date (<bytes format="int"/> bytes).<context="task log"/>',
-        { path: name, bytes: r.bytes }
+        { path: name, bytes: r.bytes },
       );
     }
   }
+  Log(
+    result.changed
+      ? 'Wrote README.md (bilingual, <bytes format="int"/> bytes)<context="task log"/>'
+      : 'README.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
+    { bytes: result.bytes },
+  );
   ReportProgress(1, "docs");
   PlaySignal("success");
 }
@@ -584,7 +616,7 @@ _Tag(docs, {
   gulpName: "docs",
   µDisplayName: 'Compose READMEs V<version/><context="µDisplayName"/>',
   µDescription:
-    'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="µDescription"/>',
+    'Generates one bilingual README.md (English then German, #deutsch) plus locale baselines from .src.md sources. Does not overwrite sources.<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 10,
@@ -593,12 +625,12 @@ _Tag(docs, {
 
 export async function docsEnUS() {
   ReportProgress(0, "docs-en-US");
-  const result = ComposeReadmeLocale({ root: rootDir, locale: "en-US" });
+  const result = ComposeReadme({ root: rootDir });
   Log(
     result.changed
-      ? 'Wrote README.md (<bytes format="int"/> bytes)<context="task log"/>'
+      ? 'Wrote bilingual README.md (<bytes format="int"/> bytes)<context="task log"/>'
       : 'README.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
-    { bytes: result.bytes }
+    { bytes: result.bytes },
   );
   ReportProgress(1, "docs-en-US");
   PlaySignal("success");
@@ -607,7 +639,7 @@ _Tag(docsEnUS, {
   gulpName: "docs:en-US",
   µDisplayName: 'Compose README (en-US) V<version/><context="µDisplayName"/>',
   µDescription:
-    'Generates README.md from dev/docs/readme/en-US.src.md.<context="µDescription"/>',
+    'Refreshes locale baselines and the bilingual README.md (same as docs).<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 11,
@@ -616,12 +648,12 @@ _Tag(docsEnUS, {
 
 export async function docsDeDE() {
   ReportProgress(0, "docs-de-DE");
-  const result = ComposeReadmeLocale({ root: rootDir, locale: "de-DE" });
+  const result = ComposeReadme({ root: rootDir });
   Log(
     result.changed
-      ? 'Wrote README.de-DE.md (<bytes format="int"/> bytes)<context="task log"/>'
-      : 'README.de-DE.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
-    { bytes: result.bytes }
+      ? 'Wrote bilingual README.md (<bytes format="int"/> bytes)<context="task log"/>'
+      : 'README.md already up to date (<bytes format="int"/> bytes).<context="task log"/>',
+    { bytes: result.bytes },
   );
   ReportProgress(1, "docs-de-DE");
   PlaySignal("success");
@@ -630,7 +662,7 @@ _Tag(docsDeDE, {
   gulpName: "docs:de-DE",
   µDisplayName: 'Compose README (de-DE) V<version/><context="µDisplayName"/>',
   µDescription:
-    'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="µDescription"/>',
+    'Refreshes locale baselines and the bilingual README.md (same as docs).<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 12,
@@ -1747,23 +1779,154 @@ bindApple2ReadinessAttention({
   "apple2:device:sync": apple2DeviceSync,
 });
 
+/**
+ * Fresh-clone / missing local media: one guided task downloads redistributable
+ * ROMs + Galaxian media, prepares the runtime disk, and seeds local device config.
+ */
+function _FirstRunNeedsAttention() {
+  try {
+    const media = computeApple2MediaReadiness();
+    if (
+      media.step === "rom_sync" ||
+      media.step === "media_sync" ||
+      media.step === "media_prepare"
+    ) {
+      return true;
+    }
+    return needsFirstRunSetup(rootDir, media);
+  } catch {
+    return needsFirstRunSetup(rootDir);
+  }
+}
+
+export async function setupFirstRun() {
+  ReportProgress(0, "setup-first-run");
+  const title =
+    String(GetParameter("title") || "").trim() ||
+    (
+      (await RequestForm({
+        title: 'ESP][ first-run setup<context="task parameter"/>'.i18xRegister(),
+        submitLabel: 'Start setup<context="button text"/>'.i18xRegister(),
+        fields: [
+          {
+            id: "title",
+            type: "text",
+            default: "galaxian",
+            remember: false,
+            label: 'Demo title id (apple2js)<context="task parameter"/>'.i18xRegister(),
+            description:
+              'Downloads redistributable ROMs and this LOCAL_TEST_ONLY title from the network, prepares a runtime disk, and seeds local/device/config from the matching profile when present.<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      })) || {}
+    ).title ||
+    "galaxian";
+
+  Log(
+    'First-run setup for title=<title/> (network download of redistributable assets)…<context="task log"/>',
+    { title },
+  );
+
+  ReportProgress(0.1, "setup-rom");
+  runNodeCli("dev/tools/apple2-local/cli.mjs", ["rom-sync"], "setup:first-run/rom");
+  ReportProgress(0.35, "setup-media");
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-sync", "--title", title],
+    "setup:first-run/media",
+  );
+  ReportProgress(0.55, "setup-prepare");
+  runNodeCli(
+    "dev/tools/apple2-local/cli.mjs",
+    ["media-prepare", "--title", title],
+    "setup:first-run/prepare",
+  );
+
+  ReportProgress(0.75, "setup-config");
+  const profileId =
+    listProfileIds(rootDir).includes(`${title}-demo`)
+      ? `${title}-demo`
+      : listProfileIds(rootDir).includes("galaxian-demo")
+        ? "galaxian-demo"
+        : null;
+  if (profileId) {
+    const raw = loadProfileSystemJson(rootDir, profileId);
+    const normalized = normalizeSystemConfig(raw);
+    if (!normalized.ok) {
+      throw new Error(`preset ${profileId} invalid: ${normalized.errors.join("; ")}`);
+    }
+    const saved = saveConfigLocal(rootDir, normalized.config, profileId, profileId);
+    Log(
+      'Seeded local device config from profile <profile/> → <path/><context="task log"/>',
+      { profile: profileId, path: saved.localSystem },
+    );
+  } else {
+    Warn(
+      'No matching device profile under config/device/profiles/ — skipped config seed.<context="task warning"/>',
+    );
+  }
+
+  ReportProgress(1, "setup-first-run");
+  Log(
+    'First-run host setup finished. Next (optional): Build/Upload firmware, Configure ESP][ → Apply, Sync Game to ESP][.<context="task log"/>',
+  );
+  PlaySignal("success");
+}
+_Tag(setupFirstRun, {
+  gulpName: "setup:first-run",
+  µDisplayName: 'First-run setup (download + config) V<version/><context="µDisplayName"/>',
+  µDescription:
+    'For a fresh clone: download redistributable Apple II ROMs and a demo title from the network, prepare the runtime disk, and seed local device configuration. Does not flash firmware or upload to the ESP][.<context="µDescription"/>',
+  µTooltip:
+    'Highlighted after clone when local media/config is missing. Network required for downloads.<context="µTooltip"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µIcon: "\u26A1",
+  µOrder: 1,
+  µExecutionConcurrency: false,
+  µAttention: () => _FirstRunNeedsAttention(),
+  µAttentionTooltip:
+    'Fresh clone / missing local media — run first-run setup.<context="µAttentionTooltip"/>',
+  µAttentionWatch: {
+    files: ["local/apple2", "local/device/config", "config/device/profiles"],
+    intervalMs: 15_000,
+  },
+  µParameters: [
+    {
+      id: "title",
+      type: "text",
+      default: "galaxian",
+      remember: false,
+      label: 'Demo title id (apple2js)<context="task parameter"/>'.i18xRegister(),
+    },
+  ],
+});
+gulp.task("setup:first-run", setupFirstRun);
+
 if (IsMicroGulp()) {
   try {
     const readiness = computeApple2MediaReadiness();
-    if (readiness.emphasizeTaskId) {
-      SetGroupState("Apple II/Media", "open");
+    const firstRun = _FirstRunNeedsAttention();
+    const emphasizeId = firstRun
+      ? "setup:first-run"
+      : readiness.emphasizeTaskId;
+    if (emphasizeId) {
+      if (firstRun) {
+        SetGroupState("Tools", "open");
+      } else {
+        SetGroupState("Apple II/Media", "open");
+      }
       if (readiness.step === "compat") {
         SetGroupState("Apple II/Compatibility", "open");
       }
       if (readiness.step === "device_sync") {
         SetGroupState("Apple II/Device", "open");
       }
-      RevealTask(readiness.emphasizeTaskId, {
+      RevealTask(emphasizeId, {
         expand: true,
         scroll: true,
         highlight: "attention",
       });
-      SetTaskEmphasis(readiness.emphasizeTaskId, "attention");
+      SetTaskEmphasis(emphasizeId, "attention");
     }
   } catch {
     /* readiness is advisory only */
@@ -1787,45 +1950,52 @@ function _DeviceConfigDisplayName() {
 }
 
 /**
- * Native µGulp µParameters form (same shape as NAS backup).
- * Opening/rendering this metadata has no I/O side effects.
+ * Step 1 — pick a preset. µGulp cannot live-update other fields when a select
+ * changes, so the edit form is rebuilt after this step with preset defaults.
  */
-function _DeviceConfigParameters() {
+function _DeviceConfigPresetParameters() {
   const d = formDefaultsFromConfig(rootDir);
   const presets = [
-    { value: "custom", label: 'Custom (use fields below)<context="task parameter"/>'.i18xRegister() },
+    { value: "custom", label: 'Custom (blank / local fields)<context="task parameter"/>'.i18xRegister() },
     ...listProfileIds(rootDir).map((id) => ({ value: id, label: id })),
   ];
+  return {
+    title: 'ESP][ device configuration — choose profile<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Load profile into form<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "preset",
+        type: "select",
+        default: d.preset,
+        remember: false,
+        label: 'Preset profile<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Selecting a named preset (e.g. galaxian-demo) fills the next form from that profile. Nothing is uploaded yet.<context="task parameter"/>'.i18xRegister(),
+        options: presets,
+      },
+    ],
+  };
+}
+
+/**
+ * Step 2 — editable values (defaults already taken from the chosen preset).
+ * @param {ReturnType<typeof formDefaultsFromPreset>} d
+ */
+function _DeviceConfigEditForm(d) {
   const macros = (d.macros || ["none"]).map((id) =>
     id === "none"
       ? { value: "none", label: 'none<context="task parameter"/>'.i18xRegister() }
       : { value: id, label: id },
   );
   return {
-    title: 'ESP][ device configuration<context="task parameter"/>'.i18xRegister(),
+    title: 'ESP][ device configuration — edit values<context="task parameter"/>'.i18xRegister(),
     submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
     fields: [
-      {
-        id: "preset",
-        type: "select",
-        default: d.preset,
-        label: 'Preset profile<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Named presets under config/device/profiles/. Does not upload. Enable “Reload from preset” to replace field values from that file on Continue.<context="task parameter"/>'.i18xRegister(),
-        options: presets,
-      },
-      {
-        id: "loadPreset",
-        type: "boolean",
-        default: false,
-        label: 'Reload from preset on Continue<context="task parameter"/>'.i18xRegister(),
-        description:
-          'When on, load the selected preset file (ignores field edits for this run). When off, use the editable fields below.<context="task parameter"/>'.i18xRegister(),
-      },
       {
         id: "profileName",
         type: "text",
         default: d.profileName,
+        remember: false,
         label: 'Profile name (local save)<context="task parameter"/>'.i18xRegister(),
         description:
           'Saved under local/device/config/ and optionally config/device/profiles/<name>/.<context="task parameter"/>'.i18xRegister(),
@@ -1835,6 +2005,7 @@ function _DeviceConfigParameters() {
         type: "text",
         default: d.rom,
         required: true,
+        remember: false,
         label: 'System ROM (device path)<context="task parameter"/>'.i18xRegister(),
         description:
           'Absolute path on the ESP][ SD, e.g. /esp2/roms/system.rom — not a host file upload.<context="task parameter"/>'.i18xRegister(),
@@ -1843,6 +2014,7 @@ function _DeviceConfigParameters() {
         id: "drive1",
         type: "text",
         default: d.drive1,
+        remember: false,
         label: 'Drive 1 image (device path)<context="task parameter"/>'.i18xRegister(),
         description:
           'e.g. /esp2/disks/Galaxian.dsk — path only; disk bytes are not uploaded by this form.<context="task parameter"/>'.i18xRegister(),
@@ -1851,6 +2023,7 @@ function _DeviceConfigParameters() {
         id: "drive2",
         type: "text",
         default: d.drive2,
+        remember: false,
         label: 'Drive 2 image (optional)<context="task parameter"/>'.i18xRegister(),
         description:
           'Leave empty when unused. Path under /esp2/ only.<context="task parameter"/>'.i18xRegister(),
@@ -1859,12 +2032,14 @@ function _DeviceConfigParameters() {
         id: "bootFromDisk",
         type: "boolean",
         default: d.bootFromDisk,
+        remember: false,
         label: 'Boot from disk (Autostart)<context="task parameter"/>'.i18xRegister(),
       },
       {
         id: "startupMacro",
         type: "select",
         default: d.startupMacro,
+        remember: false,
         label: 'Startup macro<context="task parameter"/>'.i18xRegister(),
         options: macros,
       },
@@ -1872,6 +2047,7 @@ function _DeviceConfigParameters() {
         id: "orientation",
         type: "select",
         default: d.orientation,
+        remember: false,
         label: 'Screen orientation<context="task parameter"/>'.i18xRegister(),
         options: [
           { value: "classic", label: 'Classic<context="task parameter"/>'.i18xRegister() },
@@ -1879,16 +2055,30 @@ function _DeviceConfigParameters() {
         ],
       },
       {
-        id: "color",
+        id: "monitor",
         type: "select",
-        default: d.color,
-        label: 'HGR presentation<context="task parameter"/>'.i18xRegister(),
+        default: d.monitor ?? d.color ?? "white",
+        remember: false,
+        label: 'Monitor appearance<context="task parameter"/>'.i18xRegister(),
         options: [
-          { value: "sharp", label: 'Sharp<context="task parameter"/>'.i18xRegister() },
+          { value: "white", label: 'White / Monochrome<context="task parameter"/>'.i18xRegister() },
+          { value: "green", label: 'Green phosphor<context="task parameter"/>'.i18xRegister() },
+          { value: "amber", label: 'Amber phosphor<context="task parameter"/>'.i18xRegister() },
           {
             value: "artifact",
             label: 'Artifact Color<context="task parameter"/>'.i18xRegister(),
           },
+        ],
+      },
+      {
+        id: "effect",
+        type: "select",
+        default: d.effect ?? "clean",
+        remember: false,
+        label: 'Display effect<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "clean", label: 'Clean<context="task parameter"/>'.i18xRegister() },
+          { value: "crt", label: 'CRT / TV<context="task parameter"/>'.i18xRegister() },
         ],
       },
       {
@@ -1898,6 +2088,7 @@ function _DeviceConfigParameters() {
         min: 0,
         max: 86400,
         step: 1,
+        remember: false,
         label: 'Screensaver timeout (seconds, 0 = disabled)<context="task parameter"/>'.i18xRegister(),
         description:
           'Idle seconds before AMOLED screensaver. 0 disables. Unit: seconds.<context="task parameter"/>'.i18xRegister(),
@@ -1906,6 +2097,7 @@ function _DeviceConfigParameters() {
         id: "action",
         type: "select",
         default: "save_local",
+        remember: false,
         label: 'Action<context="task parameter"/>'.i18xRegister(),
         description:
           'Save locally writes JSON on the PC only. Apply to device uploads system.json + macros.json (paths only) — never ROM/disk media.<context="task parameter"/>'.i18xRegister(),
@@ -1924,6 +2116,7 @@ function _DeviceConfigParameters() {
         id: "port",
         type: "text",
         default: d.port,
+        remember: false,
         label: 'Serial port for Apply (optional)<context="task parameter"/>'.i18xRegister(),
         description:
           'e.g. COM5. Empty → AskPort dialog. Used only when Action is Apply to device.<context="task parameter"/>'.i18xRegister(),
@@ -1953,35 +2146,41 @@ async function resolveDeviceSerialPort(_title) {
 
 export async function deviceConfig() {
   ReportProgress(0, "device-config");
-  // µGulp shows µParameters form before this body runs. No I/O until here.
-  let values = GetParameters();
-  if (!process.env.MICROGULP_PARAMS && !IsMicroGulp()) {
-    // Classic CLI: interactive RequestForm with the same descriptor.
-    values = (await RequestForm(_DeviceConfigParameters())) || {};
+  // Step 1: preset (µParameters in µGulp, or RequestForm on CLI).
+  let preset = String(GetParameter("preset") || "").trim();
+  if (!preset) {
+    const step1 = (await RequestForm(_DeviceConfigPresetParameters())) || {};
+    preset = String(step1.preset || "custom");
   }
-  const action = String(values.action || GetParameter("action", "save_local"));
+  const defaults = formDefaultsFromPreset(rootDir, preset);
+  Log('Loaded profile defaults from <preset/><context="task log"/>', {
+    preset: defaults.preset,
+  });
+
+  // Step 2: edit form rebuilt from the chosen preset (fields actually update).
+  let values;
+  if (process.env.ESP2_DEVICE_CONFIG_JSON) {
+    values = JSON.parse(process.env.ESP2_DEVICE_CONFIG_JSON);
+  } else {
+    values = (await RequestForm(_DeviceConfigEditForm(defaults))) || {};
+  }
+
+  const action = String(values.action || "save_local");
   const resolved = configFromFormValues(rootDir, {
     ...values,
-    preset: values.preset ?? GetParameter("preset", "custom"),
-    loadPreset: values.loadPreset ?? GetParameter("loadPreset", false),
-    rom: values.rom ?? GetParameter("rom"),
-    drive1: values.drive1 ?? GetParameter("drive1", ""),
-    drive2: values.drive2 ?? GetParameter("drive2", ""),
-    bootFromDisk: values.bootFromDisk ?? GetParameter("bootFromDisk", false),
-    startupMacro: values.startupMacro ?? GetParameter("startupMacro", "none"),
-    orientation: values.orientation ?? GetParameter("orientation", "classic"),
-    color: values.color ?? GetParameter("color", "sharp"),
-    screensaverSeconds:
-      values.screensaverSeconds ?? GetParameter("screensaverSeconds", 0),
+    preset: defaults.preset,
+    loadPreset: false,
   });
   if (!resolved.ok) {
     throw new Error(`device:config validation failed: ${resolved.errors.join("; ")}`);
   }
-  const profileName = String(
-    values.profileName ?? GetParameter("profileName", "local"),
-  ).trim();
-  const preset = String(values.preset ?? "custom");
-  const saved = saveConfigLocal(rootDir, resolved.config, profileName, preset);
+  const profileName = String(values.profileName || defaults.profileName || "local").trim();
+  const saved = saveConfigLocal(
+    rootDir,
+    resolved.config,
+    profileName,
+    defaults.preset,
+  );
   Log(
     'Saved device config locally → <path/> (profile=<profile/>). ROM/disk media were NOT uploaded.<context="task log"/>',
     { path: saved.localSystem, profile: profileName || "local" },
@@ -2008,12 +2207,12 @@ _Tag(deviceConfig, {
   gulpName: "device:config",
   µDisplayName: () => _DeviceConfigDisplayName(),
   µDescription:
-    'Opens the ESP][ configuration form (ROM, disks, boot, macro, presentation, screensaver). Save locally or explicitly Apply to device — opening the form uploads nothing.<context="µDescription"/>',
+    'Two-step form: choose a preset (fills fields), then edit/save locally or Apply to device. Opening the form uploads nothing; media bytes are never uploaded here.<context="µDescription"/>',
   µTooltip:
-    'Form only until you choose Apply. Media bytes are never uploaded here.<context="µTooltip"/>',
+    'Pick galaxian-demo (or another preset) first — the next form shows those values. Apply is explicit.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 60,
-  µParameters: _DeviceConfigParameters(),
+  µParameters: _DeviceConfigPresetParameters(),
 });
 
 export async function deviceMacroRun() {

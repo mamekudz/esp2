@@ -40,10 +40,12 @@
 #include "esp_bracket/disk_ii_cleanroom.hpp"
 #include "esp_bracket/disk_ii_controller.hpp"
 #include "esp_bracket/disk_ii_media.hpp"
+#include "esp_bracket/display_effect.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/key_map.hpp"
 #include "esp_bracket/landscape_present.hpp"
 #include "esp_bracket/lores_decoder.hpp"
+#include "esp_bracket/phosphor.hpp"
 #include "esp_bracket/rom.hpp"
 #include "esp_bracket/rom_identity.hpp"
 #include "esp_bracket/sha256.hpp"
@@ -71,8 +73,10 @@ static constexpr int kFullUpdateThreshold = 96;
 static constexpr uint32_t kRomStartupBudget = 8000000;
 static constexpr uint32_t kWaitSlice = 2000;
 
-/** HGR presentation color — independent of Apple II soft-switches. */
-enum class PresentColorMode : uint8_t { Sharp = 0, ArtifactColor };
+/** Monitor appearance — independent of Apple II soft-switches / VRAM. */
+enum class PresentMonitor : uint8_t { White = 0, Green, Amber, Artifact };
+/** Optional CRT/TV pass after monitor appearance. */
+enum class PresentEffect : uint8_t { Clean = 0, Crt };
 /** Physical panel layout — independent of AppleIIMachine. */
 enum class PresentOrientation : uint8_t { Classic = 0, Landscape };
 
@@ -89,7 +93,8 @@ static Esp32SdStorageBackend g_sdStore;
 static SdOwnership g_sdOwner;
 static UsbStorageMode g_usbStorage(g_sdOwner);
 static bool g_usbStorageUi = false;
-static PresentColorMode g_presentColor = PresentColorMode::Sharp;
+static PresentMonitor g_presentMonitor = PresentMonitor::White;
+static PresentEffect g_presentEffect = PresentEffect::Clean;
 static PresentOrientation g_presentOrient = PresentOrientation::Classic;
 static MachineProfile g_profile = MachineProfile::AppleIIPlus;
 static RomIdentity g_romId{};
@@ -166,8 +171,12 @@ static void resyncEmuWallClock();
 static void applyPresentChange();
 static void servicePresentApplyOnDisplayTask();
 static void emitPresentStatus();
-static const char *presentColorName();
+static const char *presentMonitorName();
+static const char *presentEffectName();
 static const char *presentOrientName();
+static VideoColorMode presentVideoColorMode();
+static uint16_t presentMonoPixel(bool lit);
+static void applyCrtToViewportIfNeeded();
 
 static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
     return ArtifactRenderer::toRgb565({r, g, b});
@@ -675,19 +684,70 @@ static void handleDevCommandLine(const char *line) {
         Serial.println("#ACK DIAG SNAP");
         return;
     }
-    if (strncmp(line, "#ESP2PRESENT COLOR ", 19) == 0) {
-        const char *arg = line + 19;
-        if (strcmp(arg, "SHARP") == 0) {
-            g_presentColor = PresentColorMode::Sharp;
+    if (strncmp(line, "#ESP2PRESENT MONITOR ", 21) == 0) {
+        const char *arg = line + 21;
+        if (strcmp(arg, "WHITE") == 0 || strcmp(arg, "SHARP") == 0 || strcmp(arg, "MONO") == 0) {
+            g_presentMonitor = PresentMonitor::White;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "GREEN") == 0) {
+            g_presentMonitor = PresentMonitor::Green;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "AMBER") == 0) {
+            g_presentMonitor = PresentMonitor::Amber;
             applyPresentChange();
             return;
         }
         if (strcmp(arg, "ARTIFACT") == 0 || strcmp(arg, "ARTIFACTCOLOR") == 0) {
-            g_presentColor = PresentColorMode::ArtifactColor;
+            g_presentMonitor = PresentMonitor::Artifact;
+            applyPresentChange();
+            return;
+        }
+        Serial.println("#NAK PRESENT monitor");
+        return;
+    }
+    // Legacy alias: COLOR SHARP|ARTIFACT → MONITOR WHITE|ARTIFACT
+    if (strncmp(line, "#ESP2PRESENT COLOR ", 19) == 0) {
+        const char *arg = line + 19;
+        if (strcmp(arg, "SHARP") == 0 || strcmp(arg, "WHITE") == 0) {
+            g_presentMonitor = PresentMonitor::White;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "ARTIFACT") == 0 || strcmp(arg, "ARTIFACTCOLOR") == 0) {
+            g_presentMonitor = PresentMonitor::Artifact;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "GREEN") == 0) {
+            g_presentMonitor = PresentMonitor::Green;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "AMBER") == 0) {
+            g_presentMonitor = PresentMonitor::Amber;
             applyPresentChange();
             return;
         }
         Serial.println("#NAK PRESENT color");
+        return;
+    }
+    if (strncmp(line, "#ESP2PRESENT EFFECT ", 20) == 0) {
+        const char *arg = line + 20;
+        if (strcmp(arg, "CLEAN") == 0 || strcmp(arg, "OFF") == 0 || strcmp(arg, "SHARP") == 0) {
+            g_presentEffect = PresentEffect::Clean;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "CRT") == 0 || strcmp(arg, "CRT_TV") == 0 || strcmp(arg, "TV") == 0) {
+            g_presentEffect = PresentEffect::Crt;
+            applyPresentChange();
+            return;
+        }
+        Serial.println("#NAK PRESENT effect");
         return;
     }
     if (strncmp(line, "#ESP2PRESENT ORIENT ", 20) == 0) {
@@ -711,14 +771,16 @@ static void handleDevCommandLine(const char *line) {
     }
     if (strcmp(line, "#ESP2CONFIG STATUS") == 0) {
         Serial.printf("#ACK CONFIG loaded=%d valid=%d rom=%s drive1=%s boot=%d macro=%s "
-                      "orient=%s color=%s ss=%u\n",
+                      "orient=%s monitor=%s effect=%s color=%s ss=%u\n",
                       g_sysConfig.loaded ? 1 : 0, g_sysConfig.valid ? 1 : 0,
                       g_sysConfig.romPath[0] ? g_sysConfig.romPath : "-",
                       g_sysConfig.drive1[0] ? g_sysConfig.drive1 : "-",
                       g_sysConfig.bootFromDisk ? 1 : 0,
                       g_sysConfig.startupMacro[0] ? g_sysConfig.startupMacro : "-",
                       esp2_config::orientName(g_sysConfig.orientation),
-                      esp2_config::colorName(g_sysConfig.color),
+                      esp2_config::monitorName(g_sysConfig.monitor),
+                      esp2_config::effectName(g_sysConfig.effect),
+                      esp2_config::colorName(g_sysConfig.monitor),
                       static_cast<unsigned>(g_sysConfig.screensaverSeconds));
         return;
     }
@@ -924,10 +986,30 @@ static void runEmu(uint32_t cycles) {
     }
 }
 
+static VideoColorMode presentVideoColorMode() {
+    switch (g_presentMonitor) {
+    case PresentMonitor::Green:
+        return VideoColorMode::MonochromeGreen;
+    case PresentMonitor::Amber:
+        return VideoColorMode::MonochromeAmber;
+    case PresentMonitor::Artifact:
+        return VideoColorMode::CompositeColor;
+    case PresentMonitor::White:
+    default:
+        return VideoColorMode::MonochromeWhite;
+    }
+}
+
+static uint16_t presentMonoPixel(bool lit) {
+    return mapLuminanceToPhosphorRgb565(presentVideoColorMode(), lit ? 255 : 0);
+}
+
 static void renderTextRows(uint16_t *fb, int row0, int row1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
     uint8_t chars[TextDecoder::kRows * TextDecoder::kCols];
     TextDecoder::decodeScreen(g_a2bus.ram(), vs.textPageBase(), chars);
+    const uint16_t onPx = presentMonoPixel(true);
+    const uint16_t offPx = presentMonoPixel(false);
     for (int row = row0; row <= row1; ++row) {
         for (int gy = 0; gy < 8; ++gy) {
             uint16_t *dst = fb + (row * 8 + gy) * kViewW;
@@ -942,10 +1024,10 @@ static void renderTextRows(uint16_t *fb, int row0, int row1) {
                 for (int gx = 0; gx < 5; ++gx) {
                     const bool on = (bits & (1u << (4 - gx))) != 0;
                     const bool lit = inverse ? !on : on;
-                    dst[col * kTextCellW + gx] = lit ? 0xFFFF : 0x0000;
+                    dst[col * kTextCellW + gx] = lit ? onPx : offPx;
                 }
-                dst[col * kTextCellW + 5] = 0;
-                dst[col * kTextCellW + 6] = 0;
+                dst[col * kTextCellW + 5] = offPx;
+                dst[col * kTextCellW + 6] = offPx;
             }
         }
     }
@@ -955,13 +1037,21 @@ static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
     uint8_t blocks[LoresDecoder::kRows * LoresDecoder::kCols];
     LoresDecoder::decode(g_a2bus.ram(), vs.textPageBase(), blocks);
+    const bool phosphor = g_presentMonitor != PresentMonitor::Artifact;
+    const VideoColorMode monoMode = presentVideoColorMode();
     for (int py = scan0; py <= scan1; ++py) {
         const int brow = py / LoresDecoder::kBlockH;
         uint16_t *dst = fb + py * kViewW;
         for (int bx = 0; bx < 40; ++bx) {
             uint8_t r, g, b;
             LoresDecoder::colorRgb(blocks[brow * 40 + bx], &r, &g, &b);
-            const uint16_t c = rgb565(r, g, b);
+            uint16_t c;
+            if (phosphor) {
+                const uint8_t lum = luminanceFromRgb888(r, g, b);
+                c = mapLuminanceToPhosphorRgb565(monoMode, lum);
+            } else {
+                c = rgb565(r, g, b);
+            }
             for (int dx = 0; dx < 7; ++dx) {
                 dst[bx * 7 + dx] = c;
             }
@@ -975,16 +1065,10 @@ static void renderHgrRows(uint16_t *fb, int scan0, int scan1) {
     }
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
     HgrDecoder::decode(g_a2bus.ram(), vs.hgrPageBase(), g_hgrBits, g_hgrHigh);
+    const VideoColorMode mode = presentVideoColorMode();
     for (int y = scan0; y <= scan1; ++y) {
         uint16_t *dst = fb + y * kViewW;
-        if (g_presentColor == PresentColorMode::ArtifactColor) {
-            ArtifactRenderer::renderScanlineRgb565(g_hgrBits + y * 280, g_hgrHigh + y * 40,
-                                                   VideoColorMode::CompositeColor, dst);
-        } else {
-            for (int x = 0; x < 280; ++x) {
-                dst[x] = g_hgrBits[y * 280 + x] ? 0xFFFF : 0x0000;
-            }
-        }
+        ArtifactRenderer::renderScanlineRgb565(g_hgrBits + y * 280, g_hgrHigh + y * 40, mode, dst);
     }
 }
 
@@ -1086,25 +1170,40 @@ static uint32_t transferLandscapeFromViewport() {
     return g_lastXferUs;
 }
 
+static void applyCrtToViewportIfNeeded() {
+    if (!g_viewportFb || g_presentEffect != PresentEffect::Crt) {
+        return;
+    }
+    DisplayEffect::applyRgb565(g_viewportFb, kViewW, kViewH, DisplayEffectMode::CrtTv,
+                               EffectStrength::Low,
+                               g_presentMonitor == PresentMonitor::Artifact);
+}
+
 static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
     if (!g_viewportFb || bits.empty()) {
         return 0;
     }
+    // CRT horizontal blend needs contiguous scanlines — full viewport when on.
+    VideoDirtyTracker::Bitset work = bits;
+    if (g_presentEffect == PresentEffect::Crt) {
+        work.markAll();
+    }
     const uint32_t tR0 = micros();
-    renderDirtyIntoFb(g_viewportFb, bits);
+    renderDirtyIntoFb(g_viewportFb, work);
+    applyCrtToViewportIfNeeded();
     g_lastRenderUs = micros() - tR0;
     if (g_presentOrient == PresentOrientation::Landscape) {
         // Full transform — dirty scanline runs are not axis-aligned after rotate.
         return transferLandscapeFromViewport();
     }
-    const int pop = bits.popcount();
-    if (pop >= kFullUpdateThreshold || pop >= kViewH) {
+    const int pop = work.popcount();
+    if (pop >= kFullUpdateThreshold || pop >= kViewH || g_presentEffect == PresentEffect::Crt) {
         return transferScanlineRange(0, kViewH - 1);
     }
     uint32_t total = 0;
     int runStart = -1;
     for (int y = 0; y <= kViewH; ++y) {
-        const bool on = (y < kViewH) && bits.test(y);
+        const bool on = (y < kViewH) && work.test(y);
         if (on && runStart < 0) {
             runStart = y;
         } else if (!on && runStart >= 0) {
@@ -1124,8 +1223,22 @@ static void presentFull() {
     g_dispFrames++;
 }
 
-static const char *presentColorName() {
-    return g_presentColor == PresentColorMode::ArtifactColor ? "ARTIFACT" : "SHARP";
+static const char *presentMonitorName() {
+    switch (g_presentMonitor) {
+    case PresentMonitor::Green:
+        return "GREEN";
+    case PresentMonitor::Amber:
+        return "AMBER";
+    case PresentMonitor::Artifact:
+        return "ARTIFACT";
+    case PresentMonitor::White:
+    default:
+        return "WHITE";
+    }
+}
+
+static const char *presentEffectName() {
+    return g_presentEffect == PresentEffect::Crt ? "CRT" : "CLEAN";
 }
 
 static const char *presentOrientName() {
@@ -1133,10 +1246,12 @@ static const char *presentOrientName() {
 }
 
 static void emitPresentStatus() {
-    Serial.printf("#ACK PRESENT color=%s orient=%s classic_view=%dx%d@%d,%d "
+    Serial.printf("#ACK PRESENT monitor=%s effect=%s orient=%s color=%s classic_view=%dx%d@%d,%d "
                   "land_out=%dx%d@%d,%d render_us=%u xfer_us=%u\n",
-                  presentColorName(), presentOrientName(), kViewW, kViewH, kViewX, kViewY,
-                  g_landOutW, g_landOutH, g_landOx, g_landOy, g_lastRenderUs, g_lastXferUs);
+                  presentMonitorName(), presentEffectName(), presentOrientName(),
+                  g_presentMonitor == PresentMonitor::Artifact ? "ARTIFACT" : "SHARP", kViewW,
+                  kViewH, kViewX, kViewY, g_landOutW, g_landOutH, g_landOx, g_landOy,
+                  g_lastRenderUs, g_lastXferUs);
 }
 
 static void applyPresentChange() {
@@ -1146,7 +1261,8 @@ static void applyPresentChange() {
     }
     g_presentApplyPending = true;
     emitPresentStatus();
-    logf("PRESENT", "color=%s orient=%s pending", presentColorName(), presentOrientName());
+    logf("PRESENT", "monitor=%s effect=%s orient=%s pending", presentMonitorName(),
+         presentEffectName(), presentOrientName());
 }
 
 /** Display-task side of applyPresentChange: fill / alloc / dirty. */
@@ -1163,8 +1279,9 @@ static void servicePresentApplyOnDisplayTask() {
         (void)ensurePresentFb();
     }
     markVideoDirty();
-    logf("PRESENT", "applied color=%s orient=%s land=%dx%d@%d,%d", presentColorName(),
-         presentOrientName(), g_landOutW, g_landOutH, g_landOx, g_landOy);
+    logf("PRESENT", "applied monitor=%s effect=%s orient=%s land=%dx%d@%d,%d",
+         presentMonitorName(), presentEffectName(), presentOrientName(), g_landOutW, g_landOutH,
+         g_landOx, g_landOy);
 }
 
 static void markVideoDirty() {
@@ -1625,13 +1742,14 @@ static void loadPersistentConfigFromSd() {
                         g_sysConfig = esp2_config::defaultSystemConfig();
                     } else {
                         logf("CONFIG", "system.json ok rom=%s drive1=%s boot=%d macro=%s "
-                                       "orient=%s color=%s ss=%u",
+                                       "orient=%s monitor=%s effect=%s ss=%u",
                              g_sysConfig.romPath[0] ? g_sysConfig.romPath : "-",
                              g_sysConfig.drive1[0] ? g_sysConfig.drive1 : "-",
                              g_sysConfig.bootFromDisk ? 1 : 0,
                              g_sysConfig.startupMacro[0] ? g_sysConfig.startupMacro : "-",
                              esp2_config::orientName(g_sysConfig.orientation),
-                             esp2_config::colorName(g_sysConfig.color),
+                             esp2_config::monitorName(g_sysConfig.monitor),
+                             esp2_config::effectName(g_sysConfig.effect),
                              static_cast<unsigned>(g_sysConfig.screensaverSeconds));
                     }
                 } else {
@@ -1688,9 +1806,23 @@ static void applyStartupFromConfig() {
         return;
     }
 
-    g_presentColor = (g_sysConfig.color == esp2_config::ColorMode::Artifact)
-                         ? PresentColorMode::ArtifactColor
-                         : PresentColorMode::Sharp;
+    switch (g_sysConfig.monitor) {
+    case esp2_config::Monitor::Green:
+        g_presentMonitor = PresentMonitor::Green;
+        break;
+    case esp2_config::Monitor::Amber:
+        g_presentMonitor = PresentMonitor::Amber;
+        break;
+    case esp2_config::Monitor::Artifact:
+        g_presentMonitor = PresentMonitor::Artifact;
+        break;
+    case esp2_config::Monitor::White:
+    default:
+        g_presentMonitor = PresentMonitor::White;
+        break;
+    }
+    g_presentEffect =
+        (g_sysConfig.effect == esp2_config::Effect::Crt) ? PresentEffect::Crt : PresentEffect::Clean;
     g_presentOrient = (g_sysConfig.orientation == esp2_config::Orient::Landscape)
                           ? PresentOrientation::Landscape
                           : PresentOrientation::Classic;
@@ -1739,9 +1871,9 @@ static void bootSuite() {
     computeLandscapeGeometry();
     logf("RAM", "viewport=%s psram_free=%u heap=%u", g_viewportFb ? "ok" : "FAIL",
          ESP.getPsramSize() ? ESP.getFreePsram() : 0, ESP.getFreeHeap());
-    logf("PRESENT", "default color=%s orient=%s classic=%dx%d@%d,%d land=%dx%d@%d,%d",
-         presentColorName(), presentOrientName(), kViewW, kViewH, kViewX, kViewY, g_landOutW,
-         g_landOutH, g_landOx, g_landOy);
+    logf("PRESENT", "default monitor=%s effect=%s orient=%s classic=%dx%d@%d,%d land=%dx%d@%d,%d",
+         presentMonitorName(), presentEffectName(), presentOrientName(), kViewW, kViewH, kViewX,
+         kViewY, g_landOutW, g_landOutH, g_landOx, g_landOy);
 
     g_rom_ok = loadUserRomFromSd();
     if (!g_rom_ok) {
@@ -1895,10 +2027,10 @@ static void displayTask(void *) {
             const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
             logf("PERF",
                  "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u "
-                 "psram_free=%u color=%s orient=%s render_us=%u xfer_us=%u",
+                 "psram_free=%u monitor=%s effect=%s orient=%s render_us=%u xfer_us=%u",
                  cps, g_dispFrames, ESP.getFreeHeap(), ESP.getMinFreeHeap(),
-                 ESP.getPsramSize() ? ESP.getFreePsram() : 0, presentColorName(),
-                 presentOrientName(), g_lastRenderUs, g_lastXferUs);
+                 ESP.getPsramSize() ? ESP.getFreePsram() : 0, presentMonitorName(),
+                 presentEffectName(), presentOrientName(), g_lastRenderUs, g_lastXferUs);
         }
         if (!stabilityDone && (now - startMs) >= kStabilityMs) {
             stabilityDone = true;

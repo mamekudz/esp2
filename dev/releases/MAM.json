@@ -5,6 +5,16 @@
 			"main": 0,
 			"minor": 1,
 			"revision": 0,
+			"date": "2026-09-27 20:30",
+			"beta": true,
+			"info": [
+				"<context=\"release info\"/>Added Green and Amber phosphor monitor appearances plus an optional lightweight CRT/TV display effect, composed independently from Classic/Landscape orientation and Artifact Color."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
 			"date": "2026-09-27 17:00",
 			"beta": true,
 			"info": [

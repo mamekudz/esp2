@@ -23,7 +23,7 @@ Physical Galaxian matrix (device; emulation ≈1.023 MHz in all modes):
 | Landscape + Sharp | 280×408 @ (0,24) | ~8 ms | ~49 ms |
 | Landscape + Artifact | 280×408 @ (0,24) | ~29 ms | ~50 ms |
 
-CDC: `#ESP2PRESENT COLOR|ORIENT|STATUS` (`docs/apple2/video.md`).
+CDC: `#ESP2PRESENT MONITOR|EFFECT|ORIENT|STATUS` (legacy `COLOR` still accepted). See `docs/apple2/video.md`.
 
 ## Future enclosure (not started)
 

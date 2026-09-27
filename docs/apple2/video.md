@@ -30,25 +30,35 @@ Rules:
 
 Metadata size: 192-bit bitset (**24 bytes**).
 
-## Presentation color (not Apple II state)
+## Presentation composition (not Apple II state)
 
-Apple II soft-switches know **HGR vs text/LoRes**. ESP][ presentation may
-choose independently:
+Apple II soft-switches know **HGR vs text/LoRes**. ESP][ presentation is three
+independent dimensions (no hard-coded combo modes):
 
-| PresentColorMode | Behavior |
+| Dimension | Values | Role |
+| --- | --- | --- |
+| **Orientation** | Classic, Landscape | Panel layout / scale |
+| **Monitor** | White, Green, Amber, Artifact Color | Appearance / HGR color model |
+| **Effect** | Clean, CRT/TV | Optional post-monitor pass |
+
+| Monitor | Behavior |
 | --- | --- |
-| `Sharp` | On/off luminance from HGR bits (white/black) |
-| `ArtifactColor` | Host `ArtifactRenderer` composite pair + high-bit phase |
+| `White` (former Sharp) | True mono from bits / luminance → white phosphor |
+| `Green` / `Amber` | Same mono path → phosphor RGB565 (`phosphor.hpp` peaks) |
+| `Artifact` | Host `ArtifactRenderer` composite pair + high-bit phase |
 
-Switching Sharp ↔ ArtifactColor invalidates the viewport and re-renders; it
+CRT/TV (V1, cheap): subtle horizontal softness + scanline dim; optional chroma
+bleed only with Artifact. No barrel distortion / bloom / persistence.
+
+Switching monitor/effect/orient invalidates the viewport and re-renders; it
 does **not** change Apple II RAM or soft-switches.
 
 Serial (development CDC):
 
-- `#ESP2PRESENT COLOR SHARP`
-- `#ESP2PRESENT COLOR ARTIFACT`
-- `#ESP2PRESENT ORIENT CLASSIC`
-- `#ESP2PRESENT ORIENT LANDSCAPE`
+- `#ESP2PRESENT MONITOR WHITE|GREEN|AMBER|ARTIFACT`
+- `#ESP2PRESENT EFFECT CLEAN|CRT`
+- `#ESP2PRESENT COLOR SHARP|ARTIFACT` (legacy aliases → WHITE|ARTIFACT)
+- `#ESP2PRESENT ORIENT CLASSIC|LANDSCAPE`
 - `#ESP2PRESENT STATUS`
 
 ## Presentation orientation (not Apple II state)
