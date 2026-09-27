@@ -210,3 +210,16 @@ Device Storage    (collapsed)
   See `docs/tooling/backup.md`.
 - `git:status` is dry-run only; tests must not create real commits.
 - `backup:verify` / `backup:list` are read-only (no restore).
+
+## UX cleanup (manifest v2)
+
+Intentional dashboard declutter — **capabilities preserved**, visible clutter reduced.
+
+- All µGroups start **collapsed** (readiness may still reveal).
+- Visible first-party set ≈ **50** (was ~55 with aliases/internal release tools).
+- CLI-only (not dashboard-exported): `backup:nas`, `backup:git`,
+  `releases:context-check`, `releases:context-fix`, `releases:i18x-update`.
+- Canonical Git UI: Status / Commit / Push (no dual “checkpoint” names).
+- Canonical NAS UI: single `backup` (no “(alias)” entry).
+- Release UI: Update + View only; context/i18x run inside `releases:update` / `i18x:gulp`.
+- Groups renamed for clarity: `Media / Catalog`, `Device`.

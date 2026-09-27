@@ -2,13 +2,13 @@
 // ESP][ — µGulp / Gulp task runner
 // © 2026 Meinolf Amekudzi
 //
-// Groups:
+// Dashboard groups (all start collapsed):
 //   Firmware / Tests / Tools / Docs / Git / Backup
-//   Media / apple2js / Apple II/* / Device Storage
+//   Media / Catalog / Apple II/* / Device
 //
-// Classic CLI also: git:status | backup:nas | backup:list | backup:verify
-// Release history: releases:update | releases:history | releases:context-*
-// No help clutter. Default = docs (safe).
+// CLI-only (registered, not dashboard-exported): backup:git, backup:nas,
+//   releases:context-check, releases:context-fix, releases:i18x-update
+// Default = docs (safe).
 //================================================================
 
 import { dirname, join } from "node:path";
@@ -101,20 +101,20 @@ export const µI18xContext = {
 
 /** Dashboard start layout for µGroup sections (nested Apple II groups). */
 export const µGroups = {
-  collapsed: false,
+  collapsed: true,
   groups: {
-    'Firmware<context="µGroup"/>': "open",
+    'Firmware<context="µGroup"/>': "collapsed",
     'Tests<context="µGroup"/>': "collapsed",
-    'Tools<context="µGroup"/>': "open",
+    'Tools<context="µGroup"/>': "collapsed",
     'Docs<context="µGroup"/>': "collapsed",
-    'Git<context="µGroup"/>': "open",
-    'Backup<context="µGroup"/>': "open",
-    'Media / apple2js<context="µGroup"/>': "collapsed",
-    'Apple II/Media<context="µGroup"/>': "open",
+    'Git<context="µGroup"/>': "collapsed",
+    'Backup<context="µGroup"/>': "collapsed",
+    'Media / Catalog<context="µGroup"/>': "collapsed",
+    'Apple II/Media<context="µGroup"/>': "collapsed",
     'Apple II/Emulator<context="µGroup"/>': "collapsed",
     'Apple II/Compatibility<context="µGroup"/>': "collapsed",
     'Apple II/Device<context="µGroup"/>': "collapsed",
-    'Device Storage<context="µGroup"/>': "collapsed",
+    'Device<context="µGroup"/>': "collapsed",
   },
 };
 
@@ -167,13 +167,25 @@ function _PendingReleaseMerges() {
 /** Keep i18x keys stable — never bake numbers into the registered phrase. */
 function _ReleasesUpdateDisplayName() {
   if (_PendingReleaseMerges() <= 0) {
-    return 'Release history up to date V<version/><context="µDisplayName"/>'.i18xRegister();
+    return 'Update Release History (up to date) V<version/><context="µDisplayName"/>'.i18xRegister();
   }
-  return 'Update release history — pending V<version/><context="µDisplayName"/>'.i18xRegister();
+  return 'Update Release History — pending V<version/><context="µDisplayName"/>'.i18xRegister();
 }
 
 function _ReleasesHistoryDisplayName() {
-  return 'Release history V<version/><context="µDisplayName"/>'.i18xRegister();
+  return 'View Release History V<version/><context="µDisplayName"/>'.i18xRegister();
+}
+
+function _RunReleaseMaintenancePipeline() {
+  const fixed = FixReleaseContexts({ root: rootDir, write: true });
+  const checked = CheckReleaseContexts({ root: rootDir });
+  if (!checked.ok) {
+    throw new Error(
+      `RELEASES context validation failed (${checked.issues.length} issue(s))`,
+    );
+  }
+  const extracted = UpdateReleaseI18xSources({ root: rootDir, write: true });
+  return { fixed, checked, extracted };
 }
 
 //================================================================
@@ -203,7 +215,7 @@ export async function build() {
 }
 _Tag(build, {
   gulpName: "build",
-  µDisplayName: 'Build Firmware<context="µDisplayName"/>',
+  µDisplayName: 'Build Firmware V<version/><context="µDisplayName"/>',
   µDescription:
     'Compiles ESP][ with PlatformIO. Default env from platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).<context="µDescription"/>',
   µIcon: "\u2692",
@@ -227,14 +239,14 @@ export async function flash() {
 }
 _Tag(flash, {
   gulpName: "flash",
-  µDisplayName: 'Build & Upload<context="µDisplayName"/>',
+  µDisplayName: 'Build & Upload Firmware V<version/><context="µDisplayName"/>',
   µDescription:
-    'Rebuilds and flashes ESP][ firmware in one step.<context="µDescription"/>',
+    'Rebuilds firmware and flashes it to the ESP][ (asks for COM port). Overwrites device firmware.<context="µDescription"/>',
   µTooltip:
     'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
   µIcon: "\u26A1",
   µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 15,
+  µOrder: 40,
   µExecutionConcurrency: false,
   µExecutionRestrictions: { deny: ["upload", "build", "backup"] },
 });
@@ -252,14 +264,14 @@ export async function upload() {
 }
 _Tag(upload, {
   gulpName: "upload",
-  µDisplayName: 'Upload Firmware<context="µDisplayName"/>',
+  µDisplayName: 'Upload Firmware V<version/><context="µDisplayName"/>',
   µDescription:
     'Flashes the last build. Asks for the COM port.<context="µDescription"/>',
   µTooltip:
     'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
   µIcon: "\u2191",
   µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 20,
+  µOrder: 30,
   µExecutionConcurrency: false,
   µExecutionRestrictions: { deny: ["flash", "monitor", "backup"] },
 });
@@ -271,12 +283,12 @@ export async function size() {
 }
 _Tag(size, {
   gulpName: "size",
-  µDisplayName: 'Memory Size<context="µDisplayName"/>',
+  µDisplayName: 'Firmware Memory Usage V<version/><context="µDisplayName"/>',
   µDescription:
     'Shows RAM / Flash usage of the last firmware build.<context="µDescription"/>',
   µIcon: "\u25A6",
   µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 30,
+  µOrder: 50,
   µExecutionConcurrency: true,
 });
 
@@ -288,23 +300,23 @@ export async function clean() {
 }
 _Tag(clean, {
   gulpName: "clean",
-  µDisplayName: 'Clean Build<context="µDisplayName"/>',
+  µDisplayName: 'Clean Firmware Build Files V<version/><context="µDisplayName"/>',
   µDescription:
     'Removes .pio/build artefacts for the active PlatformIO env (ESP2_PIO_ENV / default bringup).<context="µDescription"/>',
   µIcon: "\u239A",
   µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 40,
+  µOrder: 60,
   µExecutionConcurrency: true,
 });
 
 export const rebuild = gulp.series(clean, build);
 _Tag(rebuild, {
   gulpName: "rebuild",
-  µDisplayName: 'Rebuild Firmware<context="µDisplayName"/>',
+  µDisplayName: 'Rebuild Firmware V<version/><context="µDisplayName"/>',
   µDescription: 'clean → build for the active PlatformIO env.<context="µDescription"/>',
   µIcon: "\u21BB",
   µGroup: 'Firmware<context="µGroup"/>',
-  µOrder: 12,
+  µOrder: 20,
   µExecutionConcurrency: false,
   µExecutionRestrictions: { deny: ["flash", "upload", "backup"] },
 });
@@ -329,7 +341,7 @@ export async function devices() {
 }
 _Tag(devices, {
   gulpName: "devices",
-  µDisplayName: 'List Devices<context="µDisplayName"/>',
+  µDisplayName: 'List Serial Ports V<version/><context="µDisplayName"/>',
   µDescription: 'Lists connected serial ports.<context="µDescription"/>',
   µIcon: "\u2398",
   µGroup: 'Tools<context="µGroup"/>',
@@ -344,7 +356,7 @@ export async function monitor() {
 }
 _Tag(monitor, {
   gulpName: "monitor",
-  µDisplayName: 'Serial Monitor<context="µDisplayName"/>',
+  µDisplayName: 'Serial Monitor V<version/><context="µDisplayName"/>',
   µDescription:
     'Opens the PlatformIO serial monitor at 115200 baud.<context="µDescription"/>',
   µTooltip:
@@ -570,7 +582,7 @@ export async function docs() {
 }
 _Tag(docs, {
   gulpName: "docs",
-  µDisplayName: 'Compose READMEs<context="µDisplayName"/>',
+  µDisplayName: 'Compose READMEs V<version/><context="µDisplayName"/>',
   µDescription:
     'Generates README.md (en-US) and README.de-DE.md from locale .src.md sources. Does not overwrite sources.<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
@@ -593,7 +605,7 @@ export async function docsEnUS() {
 }
 _Tag(docsEnUS, {
   gulpName: "docs:en-US",
-  µDisplayName: 'Compose README (en-US)<context="µDisplayName"/>',
+  µDisplayName: 'Compose README (en-US) V<version/><context="µDisplayName"/>',
   µDescription:
     'Generates README.md from dev/docs/readme/en-US.src.md.<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
@@ -616,7 +628,7 @@ export async function docsDeDE() {
 }
 _Tag(docsDeDE, {
   gulpName: "docs:de-DE",
-  µDisplayName: 'Compose README (de-DE)<context="µDisplayName"/>',
+  µDisplayName: 'Compose README (de-DE) V<version/><context="µDisplayName"/>',
   µDescription:
     'Generates README.de-DE.md from dev/docs/readme/de-DE.src.md.<context="µDescription"/>',
   µGroup: 'Docs<context="µGroup"/>',
@@ -648,20 +660,35 @@ export async function RELEASES_UPDATE() {
       invalid: summary.invalid,
     }
   );
+  ReportProgress(0.55, "releases-maintain");
+  const maintenance = _RunReleaseMaintenancePipeline();
+  Log(
+    'Release maintenance: contextFix=<fixed/> i18xBodies=<bodies format="int"/> missingDe=<missing format="int"/><context="task log"/>',
+    {
+      fixed: maintenance.fixed.changed ? "yes" : "no",
+      bodies: maintenance.extracted.bodies,
+      missing: maintenance.extracted.missingDe.length,
+    }
+  );
+  for (const body of maintenance.extracted.missingDe.slice(0, 20)) {
+    Warn('missing de-DE release translation: <text/><context="task warning"/>', {
+      text: body.slice(0, 80),
+    });
+  }
   µI18xContext.version = GetProjectVersionLabel(rootDir);
   SetTaskEmphasis("RELEASES_UPDATE", null);
   NotifyTasksChanged();
   ReportProgress(1, "releases-update");
   PlaySignal("success");
-  return summary;
+  return { summary, maintenance };
 }
 _Tag(RELEASES_UPDATE, {
   gulpName: "releases:update",
   µDisplayName: () => _ReleasesUpdateDisplayName(),
   µDescription:
-    'Merges fresh contributor notes from dev/releases/*.json into RELEASES.json (30-day window, fingerprint duplicates, release-info context tags). Does not auto-translate.<context="µDescription"/>',
+    'Merges contributor notes into RELEASES.json, normalizes release-info context tags, validates, and updates release i18x sources. Does not AI-translate.<context="µDescription"/>',
   µTooltip:
-    'ACTION_AVAILABLE when unmerged contributor notes exist — not a build failure. Safe to re-run (idempotent).<context="µTooltip"/>',
+    'ACTION_AVAILABLE when unmerged contributor notes exist. Safe to re-run (idempotent).<context="µTooltip"/>',
   µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 20,
@@ -708,16 +735,17 @@ _Tag(RELEASES_HISTORY, {
   gulpName: "releases:history",
   µDisplayName: () => _ReleasesHistoryDisplayName(),
   µDescription:
-    'Shows localized ESP][ release history from RELEASES.json (date, version, info lines). Does not dump raw JSON.<context="µDescription"/>',
+    'Read-only: shows localized ESP][ release history from RELEASES.json (date, version, info lines). Does not dump raw JSON.<context="µDescription"/>',
   µTooltip:
-    'Read-only history view. Translations: i18x/gulp/releases/{en-US,de-DE}.json.<context="µTooltip"/>',
+    'Translations: i18x/gulp/releases/{en-US,de-DE}.json.<context="µTooltip"/>',
   µGroup: 'Docs<context="µGroup"/>',
   µIcon: "\uE914",
   µOrder: 21,
   µExecutionConcurrency: true,
 });
 
-export async function RELEASES_CONTEXT_CHECK() {
+/** CLI-only — dashboard uses releases:update pipeline. */
+async function RELEASES_CONTEXT_CHECK() {
   ReportProgress(0, "releases-context-check");
   const result = CheckReleaseContexts({ root: rootDir });
   Log(
@@ -738,18 +766,8 @@ export async function RELEASES_CONTEXT_CHECK() {
   PlaySignal("success");
   return result;
 }
-_Tag(RELEASES_CONTEXT_CHECK, {
-  gulpName: "releases:context-check",
-  µDisplayName: 'Release context CHECK V<version/><context="µDisplayName"/>',
-  µDescription:
-    'Read-only: verifies release-info context tags on translatable strings; flags machine-data tags.<context="µDescription"/>',
-  µGroup: 'Docs<context="µGroup"/>',
-  µIcon: "\u2713",
-  µOrder: 22,
-  µExecutionConcurrency: true,
-});
-
-export async function RELEASES_CONTEXT_FIX() {
+/** CLI-only — dashboard uses releases:update pipeline. */
+async function RELEASES_CONTEXT_FIX() {
   ReportProgress(0, "releases-context-fix");
   const result = FixReleaseContexts({ root: rootDir, write: true });
   Log(
@@ -765,18 +783,8 @@ export async function RELEASES_CONTEXT_FIX() {
   PlaySignal("success");
   return result;
 }
-_Tag(RELEASES_CONTEXT_FIX, {
-  gulpName: "releases:context-fix",
-  µDisplayName: 'Release context FIX V<version/><context="µDisplayName"/>',
-  µDescription:
-    'Normalizes RELEASES.json release-info context tags (idempotent). Does not auto-translate.<context="µDescription"/>',
-  µGroup: 'Docs<context="µGroup"/>',
-  µIcon: "\u270E",
-  µOrder: 23,
-  µExecutionConcurrency: false,
-});
-
-export async function RELEASES_I18X_UPDATE() {
+/** CLI-only — also invoked from releases:update / i18x:gulp. */
+async function RELEASES_I18X_UPDATE() {
   ReportProgress(0, "releases-i18x");
   const extracted = UpdateReleaseI18xSources({ root: rootDir, write: true });
   Log(
@@ -797,18 +805,8 @@ export async function RELEASES_I18X_UPDATE() {
   PlaySignal(complete.complete ? "success" : "warning");
   return { extracted, complete };
 }
-_Tag(RELEASES_I18X_UPDATE, {
-  gulpName: "releases:i18x-update",
-  µDisplayName: 'Release i18x update V<version/><context="µDisplayName"/>',
-  µDescription:
-    'Extracts en-US release strings and preserves existing de-DE translations. Reports missing German strings — does not invent AI translations.<context="µDescription"/>',
-  µGroup: 'Docs<context="µGroup"/>',
-  µIcon: "\uE90A",
-  µOrder: 24,
-  µExecutionConcurrency: false,
-});
-
-export async function BACKUP_GIT() {
+/** CLI-only commit(+push). Dashboard: git:commit / git:push. */
+async function BACKUP_GIT() {
   ReportProgress(0, "backup-git");
   const result = await RunGitBackup(rootDir, {
     log: (m) => Log(m + '<context="task log"/>'),
@@ -827,25 +825,14 @@ export async function BACKUP_GIT() {
   }
   return result;
 }
-_Tag(BACKUP_GIT, {
-  gulpName: "backup:git",
-  µDisplayName: 'Git Checkpoint Commit<context="µDisplayName"/>',
-  µDescription:
-    'Checkpoint commit including CLAUDE.md. Pushes when a remote exists. Never force-pushes.<context="µDescription"/>',
-  µGroup: 'Git<context="µGroup"/>',
-  µIcon: "\uE902",
-  µOrder: 10,
-  µExecutionConcurrency: false,
-});
-
 export async function backup() {
   return _RunNasBackup();
 }
 _Tag(backup, {
   gulpName: "backup",
-  µDisplayName: 'Backup to NAS<context="µDisplayName"/>',
+  µDisplayName: 'Backup to NAS V<version/><context="µDisplayName"/>',
   µDescription:
-    'Copies ESP][ project trees plus local/downloaded assets (local/apple2, local/roms, _refs, 3dprint) to up to three private NAS folders. Skips node_modules, .pio, and other disposable caches. Gitignore ≠ NAS exclude.<context="µDescription"/>',
+    'Copies project trees plus local/downloaded assets (local/apple2, local/roms, _refs, 3dprint) to NAS folders. Skips node_modules/.pio caches. May overwrite destination files.<context="µDescription"/>',
   µTooltip:
     'Form: Destination 1–3 + dry-run. Or NAS_TARGET_1..3 / config/nas.targets.local.<context="µTooltip"/>',
   µGroup: 'Backup<context="µGroup"/>',
@@ -857,18 +844,17 @@ _Tag(backup, {
 
 export async function BACKUP_ALL() {
   ReportProgress(0, "backup-all");
-  await docs();
-  ReportProgress(0.33, "backup-all");
-  await BACKUP_GIT();
-  ReportProgress(0.66, "backup-all");
+  await gitCommit();
+  ReportProgress(0.5, "backup-all");
   await backup();
   ReportProgress(1, "backup-all");
-  Log('[ALL] Finished.<context="task log"/>');
+  Log('[ALL] Git commit + NAS backup finished.<context="task log"/>');
 }
 _Tag(BACKUP_ALL, {
   gulpName: "backup:all",
-  µDisplayName: 'Backup All (Docs + Git + NAS)<context="µDisplayName"/>',
-  µDescription: 'Runs docs, backup:git, then backup (NAS form).<context="µDescription"/>',
+  µDisplayName: 'Save Project (Git + NAS) V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Creates a local Git commit (project rules), then runs the NAS backup form. Does not regenerate READMEs. Never force-pushes.<context="µDescription"/>',
   µGroup: 'Backup<context="µGroup"/>',
   µIcon: "\uE902",
   µOrder: 40,
@@ -918,7 +904,7 @@ gulp.task("releases:history", RELEASES_HISTORY);
 gulp.task("releases:context-check", RELEASES_CONTEXT_CHECK);
 gulp.task("releases:context-fix", RELEASES_CONTEXT_FIX);
 gulp.task("releases:i18x-update", RELEASES_I18X_UPDATE);
-// backup:nas is a first-party alias task (see catalog recovery block)
+gulp.task("backup:nas", backup);
 
 
 //===== CATALOG_RECOVERY_START =====
@@ -940,10 +926,10 @@ export async function firmwareEnvTask() {
 }
 _Tag(firmwareEnvTask, {
   gulpName: "firmware:env",
-  µDisplayName: 'Show Firmware Env<context="µDisplayName"/>',
+  µDisplayName: 'Show Active Firmware Env V<version/><context="µDisplayName"/>',
   µDescription:
-    'Prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>',
-  µGroup: 'Firmware<context="µGroup"/>',
+    'Read-only: prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>',
+  µGroup: 'Tools<context="µGroup"/>',
   µIcon: "\u2398",
   µOrder: 5,
   µExecutionConcurrency: true,
@@ -964,12 +950,12 @@ export async function gitStatus() {
 }
 _Tag(gitStatus, {
   gulpName: "git:status",
-  µDisplayName: 'Git Status (Dry-Run)<context="µDisplayName"/>',
+  µDisplayName: 'Git Status V<version/><context="µDisplayName"/>',
   µDescription:
-    'Shows Git status and would-be checkpoint paths. Never commits or pushes. Respects GIT_BACKUP_NEVER_STAGE / local media exclusions.<context="µDescription"/>',
+    'Read-only: shows Git status and paths that would be committed. Never commits or pushes. Respects GIT_BACKUP_NEVER_STAGE / local media exclusions.<context="µDescription"/>',
   µGroup: 'Git<context="µGroup"/>',
   µIcon: "\u2398",
-  µOrder: 5,
+  µOrder: 10,
   µExecutionConcurrency: true,
 });
 
@@ -988,12 +974,12 @@ export async function gitCommit() {
 }
 _Tag(gitCommit, {
   gulpName: "git:commit",
-  µDisplayName: 'Git Commit Checkpoint<context="µDisplayName"/>',
+  µDisplayName: 'Git Commit V<version/><context="µDisplayName"/>',
   µDescription:
-    'Creates a local Git checkpoint commit (same rules as backup:git) without pushing. Never stages local/apple2, proprietary media, or secrets.<context="µDescription"/>',
+    'Creates a local Git commit (project include/exclude rules). Does not push. Never stages local/apple2, proprietary media, or secrets.<context="µDescription"/>',
   µGroup: 'Git<context="µGroup"/>',
   µIcon: "\uE902",
-  µOrder: 15,
+  µOrder: 20,
   µExecutionConcurrency: false,
 });
 
@@ -1015,29 +1001,15 @@ export async function gitPush() {
 }
 _Tag(gitPush, {
   gulpName: "git:push",
-  µDisplayName: 'Git Push<context="µDisplayName"/>',
+  µDisplayName: 'Git Push V<version/><context="µDisplayName"/>',
   µDescription:
-    'Pushes the current branch to its upstream remote. Does not stage or commit.<context="µDescription"/>',
+    'Pushes the current branch to its upstream remote. Does not stage or create a commit. Never force-pushes.<context="µDescription"/>',
   µGroup: 'Git<context="µGroup"/>',
   µIcon: "\u2191",
-  µOrder: 20,
+  µOrder: 30,
   µExecutionConcurrency: false,
 });
 
-export async function backupNas() {
-  return backup();
-}
-_Tag(backupNas, {
-  gulpName: "backup:nas",
-  µDisplayName: 'Backup to NAS (alias)<context="µDisplayName"/>',
-  µDescription:
-    'Alias of backup — NAS form / NAS_TARGET_1..3. Includes local/apple2 privately; skips disposable caches.<context="µDescription"/>',
-  µGroup: 'Backup<context="µGroup"/>',
-  µIcon: "\uE902",
-  µOrder: 11,
-  µExecutionConcurrency: false,
-  µParameters: _NasBackupParameters(),
-});
 
 export async function backupList() {
   ReportProgress(0, "backup-list");
@@ -1068,7 +1040,7 @@ export async function backupList() {
 }
 _Tag(backupList, {
   gulpName: "backup:list",
-  µDisplayName: 'List NAS Backups<context="µDisplayName"/>',
+  µDisplayName: 'List NAS Backups V<version/><context="µDisplayName"/>',
   µDescription:
     'Shows configured NAS destinations and whether essential restore files are present. Read-only.<context="µDescription"/>',
   µGroup: 'Backup<context="µGroup"/>',
@@ -1100,7 +1072,7 @@ export async function backupVerify() {
 }
 _Tag(backupVerify, {
   gulpName: "backup:verify",
-  µDisplayName: 'Verify NAS Backup<context="µDisplayName"/>',
+  µDisplayName: 'Verify NAS Backup V<version/><context="µDisplayName"/>',
   µDescription:
     'Checks primary NAS destination reachability and essential restore files. Read-only; never restores.<context="µDescription"/>',
   µGroup: 'Backup<context="µGroup"/>',
@@ -1117,7 +1089,7 @@ export async function testInfraTask() {
 }
 _Tag(testInfraTask, {
   gulpName: "test:infra",
-  µDisplayName: 'Run Infrastructure Tests<context="µDisplayName"/>',
+  µDisplayName: 'Run Infrastructure Tests V<version/><context="µDisplayName"/>',
   µDescription:
     'Runs node:test for NAS/Git/docs infrastructure helpers (no real NAS write / no Git commit).<context="µDescription"/>',
   µGroup: 'Tests<context="µGroup"/>',
@@ -1134,7 +1106,7 @@ export async function testMugulpCatalog() {
 }
 _Tag(testMugulpCatalog, {
   gulpName: "test:mugulp-catalog",
-  µDisplayName: 'Run µGulp Catalog Tests<context="µDisplayName"/>',
+  µDisplayName: 'Run µGulp Catalog Tests V<version/><context="µDisplayName"/>',
   µDescription:
     'Regression tests for first-party task catalog, metadata, and UTF-8 integrity.<context="µDescription"/>',
   µGroup: 'Tests<context="µGroup"/>',
@@ -1151,7 +1123,7 @@ export async function testHost() {
 }
 _Tag(testHost, {
   gulpName: "test:host",
-  µDisplayName: 'Run Host Apple II Tests<context="µDisplayName"/>',
+  µDisplayName: 'Run Host Apple II Tests V<version/><context="µDisplayName"/>',
   µDescription:
     'Runs host-side Apple II JS test suite (no proprietary media required).<context="µDescription"/>',
   µGroup: 'Tests<context="µGroup"/>',
@@ -1177,7 +1149,7 @@ export async function formatCheck() {
 }
 _Tag(formatCheck, {
   gulpName: "format:check",
-  µDisplayName: 'Format Check<context="µDisplayName"/>',
+  µDisplayName: 'Format Check V<version/><context="µDisplayName"/>',
   µDescription:
     'Reports clang-format availability for project-owned C/C++ (.clang-format). Does not rewrite files.<context="µDescription"/>',
   µGroup: 'Tools<context="µGroup"/>',
@@ -1189,14 +1161,28 @@ _Tag(formatCheck, {
 export async function i18xGulp() {
   ReportProgress(0, "i18x-gulp");
   runNodeCli("dev/tools/build-i18x-gulp.mjs", [], "i18x:gulp");
+  ReportProgress(0.6, "i18x-release");
+  const extracted = UpdateReleaseI18xSources({ root: rootDir, write: true });
+  Log(
+    'Release i18x sources: bodies=<bodies format="int"/> missingDe=<missing format="int"/><context="task log"/>',
+    {
+      bodies: extracted.bodies,
+      missing: extracted.missingDe.length,
+    }
+  );
+  for (const body of extracted.missingDe.slice(0, 20)) {
+    Warn('missing de-DE release translation: <text/><context="task warning"/>', {
+      text: body.slice(0, 80),
+    });
+  }
   ReportProgress(1, "i18x-gulp");
-  PlaySignal("success");
+  PlaySignal(extracted.missingDe.length ? "warning" : "success");
 }
 _Tag(i18xGulp, {
   gulpName: "i18x:gulp",
-  µDisplayName: 'Rebuild Gulp i18x Dictionaries<context="µDisplayName"/>',
+  µDisplayName: 'Rebuild i18x Dictionaries V<version/><context="µDisplayName"/>',
   µDescription:
-    'Regenerates i18x/gulp en-US and de-DE dictionaries from build-i18x-gulp.mjs.<context="µDescription"/>',
+    'Regenerates i18x/gulp dictionaries and extracts release en-US source strings. Reports missing de-DE — does not AI-translate.<context="µDescription"/>',
   µGroup: 'Tools<context="µGroup"/>',
   µIcon: "\uE915",
   µOrder: 40,
@@ -1207,7 +1193,6 @@ gulp.task("firmware:env", firmwareEnvTask);
 gulp.task("git:status", gitStatus);
 gulp.task("git:commit", gitCommit);
 gulp.task("git:push", gitPush);
-gulp.task("backup:nas", backupNas);
 gulp.task("backup:list", backupList);
 gulp.task("backup:verify", backupVerify);
 gulp.task("test:infra", testInfraTask);
@@ -1238,11 +1223,11 @@ export async function apple2jsSync() {
 }
 _Tag(apple2jsSync, {
   gulpName: "apple2js:sync",
-  µDisplayName: 'apple2js Sync<context="µDisplayName"/>',
+  µDisplayName: 'Sync Online Catalog V<version/><context="µDisplayName"/>',
   µDescription:
     'Clones/updates .cache/apple2js, fetches website index, re-audits with diff (network).<context="µDescription"/>',
   µIcon: "\u2601",
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 60,
   µExecutionConcurrency: false,
 });
@@ -1254,10 +1239,10 @@ export async function apple2jsCatalog() {
 }
 _Tag(apple2jsCatalog, {
   gulpName: "apple2js:catalog",
-  µDisplayName: 'apple2js Catalog<context="µDisplayName"/>',
+  µDisplayName: 'Show Online Catalog V<version/><context="µDisplayName"/>',
   µDescription:
     'Summarize cached apple2js git+website catalog (offline if cache present).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 61,
   µExecutionConcurrency: false,
 });
@@ -1270,10 +1255,10 @@ export async function apple2jsAudit() {
 }
 _Tag(apple2jsAudit, {
   gulpName: "apple2js:audit",
-  µDisplayName: 'apple2js Audit<context="µDisplayName"/>',
+  µDisplayName: 'Audit Online Catalog V<version/><context="µDisplayName"/>',
   µDescription:
     'Provenance audit + metadata stubs (offline if cache present).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 62,
   µExecutionConcurrency: false,
 });
@@ -1291,10 +1276,10 @@ export async function mediaIdentify() {
 }
 _Tag(mediaIdentify, {
   gulpName: "media:identify",
-  µDisplayName: 'Media Identify<context="µDisplayName"/>',
+  µDisplayName: 'Identify Media File V<version/><context="µDisplayName"/>',
   µDescription:
     'Offline SHA-256 + catalog match for a user disk image.<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 63,
   µParameters: {
     file: {
@@ -1326,10 +1311,10 @@ export async function mediaImport() {
 }
 _Tag(mediaImport, {
   gulpName: "media:import",
-  µDisplayName: 'Media Import<context="µDisplayName"/>',
+  µDisplayName: 'Import Local Media V<version/><context="µDisplayName"/>',
   µDescription:
     'Import user-supplied disk(s) into a library path (offline; never downloads).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 64,
   µParameters: {
     file: { type: "string" },
@@ -1353,10 +1338,10 @@ export async function mediaInspect() {
 }
 _Tag(mediaInspect, {
   gulpName: "media:inspect",
-  µDisplayName: 'Media Inspect (a2kit)<context="µDisplayName"/>',
+  µDisplayName: 'Inspect Media (a2kit) V<version/><context="µDisplayName"/>',
   µDescription:
     'Optional external a2kit oracle if installed; otherwise ESP][ identify only.<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 65,
   µParameters: { file: { type: "string" } },
   µExecutionConcurrency: false,
@@ -1386,10 +1371,10 @@ export async function sdPrepare() {
 }
 _Tag(sdPrepare, {
   gulpName: "sd:prepare",
-  µDisplayName: 'SD Prepare Library<context="µDisplayName"/>',
+  µDisplayName: 'Prepare SD Library Layout V<version/><context="µDisplayName"/>',
   µDescription:
     'Copy host library into target/apple2 (default dry-run; never formats drives).<context="µDescription"/>',
-  µGroup: 'Media / apple2js<context="µGroup"/>',
+  µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 66,
   µParameters: {
     target: { type: "string" },
@@ -1435,7 +1420,7 @@ export async function apple2RomSync() {
 }
 _Tag(apple2RomSync, {
   gulpName: "apple2:rom:sync",
-  µDisplayName: 'Download Free Apple II ROMs<context="µDisplayName"/>',
+  µDisplayName: 'Download Free Apple II ROMs V<version/><context="µDisplayName"/>',
   µDescription:
     'Download ONLY redistributable ROMs (e.g. AppleIIGo) into gitignored local/apple2/roms/.<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1461,7 +1446,7 @@ export async function apple2MediaSync() {
 }
 _Tag(apple2MediaSync, {
   gulpName: "apple2:media:sync",
-  µDisplayName: 'Download Apple II Media<context="µDisplayName"/>',
+  µDisplayName: 'Download Apple II Media V<version/><context="µDisplayName"/>',
   µDescription:
     'Fetch apple2js title(s) into gitignored local/apple2/cache/ (LOCAL_TEST_ONLY; never stages Git).<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1486,7 +1471,7 @@ export async function apple2MediaPrepare() {
 }
 _Tag(apple2MediaPrepare, {
   gulpName: "apple2:media:prepare",
-  µDisplayName: 'Prepare Apple II Runtime Disks<context="µDisplayName"/>',
+  µDisplayName: 'Prepare Runtime Disk V<version/><context="µDisplayName"/>',
   µDescription:
     'Normalize cached source to local/apple2/disks/ (offline; prefers DSK when lossless).<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1504,7 +1489,7 @@ export async function apple2MediaStatus() {
 }
 _Tag(apple2MediaStatus, {
   gulpName: "apple2:media:status",
-  µDisplayName: 'Apple II Media Status<context="µDisplayName"/>',
+  µDisplayName: 'Show Local Media Status V<version/><context="µDisplayName"/>',
   µDescription:
     'Compact table of local titles: downloaded / prepared / provenance.<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1521,7 +1506,7 @@ export async function apple2MediaList() {
 }
 _Tag(apple2MediaList, {
   gulpName: "apple2:media:list",
-  µDisplayName: 'List Local Apple II Media<context="µDisplayName"/>',
+  µDisplayName: 'Show Local Media V<version/><context="µDisplayName"/>',
   µDescription: 'JSON list of locally cached titles.<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
   µOrder: 74,
@@ -1537,7 +1522,7 @@ export async function apple2MediaAudit() {
 }
 _Tag(apple2MediaAudit, {
   gulpName: "apple2:media:audit",
-  µDisplayName: 'Audit Apple II Media Provenance<context="µDisplayName"/>',
+  µDisplayName: 'Verify Media Provenance V<version/><context="µDisplayName"/>',
   µDescription:
     'Provenance counts for local cache (download never upgrades rights).<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1553,7 +1538,7 @@ export async function apple2MediaClean() {
 }
 _Tag(apple2MediaClean, {
   gulpName: "apple2:media:clean",
-  µDisplayName: 'Clean Generated Apple II Disks<context="µDisplayName"/>',
+  µDisplayName: 'Clean Generated Disks V<version/><context="µDisplayName"/>',
   µDescription:
     'Default: remove generated disks/. Optional --cache / --user (never deletes user media by default).<context="µDescription"/>',
   µGroup: 'Apple II/Media<context="µGroup"/>',
@@ -1580,7 +1565,7 @@ export async function apple2DeviceSync() {
 }
 _Tag(apple2DeviceSync, {
   gulpName: "apple2:device:sync",
-  µDisplayName: 'Sync Title to Device<context="µDisplayName"/>',
+  µDisplayName: 'Sync Game to ESP][ V<version/><context="µDisplayName"/>',
   µDescription:
     'Upload ONLY selected title runtime ROM+disk via serial ESPU (not full catalog).<context="µDescription"/>',
   µGroup: 'Apple II/Device<context="µGroup"/>',
@@ -1612,7 +1597,7 @@ export async function apple2RomIdentify() {
 }
 _Tag(apple2RomIdentify, {
   gulpName: "apple2:rom-identify",
-  µDisplayName: 'Identify Apple II ROM<context="µDisplayName"/>',
+  µDisplayName: 'Identify Apple II ROM V<version/><context="µDisplayName"/>',
   µDescription:
     'Hash/identify a user-supplied motherboard ROM (no download). SKIPPED_NO_ROM if absent.<context="µDescription"/>',
   µGroup: 'Apple II/Emulator<context="µGroup"/>',
@@ -1630,7 +1615,7 @@ export async function apple2RomTest() {
 }
 _Tag(apple2RomTest, {
   gulpName: "apple2:rom-test",
-  µDisplayName: 'Test Apple II ROM on Host<context="µDisplayName"/>',
+  µDisplayName: 'Test Apple II ROM on Host V<version/><context="µDisplayName"/>',
   µDescription:
     'Optional bounded host run with user ROM; SKIPPED_NO_ROM without local ROM.<context="µDescription"/>',
   µGroup: 'Apple II/Emulator<context="µGroup"/>',
@@ -1654,7 +1639,7 @@ export async function apple2Host() {
 }
 _Tag(apple2Host, {
   gulpName: "apple2:host",
-  µDisplayName: 'Run Apple II Host Emulator<context="µDisplayName"/>',
+  µDisplayName: 'Run Apple II Host Emulator V<version/><context="µDisplayName"/>',
   µDescription:
     'Build and batch-run esp2_host (synthetic ROM unless --rom given).<context="µDescription"/>',
   µGroup: 'Apple II/Emulator<context="µGroup"/>',
@@ -1690,7 +1675,7 @@ export async function apple2DiskTest() {
 }
 _Tag(apple2DiskTest, {
   gulpName: "apple2:disk-test",
-  µDisplayName: 'Test Apple II Disk Boot on Host<context="µDisplayName"/>',
+  µDisplayName: 'Test Apple II Disk Boot on Host V<version/><context="µDisplayName"/>',
   µDescription:
     'Optional bounded Disk II boot/diagnostics; SKIPPED_NO_DISK without --disk. Does not download media.<context="µDescription"/>',
   µGroup: 'Apple II/Emulator<context="µGroup"/>',
@@ -1733,7 +1718,7 @@ export async function apple2Compat() {
 }
 _Tag(apple2Compat, {
   gulpName: "apple2:compat",
-  µDisplayName: 'Run Compatibility Test<context="µDisplayName"/>',
+  µDisplayName: 'Run Compatibility Test V<version/><context="µDisplayName"/>',
   µDescription:
     'Run real-software compatibility test definitions; SKIPPED_* without user assets. No downloads.<context="µDescription"/>',
   µGroup: 'Apple II/Compatibility<context="µGroup"/>',
@@ -1793,12 +1778,12 @@ function _DeviceConfigDisplayName() {
   try {
     const d = formDefaultsFromConfig(rootDir);
     if (d.drive1 && String(d.drive1).toLowerCase().includes("galaxian")) {
-      return 'ESP][ device configuration — Galaxian demo V<version/><context="µDisplayName"/>'.i18xRegister();
+      return 'Configure ESP][ — Galaxian demo V<version/><context="µDisplayName"/>'.i18xRegister();
     }
   } catch {
     /* defaults */
   }
-  return 'ESP][ device configuration V<version/><context="µDisplayName"/>'.i18xRegister();
+  return 'Configure ESP][ V<version/><context="µDisplayName"/>'.i18xRegister();
 }
 
 /**
@@ -2023,10 +2008,10 @@ _Tag(deviceConfig, {
   gulpName: "device:config",
   µDisplayName: () => _DeviceConfigDisplayName(),
   µDescription:
-    'Interactive ESP][ configuration form (ROM, disks, boot, macro, presentation, screensaver). Save locally or explicitly Apply to device — opening the form uploads nothing.<context="µDescription"/>',
+    'Opens the ESP][ configuration form (ROM, disks, boot, macro, presentation, screensaver). Save locally or explicitly Apply to device — opening the form uploads nothing.<context="µDescription"/>',
   µTooltip:
     'Form only until you choose Apply. Media bytes are never uploaded here.<context="µTooltip"/>',
-  µGroup: 'Device Storage<context="µGroup"/>',
+  µGroup: 'Device<context="µGroup"/>',
   µOrder: 60,
   µParameters: _DeviceConfigParameters(),
 });
@@ -2045,12 +2030,12 @@ export async function deviceMacroRun() {
 }
 _Tag(deviceMacroRun, {
   gulpName: "device:macro:run",
-  µDisplayName: 'Run device macro V<version/><context="µDisplayName"/>',
+  µDisplayName: 'Run Macro V<version/><context="µDisplayName"/>',
   µDescription:
     'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Asks for COM port like flash/upload.<context="µDescription"/>',
   µTooltip:
     'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
-  µGroup: 'Device Storage<context="µGroup"/>',
+  µGroup: 'Device<context="µGroup"/>',
   µOrder: 65,
   µParameters: [
     {
@@ -2086,10 +2071,10 @@ export async function deviceUpload() {
 }
 _Tag(deviceUpload, {
   gulpName: "device:upload",
-  µDisplayName: 'Device Serial Upload<context="µDisplayName"/>',
+  µDisplayName: 'Transfer File V<version/><context="µDisplayName"/>',
   µDescription:
     'Upload a local file to /esp2/... via framed serial protocol (dev only).<context="µDescription"/>',
-  µGroup: 'Device Storage<context="µGroup"/>',
+  µGroup: 'Device<context="µGroup"/>',
   µOrder: 70,
   µParameters: [
     { name: "port", type: "string", optional: false },
@@ -2114,10 +2099,10 @@ export async function deviceUsbStorage() {
 }
 _Tag(deviceUsbStorage, {
   gulpName: "device:usb-storage",
-  µDisplayName: 'Device USB Storage Mode<context="µDisplayName"/>',
+  µDisplayName: 'USB Storage Mode V<version/><context="µDisplayName"/>',
   µDescription:
     'Enter or leave USB MSC ownership of the microSD (TinyUSB OTG).<context="µDescription"/>',
-  µGroup: 'Device Storage<context="µGroup"/>',
+  µGroup: 'Device<context="µGroup"/>',
   µOrder: 71,
   µParameters: [
     { name: "port", type: "string", optional: false },

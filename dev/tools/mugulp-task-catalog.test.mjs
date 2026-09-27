@@ -1,19 +1,16 @@
 /**
  * µGulp task-catalog regression tests for ESP][.
  *
- * Guards against:
- * - loss of canonical first-party tasks (see docs/tooling/gulp-task-manifest.json)
- * - unexpected first-party duplicates
- * - missing / collapsed required groups
- * - missing en-US / de-DE metadata
- * - UTF-8 mojibake of µ metadata
- * - readiness emphasis binding
+ * Protects capabilities, canonical visible IDs, metadata, UTF-8.
+ * Intentional UX cleanup (hiding aliases/internal tasks) is allowed via
+ * docs/tooling/gulp-task-manifest.json version ≥ 2.
  */
 import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { spawnSync } from "node:child_process";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 const GULPFILE = join(ROOT, "gulpfile.mjs");
@@ -33,11 +30,21 @@ const DOUBLE_MU = Buffer.from([0xc3, 0x82, 0xc2, 0xb5]);
 const MOJIBAKE_MARKERS = ["Ã", "Âµ", "ÃÂµ"];
 
 /**
- * @returns {{ groups: string[], tasks: { id: string, group: string, i18x?: boolean }[] }}
+ * @returns {{
+ *   groups: string[],
+ *   tasks: { id: string, group: string, i18x?: boolean, visible?: boolean }[],
+ *   cliAliases?: { id: string, aliasOf: string }[],
+ *   internalCli?: { id: string }[],
+ *   layout?: { collapsedDefault?: boolean }
+ * }}
  */
 export function loadCanonicalManifest() {
   assert.ok(existsSync(MANIFEST), "canonical manifest required");
   return JSON.parse(readFileSync(MANIFEST, "utf8"));
+}
+
+export function visibleTasks(manifest) {
+  return (manifest.tasks || []).filter((t) => t.visible !== false);
 }
 
 /**
@@ -79,12 +86,6 @@ function stripContext(phrase) {
   return String(phrase || "").replace(/<context="[^"]+"\/>$/, "");
 }
 
-/**
- * Dynamic µDisplayName may be a function (e.g. release-history status).
- * Resolve to the registered i18x phrase string for catalog checks.
- * @param {unknown} value
- * @returns {string | null}
- */
 function resolveMetaPhrase(value) {
   let v = value;
   if (typeof v === "function") {
@@ -97,26 +98,76 @@ function resolveMetaPhrase(value) {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
 
-test("canonical manifest exists and lists unique task IDs", () => {
+test("canonical manifest exists and lists unique visible task IDs", () => {
   const manifest = loadCanonicalManifest();
   assert.ok(Array.isArray(manifest.tasks) && manifest.tasks.length > 0);
   assert.ok(Array.isArray(manifest.groups) && manifest.groups.length > 0);
-  const ids = manifest.tasks.map((t) => t.id);
-  assert.equal(new Set(ids).size, ids.length, "duplicate IDs in manifest");
+  const visible = visibleTasks(manifest);
+  const ids = visible.map((t) => t.id);
+  assert.equal(new Set(ids).size, ids.length, "duplicate IDs in visible tasks");
+  assert.ok(manifest.version >= 2, "manifest v2+ for UX cleanup");
 });
 
-test("no canonical first-party task is missing from gulp registry", async () => {
+test("no visible first-party task is missing from gulp registry", async () => {
   const manifest = loadCanonicalManifest();
   const mod = await loadGulpTasks();
   const tasks = collectTaggedTasks(mod);
-  const missing = manifest.tasks
+  const missing = visibleTasks(manifest)
     .map((t) => t.id)
     .filter((id) => !tasks.has(id));
   assert.deepEqual(
     missing,
     [],
-    `missing canonical tasks: ${missing.join(", ")} (have ${tasks.size})`,
+    `missing visible tasks: ${missing.join(", ")} (have ${tasks.size})`,
   );
+});
+
+test("internal/alias tasks are not exported as dashboard entries", async () => {
+  const mod = await loadGulpTasks();
+  const tasks = collectTaggedTasks(mod);
+  for (const id of [
+    "backup:nas",
+    "backup:git",
+    "releases:context-check",
+    "releases:context-fix",
+    "releases:i18x-update",
+  ]) {
+    assert.equal(tasks.has(id), false, `${id} must not be a tagged dashboard task`);
+  }
+  assert.equal(typeof mod.BACKUP_GIT, "undefined");
+  assert.equal(typeof mod.backupNas, "undefined");
+  assert.equal(typeof mod.RELEASES_CONTEXT_CHECK, "undefined");
+  assert.equal(typeof mod.RELEASES_CONTEXT_FIX, "undefined");
+  assert.equal(typeof mod.RELEASES_I18X_UPDATE, "undefined");
+  const gulpSrc = readFileSync(GULPFILE, "utf8");
+  assert.equal(gulpSrc.includes("(alias)"), false);
+  assert.equal(gulpSrc.includes("Release context CHECK"), false);
+  assert.equal(gulpSrc.includes("Release context FIX"), false);
+});
+
+test("CLI aliases remain registered with gulp", () => {
+  const r = spawnSync(
+    process.execPath,
+    [
+      "--input-type=module",
+      "-e",
+      `import gulp from 'gulp';
+       await import('./gulpfile.mjs');
+       console.log(JSON.stringify(Object.keys(gulp.registry().tasks())));`,
+    ],
+    { cwd: ROOT, encoding: "utf8" },
+  );
+  assert.equal(r.status, 0, r.stderr || r.stdout);
+  const ids = JSON.parse(r.stdout.trim().split("\n").pop());
+  for (const need of [
+    "backup:nas",
+    "backup:git",
+    "releases:context-check",
+    "releases:context-fix",
+    "releases:i18x-update",
+  ]) {
+    assert.ok(ids.includes(need), `gulp task missing: ${need}`);
+  }
 });
 
 test("no unexpected first-party duplicate displayNames", async () => {
@@ -132,26 +183,30 @@ test("no unexpected first-party duplicate displayNames", async () => {
   assert.deepEqual(dups, [], `duplicate tagged tasks: ${dups.join(", ")}`);
 });
 
-test("required µGroups remain present", async () => {
+test("required µGroups remain present and start collapsed", async () => {
   const manifest = loadCanonicalManifest();
   const mod = await loadGulpTasks();
   const groups = mod["\u00b5Groups"];
   assert.ok(groups && groups.groups, "µGroups export required");
+  assert.equal(groups.collapsed, true, "default collapsed");
   const keys = Object.keys(groups.groups).map(stripContext);
   const missing = manifest.groups.filter((g) => !keys.includes(g));
   assert.deepEqual(missing, [], `missing groups: ${missing.join(", ")}`);
-  // Git / Backup / Firmware must start open (UX recovery)
-  assert.equal(groups.groups['Firmware<context="µGroup"/>'], "open");
-  assert.equal(groups.groups['Git<context="µGroup"/>'], "open");
-  assert.equal(groups.groups['Backup<context="µGroup"/>'], "open");
+  for (const [key, state] of Object.entries(groups.groups)) {
+    assert.equal(
+      state,
+      "collapsed",
+      `${key} must start collapsed (got ${state})`,
+    );
+  }
 });
 
-test("canonical tasks expose µDisplayName / µGroup matching manifest group", async () => {
+test("visible tasks expose µDisplayName / µGroup matching manifest", async () => {
   const manifest = loadCanonicalManifest();
   const mod = await loadGulpTasks();
   const tasks = collectTaggedTasks(mod);
   const bad = [];
-  for (const entry of manifest.tasks) {
+  for (const entry of visibleTasks(manifest)) {
     const fn = tasks.get(entry.id);
     assert.ok(fn, `missing task ${entry.id}`);
     const rawDn = fn["\u00b5DisplayName"];
@@ -164,6 +219,12 @@ test("canonical tasks expose µDisplayName / µGroup matching manifest group", a
     else if (dn === entry.id) bad.push(`${entry.id}: µDisplayName equals technical id`);
     else if (MOJIBAKE_MARKERS.some((m) => dn.includes(m)))
       bad.push(`${entry.id}: mojibake in µDisplayName`);
+    else if (!dn.includes("V<version/>") && !String(rawDn).includes("V<version/>")) {
+      // dynamic functions return registered phrases that include V<version/>
+      if (!dn.includes("V<version/>")) {
+        bad.push(`${entry.id}: µDisplayName should include V<version/>`);
+      }
+    }
     if (!group || typeof group !== "string") bad.push(`${entry.id}: missing µGroup`);
     else if (stripContext(group) !== entry.group)
       bad.push(
@@ -173,7 +234,7 @@ test("canonical tasks expose µDisplayName / µGroup matching manifest group", a
   assert.deepEqual(bad, [], bad.join("\n"));
 });
 
-test("en-US and de-DE cover canonical display names + groups", async () => {
+test("en-US and de-DE cover visible display names + groups", async () => {
   assert.ok(existsSync(I18X_EN), "i18x/gulp/en-US.json required");
   assert.ok(existsSync(I18X_DE), "i18x/gulp/de-DE.json required");
   const en = JSON.parse(readFileSync(I18X_EN, "utf8"));
@@ -183,7 +244,7 @@ test("en-US and de-DE cover canonical display names + groups", async () => {
   const tasks = collectTaggedTasks(mod);
   const missingEn = [];
   const missingDe = [];
-  for (const entry of manifest.tasks) {
+  for (const entry of visibleTasks(manifest)) {
     const fn = tasks.get(entry.id);
     const dn = resolveMetaPhrase(fn["\u00b5DisplayName"]);
     const group = fn["\u00b5Group"];
@@ -234,9 +295,10 @@ test("UTF-8 integrity: real µ, no double-encoding in metadata sources", () => {
 
 test("registry merge yields UNION (no silent replace of old set)", () => {
   const manifest = loadCanonicalManifest();
-  const half = Math.floor(manifest.tasks.length / 2);
-  const leftIds = manifest.tasks.slice(0, half).map((t) => t.id);
-  const rightIds = manifest.tasks.slice(half).map((t) => t.id);
+  const visible = visibleTasks(manifest);
+  const half = Math.floor(visible.length / 2);
+  const leftIds = visible.slice(0, half).map((t) => t.id);
+  const rightIds = visible.slice(half).map((t) => t.id);
   const oldSet = new Map(leftIds.map((id) => [id, { gulpName: id, set: "old" }]));
   const newSet = new Map(rightIds.map((id) => [id, { gulpName: id, set: "new" }]));
   const merged = mergeTaskRegistry(oldSet, newSet);
@@ -275,9 +337,11 @@ test("Apple II readiness emphasis binds µAttention on guide tasks", async () =>
   assert.equal(r.emphasizeTaskId, "apple2:rom:sync");
 });
 
-test("52357f4 incomplete baseline is smaller than canonical catalog", () => {
+test("visible catalog is leaner than pre-cleanup 55-task clutter", () => {
   const manifest = loadCanonicalManifest();
-  // Documented incomplete baseline count (see gulp-task-history.md)
-  assert.ok(manifest.tasks.length > 28);
-  assert.ok(manifest.tasks.length >= 36);
+  const visible = visibleTasks(manifest);
+  assert.ok(visible.length >= 40, "still keeps core capabilities");
+  assert.ok(visible.length < 55, "intentional UX reduction below 55");
+  assert.ok(!(manifest.tasks || []).some((t) => t.id === "backup:nas" && t.visible));
+  assert.ok(!(manifest.tasks || []).some((t) => t.id === "releases:context-check"));
 });
