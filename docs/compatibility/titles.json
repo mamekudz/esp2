@@ -36,15 +36,17 @@
     {
       "id": "galaxian",
       "title": "Galaxian",
-      "hostStatus": "BOOT",
-      "esp32Status": "NOT_TESTED",
-      "input": "NOT_TESTED",
-      "video": "NOT_TESTED",
+      "hostStatus": "PASS",
+      "esp32Status": "PASS",
+      "furthestState": "PLAYFIELD",
+      "input": "PARTIAL",
+      "video": "HGR",
       "audio": "NOT_TESTED",
       "disk": "USER_SUPPLIED_ONLY",
       "romDependency": "USER_APPLE_II_PLUS_ROM",
       "romDependencyReason": "ROM_DATA",
-      "notes": "BOOT under AppleIIGo; Stage B needs Apple II+ Applesoft ROM data at $D5xx. Not PLAYABLE."
+      "windowsBridgeInput": "PARTIAL",
+      "notes": "HOST playfield PASS; ESP32 physical playfield PASS (cracktro→CDC A→second load→HGR). Keyboard bridge PASS; 8BitDo NOT_TESTED; physical audio NOT_TESTED. Presentation: Classic+Sharp default; Artifact Color + optional Landscape exercised on CO5300. Not claimed fully playable."
     },
     {
       "id": "choplifter",

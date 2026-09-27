@@ -52,7 +52,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_input_bridge";
+static constexpr char kBuildId[] = "apple2_present_v2";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -60,13 +60,18 @@ static constexpr int kViewY = 48;
 static constexpr int kViewW = 280;
 static constexpr int kViewH = 192;
 static constexpr int kTextCellW = 7;
+static constexpr int kPanelW = LCD_WIDTH;  // 280
+static constexpr int kPanelH = LCD_HEIGHT; // 456
 static constexpr uint32_t kQspiHz = 40000000;
 static constexpr uint32_t kStabilityMs = 90000;
 static constexpr int kFullUpdateThreshold = 96;
 static constexpr uint32_t kRomStartupBudget = 8000000;
 static constexpr uint32_t kWaitSlice = 2000;
 
+/** HGR presentation color — independent of Apple II soft-switches. */
 enum class PresentColorMode : uint8_t { Sharp = 0, ArtifactColor };
+/** Physical panel layout — independent of AppleIIMachine. */
+enum class PresentOrientation : uint8_t { Classic = 0, Landscape };
 
 static Arduino_DataBus *g_bus = nullptr;
 static Arduino_CO5300 *g_gfx = nullptr;
@@ -82,6 +87,7 @@ static SdOwnership g_sdOwner;
 static UsbStorageMode g_usbStorage(g_sdOwner);
 static bool g_usbStorageUi = false;
 static PresentColorMode g_presentColor = PresentColorMode::Sharp;
+static PresentOrientation g_presentOrient = PresentOrientation::Classic;
 static MachineProfile g_profile = MachineProfile::AppleIIPlus;
 static RomIdentity g_romId{};
 
@@ -109,6 +115,12 @@ static bool g_diskMounted = false;
 static bool g_slot6UserProm = false;
 
 static uint16_t *g_viewportFb = nullptr;
+/** Landscape: rotated+scaled RGB565 (panel-sized or fitted region). */
+static uint16_t *g_presentFb = nullptr;
+static int g_landOutW = 0;
+static int g_landOutH = 0;
+static int g_landOx = 0;
+static int g_landOy = 0;
 static uint8_t *g_hgrBits = nullptr;
 static uint8_t *g_hgrHigh = nullptr;
 static volatile bool g_schedulerGo = false;
@@ -120,7 +132,10 @@ static volatile uint32_t g_dispFrames = 0;
 static volatile uint32_t g_dispBytes = 0;
 static volatile uint32_t g_lastXferUs = 0;
 static volatile uint32_t g_lastRenderUs = 0;
+static volatile uint32_t g_lastPresentUs = 0;
 static portMUX_TYPE g_dirtyMux = portMUX_INITIALIZER_UNLOCKED;
+/** CDC may change present mode; only a2disp may touch CO5300 SPI. */
+static volatile bool g_presentApplyPending = false;
 
 static void logf(const char *tag, const char *fmt, ...) {
     if (g_diagQuiet || esp2_upload::isSessionActive()) {
@@ -140,6 +155,11 @@ static void pauseMediaForUsb();
 static void emitDiskSnap(const char *tag);
 static void maybeLogDiskHeartbeat();
 static void resyncEmuWallClock();
+static void applyPresentChange();
+static void servicePresentApplyOnDisplayTask();
+static void emitPresentStatus();
+static const char *presentColorName();
+static const char *presentOrientName();
 
 static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
     return ArtifactRenderer::toRgb565({r, g, b});
@@ -648,6 +668,40 @@ static void handleDevCommandLine(const char *line) {
         Serial.println("#ACK DIAG SNAP");
         return;
     }
+    if (strncmp(line, "#ESP2PRESENT COLOR ", 19) == 0) {
+        const char *arg = line + 19;
+        if (strcmp(arg, "SHARP") == 0) {
+            g_presentColor = PresentColorMode::Sharp;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "ARTIFACT") == 0 || strcmp(arg, "ARTIFACTCOLOR") == 0) {
+            g_presentColor = PresentColorMode::ArtifactColor;
+            applyPresentChange();
+            return;
+        }
+        Serial.println("#NAK PRESENT color");
+        return;
+    }
+    if (strncmp(line, "#ESP2PRESENT ORIENT ", 20) == 0) {
+        const char *arg = line + 20;
+        if (strcmp(arg, "CLASSIC") == 0) {
+            g_presentOrient = PresentOrientation::Classic;
+            applyPresentChange();
+            return;
+        }
+        if (strcmp(arg, "LANDSCAPE") == 0) {
+            g_presentOrient = PresentOrientation::Landscape;
+            applyPresentChange();
+            return;
+        }
+        Serial.println("#NAK PRESENT orient");
+        return;
+    }
+    if (strcmp(line, "#ESP2PRESENT STATUS") == 0) {
+        emitPresentStatus();
+        return;
+    }
 }
 
 static void serviceDevSerialCommands() {
@@ -940,6 +994,71 @@ static uint32_t transferScanlineRange(int y0, int y1) {
     return g_lastXferUs;
 }
 
+/**
+ * Landscape presentation: rotate Apple II 280×192 CW 90° → 192×280, then
+ * nearest-neighbor scale to maximize fit on 280×456 while preserving aspect.
+ * Apple II memory / soft-switches are untouched.
+ */
+static void computeLandscapeGeometry() {
+    // After CW rotate: width=kViewH (192), height=kViewW (280).
+    const int rotW = kViewH;
+    const int rotH = kViewW;
+    // Integer scale: fill panel width (280/192), height becomes 280*280/192.
+    g_landOutW = kPanelW;
+    g_landOutH = (rotH * kPanelW) / rotW; // 408
+    if (g_landOutH > kPanelH) {
+        g_landOutH = kPanelH;
+        g_landOutW = (rotW * kPanelH) / rotH;
+    }
+    g_landOx = (kPanelW - g_landOutW) / 2;
+    g_landOy = (kPanelH - g_landOutH) / 2;
+}
+
+static bool ensurePresentFb() {
+    if (g_presentOrient != PresentOrientation::Landscape) {
+        return true;
+    }
+    if (!g_presentFb) {
+        computeLandscapeGeometry();
+        g_presentFb = static_cast<uint16_t *>(
+            psramAlloc(static_cast<size_t>(g_landOutW * g_landOutH) * sizeof(uint16_t)));
+        if (!g_presentFb) {
+            logf("PRESENT", "[FAIL] landscape fb alloc");
+            return false;
+        }
+        logf("PRESENT", "landscape fb %dx%d ox=%d oy=%d", g_landOutW, g_landOutH, g_landOx,
+             g_landOy);
+    }
+    return true;
+}
+
+static uint32_t transferLandscapeFromViewport() {
+    if (!g_gfx || !g_viewportFb || !ensurePresentFb() || !g_presentFb) {
+        return 0;
+    }
+    const uint32_t t0 = micros();
+    // CW rotate + nearest-neighbor scale in one pass.
+    // rot(sx,sy) → (rotW-1-sy, sx) with rotW=192, rotH=280.
+    const int rotW = kViewH;
+    const int rotH = kViewW;
+    for (int dy = 0; dy < g_landOutH; ++dy) {
+        const int ry = (dy * rotH) / g_landOutH;
+        uint16_t *dst = g_presentFb + dy * g_landOutW;
+        for (int dx = 0; dx < g_landOutW; ++dx) {
+            const int rx = (dx * rotW) / g_landOutW;
+            // Inverse CW: srcx = ry, srcy = rotW - 1 - rx
+            const int sx = ry;
+            const int sy = rotW - 1 - rx;
+            dst[dx] = g_viewportFb[sx + sy * kViewW];
+        }
+    }
+    g_gfx->draw16bitRGBBitmap(g_landOx, g_landOy, g_presentFb, g_landOutW, g_landOutH);
+    g_lastXferUs = micros() - t0;
+    g_dispBytes = static_cast<uint32_t>(g_landOutW * g_landOutH * 2);
+    g_lastPresentUs = g_lastXferUs;
+    return g_lastXferUs;
+}
+
 static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
     if (!g_viewportFb || bits.empty()) {
         return 0;
@@ -947,6 +1066,10 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
     const uint32_t tR0 = micros();
     renderDirtyIntoFb(g_viewportFb, bits);
     g_lastRenderUs = micros() - tR0;
+    if (g_presentOrient == PresentOrientation::Landscape) {
+        // Full transform — dirty scanline runs are not axis-aligned after rotate.
+        return transferLandscapeFromViewport();
+    }
     const int pop = bits.popcount();
     if (pop >= kFullUpdateThreshold || pop >= kViewH) {
         return transferScanlineRange(0, kViewH - 1);
@@ -972,6 +1095,50 @@ static void presentFull() {
     portEXIT_CRITICAL(&g_dirtyMux);
     presentDirty(bits);
     g_dispFrames++;
+}
+
+static const char *presentColorName() {
+    return g_presentColor == PresentColorMode::ArtifactColor ? "ARTIFACT" : "SHARP";
+}
+
+static const char *presentOrientName() {
+    return g_presentOrient == PresentOrientation::Landscape ? "LANDSCAPE" : "CLASSIC";
+}
+
+static void emitPresentStatus() {
+    Serial.printf("#ACK PRESENT color=%s orient=%s classic_view=%dx%d@%d,%d "
+                  "land_out=%dx%d@%d,%d render_us=%u xfer_us=%u\n",
+                  presentColorName(), presentOrientName(), kViewW, kViewH, kViewX, kViewY,
+                  g_landOutW, g_landOutH, g_landOx, g_landOy, g_lastRenderUs, g_lastXferUs);
+}
+
+static void applyPresentChange() {
+    // Called from the CDC/loop task — never touch g_gfx here (SPI race with a2disp).
+    if (g_presentOrient == PresentOrientation::Landscape) {
+        computeLandscapeGeometry();
+    }
+    g_presentApplyPending = true;
+    emitPresentStatus();
+    logf("PRESENT", "color=%s orient=%s pending", presentColorName(), presentOrientName());
+}
+
+/** Display-task side of applyPresentChange: fill / alloc / dirty. */
+static void servicePresentApplyOnDisplayTask() {
+    if (!g_presentApplyPending) {
+        return;
+    }
+    g_presentApplyPending = false;
+    if (g_gfx) {
+        g_gfx->fillScreen(0x0000);
+    }
+    if (g_presentOrient == PresentOrientation::Landscape) {
+        computeLandscapeGeometry();
+        (void)ensurePresentFb();
+    }
+    markVideoDirty();
+    g_display_power.notifyActivity("present");
+    logf("PRESENT", "applied color=%s orient=%s land=%dx%d@%d,%d", presentColorName(),
+         presentOrientName(), g_landOutW, g_landOutH, g_landOx, g_landOy);
 }
 
 static void markVideoDirty() {
@@ -1380,8 +1547,12 @@ static void bootSuite() {
     g_viewportFb = static_cast<uint16_t *>(psramAlloc(kViewW * kViewH * sizeof(uint16_t)));
     g_hgrBits = static_cast<uint8_t *>(psramAlloc(280 * 192));
     g_hgrHigh = static_cast<uint8_t *>(psramAlloc(40 * 192));
+    computeLandscapeGeometry();
     logf("RAM", "viewport=%s psram_free=%u heap=%u", g_viewportFb ? "ok" : "FAIL",
          ESP.getPsramSize() ? ESP.getFreePsram() : 0, ESP.getFreeHeap());
+    logf("PRESENT", "default color=%s orient=%s classic=%dx%d@%d,%d land=%dx%d@%d,%d",
+         presentColorName(), presentOrientName(), kViewW, kViewH, kViewX, kViewY, g_landOutW,
+         g_landOutH, g_landOx, g_landOy);
 
     g_rom_ok = loadUserRomFromSd();
     if (!g_rom_ok) {
@@ -1518,9 +1689,10 @@ static void displayTask(void *) {
             const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
             logf("PERF",
                  "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u "
-                 "psram_free=%u",
+                 "psram_free=%u color=%s orient=%s render_us=%u xfer_us=%u",
                  cps, g_dispFrames, ESP.getFreeHeap(), ESP.getMinFreeHeap(),
-                 ESP.getPsramSize() ? ESP.getFreePsram() : 0);
+                 ESP.getPsramSize() ? ESP.getFreePsram() : 0, presentColorName(),
+                 presentOrientName(), g_lastRenderUs, g_lastXferUs);
         }
         if (!stabilityDone && (now - startMs) >= kStabilityMs) {
             stabilityDone = true;
@@ -1542,6 +1714,7 @@ static void displayTask(void *) {
             vTaskDelay(pdMS_TO_TICKS(40));
             continue;
         }
+        servicePresentApplyOnDisplayTask();
         // Periodically refresh text screen from ROM (cursor flash etc.).
         static uint32_t lastRefresh = 0;
         if (now - lastRefresh > 200) {

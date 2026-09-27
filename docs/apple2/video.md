@@ -43,6 +43,25 @@ choose independently:
 Switching Sharp ↔ ArtifactColor invalidates the viewport and re-renders; it
 does **not** change Apple II RAM or soft-switches.
 
+Serial (development CDC):
+
+- `#ESP2PRESENT COLOR SHARP`
+- `#ESP2PRESENT COLOR ARTIFACT`
+- `#ESP2PRESENT ORIENT CLASSIC`
+- `#ESP2PRESENT ORIENT LANDSCAPE`
+- `#ESP2PRESENT STATUS`
+
+## Presentation orientation (not Apple II state)
+
+| PresentOrientation | Behavior |
+| --- | --- |
+| `Classic` (default) | 280×192 viewport at panel `(0,48)` — enclosure / portrait bring-up |
+| `Landscape` | CW 90° + nearest-neighbor scale to fit 280×456, aspect preserved |
+
+`AppleIIMachine` does not know about panel orientation. Landscape is an
+**optional** presentation experiment on the current 1.64″ board; Classic remains
+the verified default.
+
 ## Modes (physical)
 
 | Mode | Source | Notes |
