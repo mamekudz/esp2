@@ -516,6 +516,11 @@ bool makeStagingPath(const char *finalPath, char *out, size_t outCap) {
 }
 
 bool pollAndRunSession(uint32_t listenMs) {
+    // Standalone USB-power (no CDC host): do not block — Serial.flush() can hang forever
+    // without a host, leaving the AMOLED uninitialized if called before display bring-up.
+    if (!Serial) {
+        return false;
+    }
     Serial.println("#ESP2UPLOAD WAIT");
     Serial.flush();
     const uint32_t t0 = millis();
@@ -524,6 +529,10 @@ bool pollAndRunSession(uint32_t listenMs) {
     uint32_t lastPing = 0;
     bool any = false;
     while ((millis() - t0) < listenMs) {
+        if (!Serial) {
+            // Host detached mid-wait — abort upload window, continue firmware boot.
+            return any;
+        }
         if ((millis() - lastPing) > 1000) {
             lastPing = millis();
             Serial.println("#ESP2UPLOAD WAIT");

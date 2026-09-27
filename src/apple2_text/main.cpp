@@ -55,7 +55,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_config_v1";
+static constexpr char kBuildId[] = "apple2_standalone_v1";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -1939,6 +1939,50 @@ static void displayTask(void *) {
     }
 }
 
+/** Persist boot stages for no-host diagnosis (read later via PC). */
+static char g_bootLog[512];
+static void writeBootStage(const char *stage) {
+    if (!stage) {
+        return;
+    }
+    char line[96];
+    snprintf(line, sizeof(line), "t_ms=%lu stage=%s\n", static_cast<unsigned long>(millis()),
+             stage);
+    const size_t used = strlen(g_bootLog);
+    if (used + strlen(line) + 1 < sizeof(g_bootLog)) {
+        memcpy(g_bootLog + used, line, strlen(line) + 1);
+    }
+    if (!g_sdStore.beginMounted() || !g_sdOwner.esp2MayUseFat()) {
+        return;
+    }
+    if (!SD.exists("/esp2/diagnostics")) {
+        SD.mkdir("/esp2/diagnostics");
+    }
+    File f = SD.open("/esp2/diagnostics/last-boot.txt", FILE_WRITE);
+    if (f) {
+        f.printf("build=%s\n", kBuildId);
+        f.print(g_bootLog);
+        f.close();
+    }
+}
+
+static void showEarlyBootSplash() {
+    if (!g_gfx || !g_display_ok) {
+        return;
+    }
+    g_gfx->fillScreen(0x0000);
+    g_gfx->setTextColor(0x07E0);
+    g_gfx->setTextSize(2);
+    g_gfx->setCursor(24, 180);
+    g_gfx->print("ESP][");
+    g_gfx->setTextSize(1);
+    g_gfx->setTextColor(0xFFFF);
+    g_gfx->setCursor(24, 220);
+    g_gfx->print(kBuildId);
+    g_gfx->setCursor(24, 240);
+    g_gfx->print("booting...");
+}
+
 void setup() {
     // TinyUSB OTG: USB stack before CDC traffic (composite CDC+MSC later).
 #if !ARDUINO_USB_MODE
@@ -1947,48 +1991,63 @@ void setup() {
     Serial.setRxBufferSize(8192);
     Serial.begin(115200);
     // Non-zero TX timeout: 0 drops CDC bytes under load (corrupts #ACK lines).
+    // Critical for standalone USB-power: TX must not hang forever without a host.
     Serial.setTxTimeoutMs(100);
+    // Brief optional CDC wait only — never gate display bring-up on a host.
     const uint32_t serialWait = millis();
-    while (!Serial && (millis() - serialWait) < 3000) {
+    while (!Serial && (millis() - serialWait) < 400) {
         delay(10);
     }
-    delay(200);
-    logf("ESP2", "build=%s", kBuildId);
-    logf("ESP2", "usb_mode=%s msc=%s", ARDUINO_USB_MODE ? "HW_CDC" : "TinyUSB_OTG",
-         UsbStorageMode::isSupported() ? "yes" : "no");
-    logf("ESP2", "psram=%u heap=%u", ESP.getPsramSize(), ESP.getFreeHeap());
-    logf("SD", "owner=%s", sdOwnerStateName(g_sdOwner.state()));
 
-    // Boot-window upload listen. Longer than a typical host flash→open gap.
-    if (esp2_upload::pollAndRunSession(45000)) {
-        logf("UPLOAD", "session finished — continuing boot");
-    }
-
+    // DISPLAY FIRST — power-supply-only boots must light the panel without CDC.
     g_display_ok = init_display();
     g_display_power.begin(draw_screensaver_stub, restore_ui_stub, panel_sleep_co5300,
                           panel_wake_co5300);
     DisplayPowerSettings dps{};
-    // Defaults until /esp2/config/system.json is loaded (no short lab overrides).
     dps.screensaver = ScreensaverTimeout::Off;
     dps.screen_off = ScreenOffTimeout::Never;
     g_display_power.setSettings(dps);
     g_display_power.notifyActivity("boot");
+    showEarlyBootSplash();
+
+    logf("ESP2", "build=%s", kBuildId);
+    logf("ESP2", "usb_mode=%s msc=%s cdc_host=%s", ARDUINO_USB_MODE ? "HW_CDC" : "TinyUSB_OTG",
+         UsbStorageMode::isSupported() ? "yes" : "no", Serial ? "yes" : "no");
+    logf("ESP2", "psram=%u heap=%u", ESP.getPsramSize(), ESP.getFreeHeap());
+    logf("SD", "owner=%s", sdOwnerStateName(g_sdOwner.state()));
+    logf("DISPLAY", "early_init=%s power=ACTIVE", g_display_ok ? "ok" : "FAIL");
+
+    // Boot-window upload ONLY when a USB host owns CDC (dev flash/upload chain).
+    // Standalone USB-power: skip — previously blocked here ~45s+ and could hang on flush.
+    if (Serial) {
+        if (esp2_upload::pollAndRunSession(45000)) {
+            logf("UPLOAD", "session finished — continuing boot");
+        }
+    } else {
+        logf("UPLOAD", "skip boot-window — no CDC host (standalone power)");
+    }
 
     g_touch_ok = probe_touch();
     g_sd_ok = probe_sd();
     if (g_sd_ok) {
         prepareEsp2Tree();
+        writeBootStage(Serial ? "display_sd_cdc" : "display_sd_standalone");
     }
     g_imu_ok = probe_imu();
 
     xTaskCreatePinnedToCore(
         [](void *) {
             if (g_sdOwner.esp2MayUseFat()) {
+                writeBootStage("config_load");
                 loadPersistentConfigFromSd();
+                writeBootStage(g_sysConfig.valid ? "config_ok" : "config_defaults");
                 bootSuite();
+                writeBootStage("boot_suite_done");
                 applyStartupFromConfig();
+                writeBootStage(g_diskMounted ? "startup_media_ok" : "startup_no_disk");
             } else {
                 logf("APPLE2", "bootSuite skipped — SD not owned by ESP2");
+                writeBootStage("sd_not_owned");
             }
             logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s rom=%s basic=%s level4=%s owner=%s",
                  g_display_ok ? "PASS" : "FAIL", g_touch_ok ? "PASS" : "FAIL",
