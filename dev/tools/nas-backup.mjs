@@ -172,13 +172,49 @@ export function LoadNasLocalDefaults(_root) {
 }
 
 /**
+ * Persist up to three NAS destinations into gitignored config/nas.targets.local
+ * so backup:list / backup:verify see the same paths after a form-driven backup.
+ * @param {string} _root
+ * @param {{
+ *   destination1?: string,
+ *   destination2?: string,
+ *   destination3?: string,
+ *   dryRun?: boolean,
+ * }} _form
+ * @returns {string} path written
+ */
+export function SaveNasLocalDefaults(_root, _form) {
+  const t1 = String(_form?.destination1 ?? "").trim();
+  const t2 = String(_form?.destination2 ?? "").trim();
+  const t3 = String(_form?.destination3 ?? "").trim();
+  const dry = _form?.dryRun === true;
+  const dir = join(_root, "config");
+  mkdirSync(dir, { recursive: true });
+  const localPath = join(dir, "nas.targets.local");
+  const body = [
+    "# ESP][ NAS destinations — gitignored; written by backup form / SaveNasLocalDefaults",
+    `# ${new Date().toISOString()}`,
+    "",
+    `NAS_TARGET_1=${t1}`,
+    `NAS_TARGET_2=${t2}`,
+    `NAS_TARGET_3=${t3}`,
+    "",
+    `# ESP2_NAS_DRY_RUN=${dry ? "1" : "0"}`,
+    "",
+  ].join("\n");
+  writeFileSync(localPath, body, "utf8");
+  return localPath;
+}
+
+/**
  * Resolve 0–3 NAS targets.
  * Precedence (µGulp / Watchy style):
  *   1. env NAS_TARGET_1..3
  *   2. env ESP2_NAS_BACKUP_PATHS (|/;)
- *   3. µParameters / form slots destination1..3 (MICROGULP_PARAMS)
+ *   3. µParameters / form slots destination1..3 when at least one is non-empty
  *   4. config/nas.targets.local
- * Empty result is valid (0 destinations).
+ * Empty form slots do NOT block fallback to nas.targets.local
+ * (fixes backup:list after a form-only backup run).
  *
  * @param {string} _root
  * @param {{
@@ -224,12 +260,15 @@ export function ResolveNasTargets(_root, _form = null) {
       _form.destination2,
       _form.destination3,
     ]);
-    return {
-      destinations,
-      dryRun: envDry || _form.dryRun === true,
-      rejectedExtra,
-      source: "form",
-    };
+    if (destinations.length > 0) {
+      return {
+        destinations,
+        dryRun: envDry || _form.dryRun === true,
+        rejectedExtra,
+        source: "form",
+      };
+    }
+    // Empty form → fall through to nas.targets.local
   }
 
   const local = LoadNasLocalDefaults(_root);

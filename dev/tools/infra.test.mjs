@@ -16,6 +16,7 @@ import {
 	NAS_BACKUP_MAX_DESTINATIONS,
 	UniqueNasTargets,
 	ResolveNasTargets,
+	SaveNasLocalDefaults,
 	MirrorNonReproducible,
 	RestoreLocalAssetsFromBackup,
 	VerifyBackupContents,
@@ -47,21 +48,72 @@ test('0 NAS targets from empty config', () => {
 	const prev1 = process.env.NAS_TARGET_1;
 	const prev2 = process.env.NAS_TARGET_2;
 	const prev3 = process.env.NAS_TARGET_3;
+	const prevPaths = process.env.ESP2_NAS_BACKUP_PATHS;
 	delete process.env.NAS_TARGET_1;
 	delete process.env.NAS_TARGET_2;
 	delete process.env.NAS_TARGET_3;
 	delete process.env.ESP2_NAS_BACKUP_PATHS;
+	const tmp = mkdtempSync(join(tmpdir(), 'esp2-nas-empty-'));
 	try {
-		const resolved = ResolveNasTargets(ROOT);
+		const resolved = ResolveNasTargets(tmp);
 		assert.equal(resolved.destinations.length, 0);
-		assert.ok(resolved.source === 'none' || resolved.source.includes('nas.targets'));
+		assert.equal(resolved.source, 'none');
 	} finally {
+		rmSync(tmp, { recursive: true, force: true });
 		if (prev1 !== undefined) process.env.NAS_TARGET_1 = prev1;
 		else delete process.env.NAS_TARGET_1;
 		if (prev2 !== undefined) process.env.NAS_TARGET_2 = prev2;
 		else delete process.env.NAS_TARGET_2;
 		if (prev3 !== undefined) process.env.NAS_TARGET_3 = prev3;
 		else delete process.env.NAS_TARGET_3;
+		if (prevPaths !== undefined) process.env.ESP2_NAS_BACKUP_PATHS = prevPaths;
+		else delete process.env.ESP2_NAS_BACKUP_PATHS;
+	}
+});
+
+test('empty form falls through to nas.targets.local', () => {
+	const prev1 = process.env.NAS_TARGET_1;
+	const prev2 = process.env.NAS_TARGET_2;
+	const prev3 = process.env.NAS_TARGET_3;
+	const prevPaths = process.env.ESP2_NAS_BACKUP_PATHS;
+	delete process.env.NAS_TARGET_1;
+	delete process.env.NAS_TARGET_2;
+	delete process.env.NAS_TARGET_3;
+	delete process.env.ESP2_NAS_BACKUP_PATHS;
+	const tmp = mkdtempSync(join(tmpdir(), 'esp2-nas-'));
+	try {
+		SaveNasLocalDefaults(tmp, {
+			destination1: 'Z:\\nas\\esp2',
+			destination2: '',
+			destination3: '',
+			dryRun: false,
+		});
+		const emptyForm = ResolveNasTargets(tmp, {
+			destination1: '',
+			destination2: '',
+			destination3: '',
+			dryRun: false,
+		});
+		assert.deepEqual(emptyForm.destinations, ['Z:\\nas\\esp2']);
+		assert.equal(emptyForm.source, 'config/nas.targets.local');
+
+		const filledForm = ResolveNasTargets(tmp, {
+			destination1: 'Z:\\other',
+			destination2: '',
+			destination3: '',
+		});
+		assert.deepEqual(filledForm.destinations, ['Z:\\other']);
+		assert.equal(filledForm.source, 'form');
+	} finally {
+		rmSync(tmp, { recursive: true, force: true });
+		if (prev1 !== undefined) process.env.NAS_TARGET_1 = prev1;
+		else delete process.env.NAS_TARGET_1;
+		if (prev2 !== undefined) process.env.NAS_TARGET_2 = prev2;
+		else delete process.env.NAS_TARGET_2;
+		if (prev3 !== undefined) process.env.NAS_TARGET_3 = prev3;
+		else delete process.env.NAS_TARGET_3;
+		if (prevPaths !== undefined) process.env.ESP2_NAS_BACKUP_PATHS = prevPaths;
+		else delete process.env.ESP2_NAS_BACKUP_PATHS;
 	}
 });
 
@@ -127,37 +179,32 @@ test('ComposeReadme is idempotent (second run unchanged)', () => {
 	assert.equal(second.results.length, 2);
 });
 
-test('generated READMEs: language selector, WIP, µGulp-ready', () => {
+test('generated README is bilingual on one page (microCSS style)', () => {
 	ComposeReadme({ root: ROOT });
-	const en = readFileSync(join(ROOT, 'README.md'), 'utf8');
-	const de = readFileSync(join(ROOT, 'README.de-DE.md'), 'utf8');
+	const readme = readFileSync(join(ROOT, 'README.md'), 'utf8');
+	const enBase = readFileSync(join(ROOT, 'dev/docs/readme/en-US.md'), 'utf8');
+	const deBase = readFileSync(join(ROOT, 'dev/docs/readme/de-DE.md'), 'utf8');
 
-	assert.match(en, /ESP\]\[/);
-	assert.match(de, /ESP\]\[/);
+	assert.equal(existsSync(join(ROOT, 'README.de-DE.md')), false);
 
-	assert.match(en, /\[Deutsch\]\(README\.de-DE\.md\)/);
-	assert.match(de, /\[English\]\(README\.md\)/);
+	assert.match(readme, /ESP\]\[/);
+	assert.match(readme, /\*English \(below\) · \[Deutsch\]\(#deutsch\)\*/);
+	assert.match(readme, /^## Deutsch$/m);
+	assert.match(readme, /Work in Progress/);
+	assert.match(readme, /In Entwicklung/);
+	assert.match(readme, /HOST_VERIFIED/);
+	assert.match(readme, /## µGulp-ready/);
+	assert.match(readme, /docs generation/i);
+	assert.match(readme, /GALAXIAN_ESP32\s*=\s*PASS/);
+	assert.match(readme, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
 
-	assert.match(en, /Work in Progress/);
-	assert.match(de, /In Entwicklung/);
+	assert.match(enBase, /\*English \(below\) · \[Deutsch\]\(#deutsch\)\*/);
+	assert.match(deBase, /In Entwicklung/);
+	assert.doesNotMatch(enBase, /README\.de-DE\.md/);
+	assert.doesNotMatch(deBase, /README\.de-DE\.md/);
 
-	assert.match(en, /HOST_VERIFIED/);
-	assert.match(de, /HOST_VERIFIED/);
-	assert.match(en, /not yet.*integrated into the ESP32/i);
-	assert.match(de, /noch nicht.*in die ESP32-Firmware/i);
-
-	assert.match(en, /## µGulp-ready/);
-	assert.match(de, /## µGulp-ready/);
-	assert.match(en, /documentation generation/i);
-	assert.match(de, /Dokumentationsgenerierung/);
-
-	assert.match(en, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
-	assert.match(de, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
-
-	assert.doesNotMatch(en, /\{\{[A-Z_]+\}\}/);
-	assert.doesNotMatch(de, /\{\{[A-Z_]+\}\}/);
-	assert.doesNotMatch(en, /TODO_TRANSLATE/);
-	assert.doesNotMatch(de, /TODO_TRANSLATE/);
+	assert.doesNotMatch(readme, /\{\{[A-Z_]+\}\}/);
+	assert.doesNotMatch(readme, /TODO_TRANSLATE/);
 });
 
 test('canonical µGulp-ready asset exists once', () => {
@@ -165,8 +212,7 @@ test('canonical µGulp-ready asset exists once', () => {
 	assert.ok(existsSync(asset), `missing ${MICROGULP_READY_ASSET}`);
 	assert.equal(existsSync(join(ROOT, 'docs/assets/microgulp-ready-en.png')), false);
 	assert.equal(existsSync(join(ROOT, 'docs/assets/microgulp-ready-de.png')), false);
-	ComposeReadmeLocale({ root: ROOT, locale: 'en-US' });
-	ComposeReadmeLocale({ root: ROOT, locale: 'de-DE' });
+	ComposeReadme({ root: ROOT });
 });
 
 test('NAS mirror includes CLAUDE.md, local assets, skips disposable caches', async () => {

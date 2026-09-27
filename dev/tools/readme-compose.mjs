@@ -1,14 +1,16 @@
 // ===========================================
-// readme-compose.mjs — locale .src.md → public READMEs
-// ESP][ (esp2) — µGulp-style compose
+// readme-compose.mjs — locale .src.md → bilingual Git README
+// ESP][ (esp2) — µGulp / microCSS-style compose
 // ===========================================
 //
 // Sources (edit these):
-//   dev/docs/readme/en-US.src.md  →  README.md          (GitHub default)
-//   dev/docs/readme/de-DE.src.md  →  README.de-DE.md
-// Optional filtered baselines:
-//   dev/docs/readme/en-US.md
-//   dev/docs/readme/de-DE.md
+//   dev/docs/readme/en-US.src.md
+//   dev/docs/readme/de-DE.src.md
+//
+// Generated:
+//   README.md                 ← English then German (one page, #deutsch)
+//   dev/docs/readme/en-US.md  ← filtered en-US baseline
+//   dev/docs/readme/de-DE.md  ← filtered de-DE baseline
 //
 // Channel markers (outside fenced code), same idea as microGulp:
 //   unmarked text       → published
@@ -16,7 +18,7 @@
 //   <!-- website … -->  → skipped for Git README
 //   <!-- note … -->     → maintainer only (never published)
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -30,14 +32,18 @@ export const README_SOURCES = Object.freeze({
   "en-US": {
     sourceRel: "dev/docs/readme/en-US.src.md",
     baselineRel: "dev/docs/readme/en-US.md",
-    outputRel: "README.md",
   },
   "de-DE": {
     sourceRel: "dev/docs/readme/de-DE.src.md",
     baselineRel: "dev/docs/readme/de-DE.md",
-    outputRel: "README.de-DE.md",
   },
 });
+
+/** Single public GitHub README (bilingual, English first). */
+export const README_OUTPUT_RELATIVE = "README.md";
+
+/** Legacy separate German README — removed by compose when present. */
+export const README_LEGACY_DE_RELATIVE = "README.de-DE.md";
 
 export const MICROGULP_READY_ASSET = "docs/assets/microgulp-ready.png";
 
@@ -133,7 +139,8 @@ function writeIfChanged(path, next) {
 }
 
 /**
- * Compose one locale README from its .src.md. Deterministic.
+ * Filter one locale source and write its baseline under dev/docs/readme/.
+ * Does not write the public README.md (use ComposeReadme for that).
  * @param {{ root?: string, locale?: "en-US" | "de-DE" }} [_opts]
  */
 export function ComposeReadmeLocale(_opts = {}) {
@@ -146,7 +153,6 @@ export function ComposeReadmeLocale(_opts = {}) {
 
   const sourcePath = join(root, cfg.sourceRel);
   const baselinePath = join(root, cfg.baselineRel);
-  const outPath = join(root, cfg.outputRel);
 
   if (!existsSync(sourcePath)) {
     throw new Error(`README source missing: ${sourcePath}`);
@@ -154,23 +160,22 @@ export function ComposeReadmeLocale(_opts = {}) {
 
   const raw = readFileSync(sourcePath, "utf8");
   const composed = FilterChannels(raw, "git");
-
-  let changed = false;
-  if (writeIfChanged(baselinePath, composed)) changed = true;
-  if (writeIfChanged(outPath, composed)) changed = true;
+  const changed = writeIfChanged(baselinePath, composed);
 
   return {
     locale,
     source: sourcePath,
     baseline: baselinePath,
-    output: outPath,
+    output: baselinePath,
     bytes: Buffer.byteLength(composed, "utf8"),
     changed,
+    body: composed,
   };
 }
 
 /**
- * Compose all public README locales. Deterministic.
+ * Build bilingual README.md (English first, then German) — microCSS style.
+ * Also refreshes locale baselines. Removes legacy README.de-DE.md when present.
  * @param {{ root?: string }} [_opts]
  */
 export function ComposeReadme(_opts = {}) {
@@ -178,15 +183,33 @@ export function ComposeReadme(_opts = {}) {
   const results = [];
   let changed = false;
   let bytes = 0;
+  /** @type {Record<string, string>} */
+  const bodies = {};
+
   for (const locale of Object.keys(README_SOURCES)) {
     const r = ComposeReadmeLocale({ root, locale });
     results.push(r);
+    bodies[locale] = r.body;
     if (r.changed) changed = true;
     bytes += r.bytes;
   }
+
+  const en = String(bodies["en-US"] ?? "").replace(/\n*$/, "\n");
+  const de = String(bodies["de-DE"] ?? "").replace(/^\n+/, "").replace(/\n*$/, "\n");
+  const bilingual = `${en}\n---\n\n## Deutsch\n\n${de}`;
+  const outPath = join(root, README_OUTPUT_RELATIVE);
+  if (writeIfChanged(outPath, bilingual)) changed = true;
+  bytes += Buffer.byteLength(bilingual, "utf8");
+
+  const legacyDe = join(root, README_LEGACY_DE_RELATIVE);
+  if (existsSync(legacyDe)) {
+    unlinkSync(legacyDe);
+    changed = true;
+  }
+
   return {
     source: join(root, README_SOURCES["en-US"].sourceRel),
-    output: join(root, "README.md"),
+    output: outPath,
     bytes,
     changed,
     results,

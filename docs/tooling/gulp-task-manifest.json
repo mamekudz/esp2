@@ -33,6 +33,7 @@
     { "id": "test:mugulp-catalog", "group": "Tests", "i18x": true, "visible": true },
     { "id": "test:host", "group": "Tests", "i18x": true, "visible": true },
 
+    { "id": "setup:first-run", "group": "Tools", "i18x": true, "visible": true },
     { "id": "firmware:env", "group": "Tools", "i18x": true, "visible": true },
     { "id": "devices", "group": "Tools", "i18x": true, "visible": true },
     { "id": "monitor", "group": "Tools", "i18x": true, "visible": true },

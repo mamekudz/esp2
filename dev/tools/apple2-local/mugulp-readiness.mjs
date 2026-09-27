@@ -133,11 +133,14 @@ export function bindApple2ReadinessAttention(tasks) {
     "apple2:compat",
     "apple2:device:sync",
   ];
+  /** Early media steps are owned by setup:first-run attention. */
+  const firstRunSteps = new Set(["rom_sync", "media_sync", "media_prepare"]);
   for (const id of ids) {
     const fn = tasks[id];
     if (!fn) continue;
     fn["\u00b5Attention"] = () => {
       const r = computeApple2MediaReadiness();
+      if (firstRunSteps.has(r.step)) return false;
       return r.emphasizeTaskId === id;
     };
     const tip =

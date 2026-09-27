@@ -1279,17 +1279,20 @@ Locale sources (edit these — first-class, independently reviewable):
     dev/docs/readme/en-US.src.md
     dev/docs/readme/de-DE.src.md
 
-Generated GitHub READMEs (do not edit by hand):
+Generated GitHub README (do not edit by hand) — **one bilingual page**
+(microCSS style: English first, then German under `## Deutsch` / `#deutsch`):
 
-    README.md          ← en-US (GitHub default)
-    README.de-DE.md    ← de-DE
+    README.md
 
-Filtered baselines may also be written under `dev/docs/readme/*.md`.
+Filtered locale baselines may also be written under `dev/docs/readme/*.md`.
+
+Do **not** maintain a separate `README.de-DE.md` for GitHub.
 
 Future README changes must be made in the locale `.src.md` files / structured
-data, not in the generated README files.
+data, not in the generated README file.
 
-`npx gulp docs` regenerates both. Optional: `docs:en-US`, `docs:de-DE`.
+`npx gulp docs` regenerates `README.md` + baselines. Optional aliases:
+`docs:en-US`, `docs:de-DE` (same compose).
 
 
 ## Generated Files
