@@ -59,6 +59,43 @@ Lazy per-track 6-and-2 conversion with a **2-slot LRU** nibble cache. Full 143�
 image held in **PSRAM** after one SD read. Emulated rotation timing is cycle-based —
 **not** derived from SD latency.
 
+## DOS 3.3 sector mapping (authoritative)
+
+Terminology (do not mix):
+
+| Term | Meaning |
+| --- | --- |
+| Physical slot / Address ID | Rotational sector number written in the Address Field (`0..15`) |
+| DOS logical | DOS 3.3 logical sector number |
+| DSK/DO file slot | Byte offset within a 4096-byte track image (`slot * 256`) — same as DOS logical for `.dsk`/`.do` |
+| PO file slot | Byte offset within a `.po` track; remapped via `PO→DOS` before nibblization |
+
+Canonical `DO[]` (index = Address ID / physical; value = DOS logical = DSK slot):
+
+```text
+Phys/AddrID: 0 1 2 3 4 5 6 7 8 9 A B C D E F
+DOS/DSK:     0 7 E 6 D 5 C 4 B 3 A 2 9 1 8 F
+```
+
+Inverse `_DO[]` (index = DOS logical; value = Address ID) — what DOS boot0 /
+RWTS request tables typically store:
+
+```text
+Logical:  0 1 2 3 4 5 6 7 8 9 A B C D E F
+AddrID:   0 D B 9 7 5 3 1 E C A 8 6 4 2 F
+```
+
+`Dos33NibbleImage` / `DiskIITrackBuilder::buildTrack`:
+
+- Address Field sector ID = **physical** `0..15`
+- Data Field = `sectors[DO[physical]]`
+- `.po`: file slots remapped to DOS logical first; Address Fields still physical
+- `.nib`: pass-through (no reorder)
+
+References: *Beneath Apple DOS* (software skew); AppleWin `NibblizeTrack`;
+apple2js `DO` / `_DO` / `createDiskFromDOS`; AppleII_Esp32 `DOS33Skew`.
+Host helper: `node host/tools/sector_order_report.mjs`.
+
 Physical SD path (PART E):
 
     /esp2/disks/Esp2BootTest.dsk

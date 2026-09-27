@@ -67,13 +67,14 @@ static void testEncodingMatrix() {
 static void testTrackBuilder() {
     uint8_t sectors[16][256];
     std::memset(sectors, 0, sizeof(sectors));
-    for (int i = 0; i < 256; ++i) {
-        sectors[0][i] = static_cast<uint8_t>(i);
+    // Mark each DOS-logical / DSK slot with a unique tag.
+    for (int s = 0; s < 16; ++s) {
+        sectors[s][0] = static_cast<uint8_t>(0xA0 + s);
+        sectors[s][1] = static_cast<uint8_t>(s);
     }
     uint8_t track[DiskIITrackBuilder::kMaxTrackNibbles];
     const size_t n = DiskIITrackBuilder::buildTrack(0, 254, sectors, track, sizeof(track));
     expect(n > 500, "track builder length");
-    // Find address prologue
     bool found = false;
     for (size_t i = 0; i + 3 < n; ++i) {
         if (track[i] == 0xD5 && track[i + 1] == 0xAA && track[i + 2] == 0x96) {
@@ -84,9 +85,34 @@ static void testTrackBuilder() {
     expect(found, "track has address prologue");
 
     uint8_t decoded[256];
-    expect(DiskIIHostBoot::decodeSectorFromStream(track, n, 0, 0, decoded),
-           "decode T0S0 from track");
-    expect(std::memcmp(decoded, sectors[0], 256) == 0, "T0S0 matches");
+    // Address Field ID 0 → DO[0]=0 → DSK slot 0.
+    expect(DiskIIHostBoot::decodeSectorFromStream(track, n, 0, 0, decoded), "decode AddressID 0");
+    expect(std::memcmp(decoded, sectors[0], 256) == 0, "AddressID 0 → DSK slot 0");
+
+    // Hardware-correct: Address Field carries physical rotational ID.
+    // Address ID $0D → DO[13]=1 → DSK/DOS logical sector 1 (not slot 13).
+    expect(DiskIIHostBoot::decodeSectorFromStream(track, n, 0, 13, decoded), "decode AddressID 13");
+    expect(decoded[0] == 0xA1 && decoded[1] == 1, "AddressID 13 → DSK slot 1");
+    expect(DiskIIHostBoot::decodeSectorFromStream(track, n, 0, 1, decoded), "decode AddressID 1");
+    expect(decoded[0] == 0xA7 && decoded[1] == 7, "AddressID 1 → DSK slot 7");
+
+    // Full DO[] table: every Address ID maps to the expected DSK slot.
+    bool mapOk = true;
+    for (int phys = 0; phys < 16; ++phys) {
+        const int dosLogical = DiskIITrackBuilder::physicalToLogical(phys);
+        if (!DiskIIHostBoot::decodeSectorFromStream(track, n, 0, static_cast<uint8_t>(phys),
+                                                    decoded) ||
+            decoded[0] != static_cast<uint8_t>(0xA0 + dosLogical) ||
+            decoded[1] != static_cast<uint8_t>(dosLogical)) {
+            mapOk = false;
+            break;
+        }
+        if (DiskIITrackBuilder::logicalToPhysical(dosLogical) != phys) {
+            mapOk = false;
+            break;
+        }
+    }
+    expect(mapOk, "DO[] AddressID ↔ DSK slot for all 16");
 }
 
 static void testSoftswitches() {
@@ -318,17 +344,24 @@ static void testPoMapping() {
     Dos33NibbleImage img;
     uint8_t raw[kDos33ImageBytes];
     std::memset(raw, 0, sizeof(raw));
-    raw[0] = 0x11;   // T0 PO sector 0 → DOS logical 0
-    raw[256] = 0x22; // T0 PO sector 1 → DOS logical 8
+    raw[0] = 0x11;   // T0 PO file slot 0 → DOS logical 0
+    raw[256] = 0x22; // T0 PO file slot 1 → DOS logical 8
     expect(img.load(raw, sizeof(raw), true), "load po");
     size_t len = 0;
     const uint8_t *tr = img.trackNibbles(0, &len);
     expect(tr && len > 0, "po track built");
     uint8_t dec[256];
-    expect(DiskIIHostBoot::decodeSectorFromStream(tr, len, 0, 0, dec), "po s0");
+    // Request by Address Field (physical) ID for each DOS logical.
+    const int phys0 = DiskIITrackBuilder::logicalToPhysical(0);
+    const int phys8 = DiskIITrackBuilder::logicalToPhysical(8);
+    expect(DiskIIHostBoot::decodeSectorFromStream(tr, len, 0, static_cast<uint8_t>(phys0), dec),
+           "po AddressID for logical0");
     expect(dec[0] == 0x11, "po logical0 data");
-    expect(DiskIIHostBoot::decodeSectorFromStream(tr, len, 0, 8, dec), "po s8");
+    expect(DiskIIHostBoot::decodeSectorFromStream(tr, len, 0, static_cast<uint8_t>(phys8), dec),
+           "po AddressID for logical8");
     expect(dec[0] == 0x22, "po logical8 data");
+    // PO must not use DSK DO[] on the file index: Address ID 1 still DO[1]=7.
+    expect(phys8 == 0x0E, "logical8 → physical $0E");
 }
 
 static void testNibOptional() {

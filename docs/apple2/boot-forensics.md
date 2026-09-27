@@ -195,6 +195,112 @@ Applesoft bytes.
 
 SMC in window: SHX/AHX write into `$Bxxx` (e.g. `$B3B3`).
 
+## Differential vs Apple ][js (fpbasic + Galaxian)
+
+Inputs matched (HOST):
+
+| Asset | SHA-256 |
+| --- | --- |
+| `local/roms/system.rom` (fpbasic) | `378ba00c…fc346249` |
+| `Galaxian.dsk` | `b1e85b78…132c2d1` |
+
+### Apple ][js Disk II
+
+- Module: `js/roms/cards/disk2.ts` → `BOOTSTRAP_ROM_16` (256 bytes)
+- Head: `A2 20 A0 00 A2 03 …` (classic Disk II PROM)
+- Autostart signature: `$Cn01=$20`, `$Cn03=$00`, `$Cn05=$03` — **matches**
+- Local forensic copy (gitignored): `local/roms/diskii_apple2js_16.prom`
+
+### Apple ][js RAM init
+
+`js/util.ts` `allocMem` (AppleWin): `(addr&2)?0x00:0xFF` + sparse random
+cells. Cold `$8080=$FF`.
+
+ESP][ now exposes `RamInitMode::DramAppleWin` (deterministic sparse garbage).
+
+### Natural boot paths
+
+| Path | Result |
+| --- | --- |
+| Apple ][js | `RESET $FA62` → Autostart → Slot 6 PROM (sig OK) |
+| ESP][ CleanRoom | `$Cn00=JMP $C800` — **no** Autostart sig → Applesoft |
+| ESP][ + apple2js PROM | `RESET $FA62` → **HANDOFF** `$0842 JMP $B100` (regs A=52 X=60 Y=00 SP=FD) |
+
+CleanRoom vs real PROM handoff **registers match**; first relevant post-handoff
+divergence is **not** PROM handoff state when using the apple2js PROM.
+
+### First relevant divergence — Disk II address-field sector ID (CP4 handoff)
+
+Same `Galaxian.dsk` + same fpbasic + same Slot-6 PROM bytes. At
+`$0842 JMP $B100` both machines agree on `$B000` (= T0S0), but **`$B100` differed**
+while ESP][ still put **DOS logical** IDs into Address Fields (bug):
+
+| | Apple ][js (headless) | ESP][ (pre-fix) |
+| --- | --- | --- |
+| `$B100` head | `A9 00 85 F7` (**T0S1**) | `80 80 80 BE` (**T0S13**) |
+| `$B700` head | `4B 4F 53 57` (**T0S7**) | `A9 00 85 F7` (**T0S1**) |
+| Page map `$Bn00` | logical S0… via `_DO` Address IDs | table values treated as logical |
+| SP @ handoff | `$FF` | `$FD` |
+| cycles @ handoff | ~2.37e6 | ~4.16e6 |
+
+Galaxian boot0 sector table at `$0845` (from T0S0):
+
+```text
+00 0D 0B 09 07 05 03 01 0E 0C 0A 08 06 04 02 0F
+```
+
+This is apple2js `_DO[]`: **index = DOS logical**, **value = Address Field
+(physical) sector ID** to request. Boot0 loads that list into `$B000+`.
+
+Authoritative Disk II / DOS 3.3 semantics (Beneath Apple DOS; AppleWin
+`NibblizeTrack`; apple2js `createDiskFromDOS`; AppleII_Esp32 `DOS33Skew`):
+
+- Address Field sector ID = **physical** rotational slot `0..15`
+- Data Field = DSK/DO file slot `DO[physical]` (= DOS logical)
+
+Therefore Address Field `$0D` → `DO[13]=1` → **T0S1** on real hardware.
+Apple ][js matches hardware. Pre-fix ESP][ put logical IDs in Address Fields
+and was **wrong** (`ESP2_DISK_MAPPING_BUG`). Fix: `DiskIITrackBuilder::buildTrack`
+writes physical IDs (see `docs/apple2/disk-ii.md`).
+
+```text
+CLASSIFICATION = ESP2_DISK_MAPPING_BUG
+GATE           = ADDRESS_FIELD_MUST_BE_PHYSICAL
+REAL_HW_$0D    = T0S1 (DSK slot 1)
+APPLE2JS       = HARDWARE_CORRECT (not a quirk)
+APPLEII_ESP32  = PHYSICAL_DISK_SEMANTICS (media = different release)
+```
+
+Before JMP, boot0 patches `$B10B=$38` / `$B10C=$2E` / `$B8CB=$52` (SEC/ROL
+entry). With correct `$B100` (= T0S1 cleartext), Stage-A encrypted blob is **not**
+what runs at `$B100`.
+
+### Secondary — Stage A / `$8080` (artifact of wrong `$B100` = T0S13)
+
+With pre-fix T0S13 at `$B100`, Stage A ran:
+
+```text
+$B104  BE 80 80   LDX $8080,Y
+$B10B  38         SEC          ; patched by boot0
+$B10C  2E 80 80   ROL $8080
+$B134  B0 xx      BCS …
+$B13D  BC B8 80   LDY $80B8,X
+```
+
+DramAppleWin / AppleWin cold `$8080=$FF` is a **ROL fixed point** (`SEC;ROL`
+keeps `$FF` and C=1) → permanent `$B134`/`$B0F5` oscillation, never `$B200`.
+
+With `$8080≠$FF` and non-zero `$80B8,X`, Stage A can reach `$B200`, then the
+`ISB $D549,Y` / `BNE $B1F9` loop runs with **frozen Y** (loop body does not
+modify Y; exit needs SBC Z). Still no HGR on HOST with current Random /
+DramAppleWin hybrids.
+
+```text
+SECONDARY = STAGE_A_BCS_8080 / STAGE_B_ISB_EXIT
+```
+
+Do **not** force Galaxian loop exits or patch `$8080` / `$B100` as a title hack.
+
 ## Clean-room PROM handoff (generic defect fixed earlier)
 
 DOS boot0 uses ZP `$41` as track. Clean-room T0S0 exit previously relied on

@@ -7,7 +7,11 @@ namespace esp_bracket {
 
 /**
  * Build a standard DOS 3.3 16-sector nibble track.
- * Logical sectors[16][256] are DOS order (as in .dsk).
+ *
+ * Input sectors[16][256] are indexed by DOS logical sector (= .dsk/.do file
+ * slot within the track). On the generated nibble stream:
+ *   - Address Field sector ID = physical rotational slot 0..15
+ *   - Data Field = sectors[DO[physical]]
  */
 class DiskIITrackBuilder {
   public:
@@ -24,10 +28,13 @@ class DiskIITrackBuilder {
                              const uint8_t sectors[kSectors][kSectorBytes], uint8_t *out,
                              size_t outCap);
 
-    /** DOS logical sector → physical order index on track. */
+    /** DOS logical / DSK slot → Address Field (physical) sector ID. */
     static int logicalToPhysical(int logicalSector);
 
-    /** .po block order → DOS logical sector within track (floppy-sized). */
+    /** Address Field (physical) sector ID → DOS logical / DSK slot. */
+    static int physicalToLogical(int physicalSector);
+
+    /** .po file slot within track → DOS logical sector. */
     static int poSectorToLogical(int poSector);
 };
 

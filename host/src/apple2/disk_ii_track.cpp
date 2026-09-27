@@ -5,9 +5,12 @@ namespace esp_bracket {
 
 namespace {
 
-// Physical sector order on a DOS 3.3 track (skew).
-constexpr int kPhysOrder[16] = {0x0, 0x7, 0xE, 0x6, 0xD, 0x5, 0xC, 0x4,
-                                0xB, 0x3, 0xA, 0x2, 0x9, 0x1, 0x8, 0xF};
+// DOS 3.3 DO[]: index = physical rotational slot / Address Field sector ID,
+// value = DOS logical sector = DSK/DO file slot within the track.
+// Matches Beneath Apple DOS software skew, AppleWin ms_SectorNumber[DOS],
+// apple2js DO[], and AppleII_Esp32 DOS33Skew[].
+constexpr int kDosOrder[16] = {0x0, 0x7, 0xE, 0x6, 0xD, 0x5, 0xC, 0x4,
+                               0xB, 0x3, 0xA, 0x2, 0x9, 0x1, 0x8, 0xF};
 
 void append(uint8_t *&p, uint8_t *end, uint8_t v) {
     if (p < end) {
@@ -30,11 +33,15 @@ void appendSelfSync(uint8_t *&p, uint8_t *end, int count) {
 
 int DiskIITrackBuilder::logicalToPhysical(int logicalSector) {
     for (int i = 0; i < 16; ++i) {
-        if (kPhysOrder[i] == logicalSector) {
+        if (kDosOrder[i] == (logicalSector & 0x0F)) {
             return i;
         }
     }
     return logicalSector & 0x0F;
+}
+
+int DiskIITrackBuilder::physicalToLogical(int physicalSector) {
+    return kDosOrder[physicalSector & 0x0F];
 }
 
 int DiskIITrackBuilder::poSectorToLogical(int poSector) {
@@ -55,11 +62,13 @@ size_t DiskIITrackBuilder::buildTrack(uint8_t trackNumber, uint8_t volume,
 
     appendSelfSync(p, end, 64);
 
+    // Rotational order: Address Field ID = physical slot 0..15; Data Field from
+    // DSK/DO file slot DO[phys] (DOS logical). Real Disk II / DOS 3.3 semantics.
     for (int phys = 0; phys < 16; ++phys) {
-        const int logical = kPhysOrder[phys];
+        const int dosLogical = kDosOrder[phys];
         appendSelfSync(p, end, 14);
 
-        // Address field
+        // Address field — sector ID is the physical rotational number.
         append(p, end, 0xD5);
         append(p, end, 0xAA);
         append(p, end, 0x96);
@@ -70,10 +79,10 @@ size_t DiskIITrackBuilder::buildTrack(uint8_t trackNumber, uint8_t volume,
         DiskIIEncoding::encodeOddEven(trackNumber, &o, &e);
         append(p, end, o);
         append(p, end, e);
-        DiskIIEncoding::encodeOddEven(static_cast<uint8_t>(logical), &o, &e);
+        DiskIIEncoding::encodeOddEven(static_cast<uint8_t>(phys), &o, &e);
         append(p, end, o);
         append(p, end, e);
-        const uint8_t csum = static_cast<uint8_t>(volume ^ trackNumber ^ logical);
+        const uint8_t csum = static_cast<uint8_t>(volume ^ trackNumber ^ phys);
         DiskIIEncoding::encodeOddEven(csum, &o, &e);
         append(p, end, o);
         append(p, end, e);
@@ -83,12 +92,12 @@ size_t DiskIITrackBuilder::buildTrack(uint8_t trackNumber, uint8_t volume,
 
         appendSelfSync(p, end, 5);
 
-        // Data field
+        // Data field — payload from DOS-order / DSK file slot.
         append(p, end, 0xD5);
         append(p, end, 0xAA);
         append(p, end, 0xAD);
         uint8_t nib[DiskIIEncoding::kDataNibbles];
-        if (!DiskIIEncoding::encodeSector(sectors[logical], nib)) {
+        if (!DiskIIEncoding::encodeSector(sectors[dosLogical], nib)) {
             return 0;
         }
         for (size_t i = 0; i < DiskIIEncoding::kDataNibbles; ++i) {
