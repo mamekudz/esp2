@@ -12,13 +12,14 @@
  */
 
 import { createHash } from "node:crypto";
-import { readFileSync, existsSync, statSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { SerialPort } from "serialport";
+import { createLineReader } from "./esp2-serial-framing.mjs";
 
 export const PROTOCOL_VERSION = 1;
 export const MAGIC = 0x55505345; // 'ESPU' LE
-export const DEFAULT_CHUNK = 2048;
+export const DEFAULT_CHUNK = 256; // safer default on HW CDC (was 512/2048)
 export const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 export const FrameType = {
@@ -87,7 +88,8 @@ function parseArgs(argv) {
     chunk: DEFAULT_CHUNK,
     enterUsb: false,
     leaveUsb: false,
-    reset: false, // mid-run upload preferred; use --reset for boot-window only
+    reset: false, // mid-run preferred; --boot-window uses firmware 12s WAIT
+    bootWindow: false,
     listenMs: 15000,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -102,13 +104,19 @@ function parseArgs(argv) {
     else if (a === "--leave-usb-storage") out.leaveUsb = true;
     else if (a === "--no-reset") out.reset = false;
     else if (a === "--reset") out.reset = true;
+    else if (a === "--boot-window") out.bootWindow = true;
     else if (a === "--listen-ms") out.listenMs = Number(next());
     else if (a === "--help" || a === "-h") out.help = true;
   }
   return out;
 }
 
-async function openPort(path) {
+/**
+ * @param {string} path
+ * @param {{ holdForBoot?: boolean }} [opts]
+ *   holdForBoot: leave DTR alone so open can reset into #ESP2UPLOAD WAIT window.
+ */
+async function openPort(path, opts = {}) {
   const port = new SerialPort({
     path,
     baudRate: 115200,
@@ -117,89 +125,59 @@ async function openPort(path) {
   await new Promise((resolve, reject) => {
     port.open((err) => (err ? reject(err) : resolve()));
   });
+  if (!opts.holdForBoot) {
+    // Mid-run: avoid an accidental reboot that drops LIVE_INPUT / running emu.
+    await new Promise((resolve) => {
+      port.set({ dtr: false, rts: false }, () => resolve());
+    });
+    await new Promise((r) => setTimeout(r, 200));
+  }
   return port;
 }
 
 function pulseReset(port) {
-  // ESP32-S3 USB-Serial/JTAG: classic RTS-high sequences enter DOWNLOAD mode.
-  // For app restart use a brief DTR toggle only (best-effort); prefer mid-run upload.
+  // ESP32-S3 USB-Serial/JTAG: brief RTS asserts EN/reset without the
+  // DTR+RTS download recipe. Prefer mid-run upload when the app is live.
   return new Promise((resolve) => {
-    port.set({ dtr: true, rts: false }, () => {
+    port.set({ dtr: false, rts: true }, () => {
       setTimeout(() => {
         port.set({ dtr: false, rts: false }, () => resolve());
-      }, 80);
+      }, 100);
     });
   });
 }
 
 /**
+ * @param {ReturnType<typeof createLineReader>} reader
  * @param {import('serialport').SerialPort} port
  * @param {number} listenMs
  * @param {string} enterLine  e.g. #ESP2UPLOAD
  */
-async function waitReady(port, listenMs, enterLine, readyNeedle) {
-  let buf = "";
+async function waitReady(reader, port, listenMs, enterLine, readyNeedle) {
   const deadline = Date.now() + listenMs;
   let lastPing = 0;
-
-  const onData = (d) => {
-    buf += d.toString("utf8");
-  };
-  port.on("data", onData);
-
-  try {
-    while (Date.now() < deadline) {
-      if (buf.includes(readyNeedle) || buf.includes("#ESP2UPLOAD READY")) {
-        return buf;
+  while (Date.now() < deadline) {
+    try {
+      const line = await reader.waitLine(
+        (l) =>
+          l.includes(readyNeedle) ||
+          l.includes("#ESP2UPLOAD READY") ||
+          l.includes("#ESP2UPLOAD ENTER"),
+        Math.min(450, deadline - Date.now()),
+      );
+      if (line.includes("#ESP2UPLOAD ENTER") && !line.includes("READY")) {
+        // Mid-run ack — keep waiting for READY.
+        continue;
       }
+      return line;
+    } catch {
       if (Date.now() - lastPing > 400) {
         lastPing = Date.now();
         port.write(`${enterLine}\n`);
       }
-      await new Promise((r) => setTimeout(r, 50));
     }
-    throw new Error(`timeout waiting for ${readyNeedle}`);
-  } finally {
-    port.off("data", onData);
   }
-}
-
-async function readUntilAck(port, timeoutMs, prefix = "#ACK") {
-  let buf = "";
-  const deadline = Date.now() + timeoutMs;
-  return await new Promise((resolve, reject) => {
-    const onData = (d) => {
-      buf += d.toString("utf8");
-      const lines = buf.split(/\r?\n/);
-      for (const line of lines) {
-        if (line.startsWith("#NAK")) {
-          cleanup();
-          reject(new Error(line));
-          return;
-        }
-        if (line.startsWith(prefix) || line.startsWith("#ESP2UPLOAD DONE")) {
-          cleanup();
-          resolve(line);
-          return;
-        }
-      }
-      if (Date.now() > deadline) {
-        cleanup();
-        reject(new Error("ack timeout"));
-      }
-    };
-    const timer = setInterval(() => {
-      if (Date.now() > deadline) {
-        cleanup();
-        reject(new Error("ack timeout"));
-      }
-    }, 200);
-    const cleanup = () => {
-      clearInterval(timer);
-      port.off("data", onData);
-    };
-    port.on("data", onData);
-  });
+  throw new Error(`timeout waiting for ${readyNeedle}`);
 }
 
 function writeAndDrain(port, buf) {
@@ -214,7 +192,11 @@ function writeAndDrain(port, buf) {
   });
 }
 
-async function uploadFile(port, filePath, targetPath, chunkSize) {
+/**
+ * @param {import('serialport').SerialPort} port
+ * @param {ReturnType<typeof createLineReader>} reader
+ */
+async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
   const abs = resolve(filePath);
   if (!existsSync(abs)) {
     throw new Error(`file not found: ${abs}`);
@@ -236,11 +218,12 @@ async function uploadFile(port, filePath, targetPath, chunkSize) {
     sha,
     u32(chunkSize),
   ]);
+  // Host→device binary does not go through the line reader (that is device→host only).
+  // Do not pause the reader across writes — ACKs can arrive immediately and would be lost.
   await writeAndDrain(port, begin);
-  const beginAck = await readUntilAck(port, 15000, "#ACK BEGIN");
+  const beginAck = await reader.waitLine((l) => l.startsWith("#ACK BEGIN"), 20000);
   console.log(beginAck);
-  // Give FAT/SD staging time before binary DATA frames (CDC drop risk).
-  await new Promise((r) => setTimeout(r, 400));
+  await new Promise((r) => setTimeout(r, 600));
 
   let offset = 0;
   let seq = 0;
@@ -253,18 +236,27 @@ async function uploadFile(port, filePath, targetPath, chunkSize) {
       slice,
     ]);
     await writeAndDrain(port, frame);
-    const ack = await readUntilAck(port, 30000, "#ACK DATA");
+    const ack = await reader.waitLine(
+      (l) => l.startsWith("#ACK DATA") && l.includes(`seq=${seq}`),
+      30000,
+    );
     if (!ack.includes(`seq=${seq}`)) {
       throw new Error(`unexpected data ack: ${ack}`);
     }
     offset += slice.length;
     seq++;
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 15));
   }
 
   await writeAndDrain(port, frameHeader(FrameType.End));
-  const endAck = await readUntilAck(port, 30000, "#ACK END");
+  const endAck = await reader.waitLine((l) => l.startsWith("#ACK END"), 60000);
   console.log(endAck);
+  // Wait for DONE so the device leaves MEDIA mode before next host command.
+  try {
+    await reader.waitLine((l) => l.startsWith("#ESP2UPLOAD DONE"), 10000);
+  } catch {
+    /* older firmware may omit DONE after END */
+  }
   const ms = Date.now() - t0;
   const bps = ms > 0 ? (data.length * 1000) / ms : 0;
   return {
@@ -277,15 +269,19 @@ async function uploadFile(port, filePath, targetPath, chunkSize) {
   };
 }
 
-async function verifyRemote(port, targetPath) {
+/**
+ * @param {import('serialport').SerialPort} port
+ * @param {ReturnType<typeof createLineReader>} reader
+ */
+async function verifyRemote(port, reader, targetPath) {
   const target = sanitizeEsp2Path(targetPath);
   const frame = Buffer.concat([
     frameHeader(FrameType.Verify),
     u32(Buffer.byteLength(target, "utf8")),
     Buffer.from(target, "utf8"),
   ]);
-  port.write(frame);
-  const ack = await readUntilAck(port, 20000, "#ACK VERIFY");
+  await writeAndDrain(port, frame);
+  const ack = await reader.waitLine((l) => l.startsWith("#ACK VERIFY"), 30000);
   console.log(ack);
   return ack;
 }
@@ -305,49 +301,42 @@ async function main() {
     process.exit(2);
   }
 
-  const port = await openPort(args.port);
+  const useBootWindow = args.bootWindow || args.reset;
+  const port = await openPort(args.port, { holdForBoot: useBootWindow });
+  const reader = createLineReader(port);
   try {
     if (args.reset) {
       await pulseReset(port);
-      await new Promise((r) => setTimeout(r, 400));
+      await new Promise((r) => setTimeout(r, 600));
     }
 
     if (args.enterUsb) {
-      await waitReady(port, args.listenMs, "#ESP2USBMSC", "#ESP2USBMSC READY");
+      await waitReady(reader, port, args.listenMs, "#ESP2USBMSC", "#ESP2USBMSC READY");
       console.log("USB storage mode requested");
       return;
     }
     if (args.leaveUsb) {
-      await waitReady(port, args.listenMs, "#ESP2USBMSC LEAVE", "#ESP2USBMSC LEFT");
+      await waitReady(reader, port, args.listenMs, "#ESP2USBMSC LEAVE", "#ESP2USBMSC LEFT");
       console.log("USB storage leave requested");
       return;
     }
 
-    await waitReady(port, args.listenMs, "#ESP2UPLOAD", "#ESP2UPLOAD READY");
-    await new Promise((r) => setTimeout(r, 400));
-    port.removeAllListeners("data");
-    try {
-      while (port.readableLength > 0) {
-        port.read(port.readableLength);
-      }
-    } catch (_) {
-      /* ignore */
-    }
+    // Boot-window: firmware prints #ESP2UPLOAD WAIT for ~12s before display init.
+    const listenMs = useBootWindow ? Math.max(args.listenMs, 20000) : args.listenMs;
+    await waitReady(reader, port, listenMs, "#ESP2UPLOAD", "#ESP2UPLOAD READY");
+    // Drop any WAIT/diagnostic lines queued before binary MEDIA phase.
+    reader.clear();
     await new Promise((r) => setTimeout(r, 100));
 
     if (args.verify) {
-      await verifyRemote(port, args.verify);
+      await verifyRemote(port, reader, args.verify);
       return;
     }
     if (!args.file || !args.target) {
       throw new Error("--file and --target required for upload");
     }
-    const result = await uploadFile(
-      port,
-      args.file,
-      args.target,
-      args.chunk || 512,
-    );
+    const chunk = Number.isFinite(args.chunk) && args.chunk > 0 ? args.chunk : DEFAULT_CHUNK;
+    const result = await uploadFile(port, reader, args.file, args.target, chunk);
     console.log(
       JSON.stringify(
         {
@@ -359,6 +348,7 @@ async function main() {
       ),
     );
   } finally {
+    reader.dispose();
     await new Promise((r) => port.close(() => r()));
   }
 }

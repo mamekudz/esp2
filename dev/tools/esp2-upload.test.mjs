@@ -19,5 +19,5 @@ test("sanitizeEsp2Path rejects traversal", () => {
 
 test("protocol constants", () => {
   assert.equal(MAGIC, 0x55505345);
-  assert.equal(DEFAULT_CHUNK, 2048);
+  assert.equal(DEFAULT_CHUNK, 256);
 });
