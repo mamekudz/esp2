@@ -14,10 +14,17 @@
 namespace esp_bracket {
 
 enum class RamInitMode : uint8_t {
-    Zero = 0, // deterministic tests
-    Ones,     // 0xFF
-    Random,   // deterministic LCG fill (cold-DRAM-like; not secure)
-    Unchanged // leave as-is (powerOn with Unchanged skips fill)
+    Zero = 0,  // deterministic tests
+    Ones,      // 0xFF
+    Random,    // deterministic LCG fill (cold-DRAM-like; not secure)
+    Unchanged, // leave as-is (powerOn with Unchanged skips fill)
+    /**
+     * AppleWin / apple2js `allocMem` power-on pattern:
+     *   (addr & 2) ? 0x00 : 0xFF, plus sparse deterministic "garbage"
+     * at +0x28/+0x29/+0x68/+0x69 every 0x200 bytes.
+     * Matches https://www.scullinsteel.com/apple2/ cold RAM model.
+     */
+    DramAppleWin
 };
 
 /** Machine-readable host diagnostic snapshot (language-neutral fields). */

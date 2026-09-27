@@ -18,7 +18,7 @@ using namespace esp_bracket;
 
 static int g_failures = 0;
 
-static void expect(bool ok, const char* name) {
+static void expect(bool ok, const char *name) {
     if (!ok) {
         std::fprintf(stderr, "FAIL  %s\n", name);
         ++g_failures;
@@ -75,8 +75,8 @@ static void testKeyboardSpeaker() {
 
 static void testTextLayout() {
     uint8_t ram[0xC000]{};
-    TextDecoder::writeTextScreen(ram, 0x0400,
-                                 "ESP][ HOST TEST\nCPU      OK\nRAM      OK\nROM      OK\nVIDEO    OK");
+    TextDecoder::writeTextScreen(
+        ram, 0x0400, "ESP][ HOST TEST\nCPU      OK\nRAM      OK\nROM      OK\nVIDEO    OK");
     expect(TextDecoder::cellAddress(0x0400, 0, 0) == 0x0400, "text addr r0c0");
     expect(TextDecoder::cellAddress(0x0400, 1, 0) == 0x0480, "text addr r1c0");
     expect(TextDecoder::cellAddress(0x0400, 8, 0) == 0x0428, "text addr r8c0");
@@ -119,6 +119,17 @@ static void testMachineResetKeepsDisks() {
     expect(m.drive(DriveId::Drive1).state().inserted, "disk stays after Apple reset");
 }
 
+static void testDramAppleWinRamInit() {
+    HostAppleIIMachine m;
+    m.loadSyntheticRom();
+    m.powerOn(RamInitMode::DramAppleWin);
+    const uint8_t *ram = m.bus().ram();
+    expect(ram[0x0000] == 0xFF, "DramAppleWin addr0 FF");
+    expect(ram[0x0002] == 0x00, "DramAppleWin addr2 00");
+    expect(ram[0x8080] == 0xFF, "DramAppleWin 8080 FF (apple2js cold)");
+    expect(ram[0x8082] == 0x00, "DramAppleWin 8082 00");
+}
+
 static void testSelfTest() {
     HostAppleIIMachine m;
     m.loadSyntheticRom();
@@ -134,16 +145,15 @@ static void testSelfTest() {
     expect(d.hgr == DiagResult::Pass, "diag hgr");
 }
 
-static void writeVisuals(const char* outDir) {
+static void writeVisuals(const char *outDir) {
     HostAppleIIMachine m;
     m.loadSyntheticRom();
-    uint8_t* ram = m.bus().ram();
+    uint8_t *ram = m.bus().ram();
 
-    TextDecoder::writeTextScreen(
-        ram, 0x0400,
-        "ESP][ HOST TEST\n\n6502       OK\nRAM        OK\nROM        OK\n"
-        "SOFTSWITCH OK\nKEYBOARD   OK\nSPEAKER    OK\nTEXT       OK\n"
-        "LORES      OK\nHGR        OK");
+    TextDecoder::writeTextScreen(ram, 0x0400,
+                                 "ESP][ HOST TEST\n\n6502       OK\nRAM        OK\nROM        OK\n"
+                                 "SOFTSWITCH OK\nKEYBOARD   OK\nSPEAKER    OK\nTEXT       OK\n"
+                                 "LORES      OK\nHGR        OK");
     uint8_t chars[40 * 24];
     TextDecoder::decodeScreen(ram, 0x0400, chars);
     std::vector<uint8_t> rgb(static_cast<size_t>(TextDecoder::kRgbW * TextDecoder::kRgbH * 3));
@@ -159,8 +169,8 @@ static void writeVisuals(const char* outDir) {
     std::vector<uint8_t> lrgb(static_cast<size_t>(LoresDecoder::kRgbW * LoresDecoder::kRgbH * 3));
     LoresDecoder::renderRgb888(blocks, lrgb.data(), lrgb.size());
     std::string loresPath = std::string(outDir) + "/host_lores_test.ppm";
-    expect(Ppm::writeP6(loresPath.c_str(), LoresDecoder::kRgbW, LoresDecoder::kRgbH,
-                        lrgb.data(), lrgb.size()),
+    expect(Ppm::writeP6(loresPath.c_str(), LoresDecoder::kRgbW, LoresDecoder::kRgbH, lrgb.data(),
+                        lrgb.size()),
            "write lores ppm");
 
     HgrDecoder::writePattern(ram, 0x2000, "alt1010");
@@ -168,20 +178,16 @@ static void writeVisuals(const char* outDir) {
     uint8_t hb[40 * 192];
     HgrDecoder::decode(ram, 0x2000, bits, hb);
     std::vector<uint8_t> hrgb(280 * 192 * 3);
-    ArtifactRenderer::render(bits, hb, VideoColorMode::CompositeColor, hrgb.data(),
-                             hrgb.size());
+    ArtifactRenderer::render(bits, hb, VideoColorMode::CompositeColor, hrgb.data(), hrgb.size());
     DisplayEffect::apply(hrgb.data(), 280, 192, hrgb.size(), DisplayEffectMode::Sharp,
                          EffectStrength::Off);
     std::string hgrPath = std::string(outDir) + "/host_hgr_artifact.ppm";
-    expect(Ppm::writeP6(hgrPath.c_str(), 280, 192, hrgb.data(), hrgb.size()),
-           "write hgr ppm");
+    expect(Ppm::writeP6(hgrPath.c_str(), 280, 192, hrgb.data(), hrgb.size()), "write hgr ppm");
 
     // Mono green from luminance bits
-    ArtifactRenderer::render(bits, hb, VideoColorMode::MonochromeGreen, hrgb.data(),
-                             hrgb.size());
+    ArtifactRenderer::render(bits, hb, VideoColorMode::MonochromeGreen, hrgb.data(), hrgb.size());
     std::string monoPath = std::string(outDir) + "/host_hgr_mono_green.ppm";
-    expect(Ppm::writeP6(monoPath.c_str(), 280, 192, hrgb.data(), hrgb.size()),
-           "write mono ppm");
+    expect(Ppm::writeP6(monoPath.c_str(), 280, 192, hrgb.data(), hrgb.size()), "write mono ppm");
 }
 
 static void measureHostPerf() {
@@ -191,8 +197,7 @@ static void measureHostPerf() {
     const auto t0 = std::chrono::steady_clock::now();
     m.runCycles(1'000'000);
     const auto t1 = std::chrono::steady_clock::now();
-    const double ms =
-        std::chrono::duration<double, std::milli>(t1 - t0).count();
+    const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
     std::printf("HOST MEASUREMENT  cpu_1e6_cycles_ms=%.3f\n", ms);
 
     uint8_t ram[0xC000]{};
@@ -210,15 +215,14 @@ static void measureHostPerf() {
     std::vector<uint8_t> rgb(280 * 192 * 3);
     const auto a0 = std::chrono::steady_clock::now();
     for (int i = 0; i < 50; ++i) {
-        ArtifactRenderer::render(bits, hb, VideoColorMode::CompositeColor, rgb.data(),
-                                 rgb.size());
+        ArtifactRenderer::render(bits, hb, VideoColorMode::CompositeColor, rgb.data(), rgb.size());
     }
     const auto a1 = std::chrono::steady_clock::now();
     std::printf("HOST MEASUREMENT  artifact_50_ms=%.3f\n",
                 std::chrono::duration<double, std::milli>(a1 - a0).count());
 }
 
-static void testGoldenChecksums(const char* goldenDir) {
+static void testGoldenChecksums(const char *goldenDir) {
     // Lightweight golden: text cell address table + first HGR line address list
     uint16_t addrs[24];
     for (int r = 0; r < 24; ++r) {
@@ -232,8 +236,8 @@ static void testGoldenChecksums(const char* goldenDir) {
     (void)goldenDir;
 }
 
-int main(int argc, char** argv) {
-    const char* outDir = "host/.out";
+int main(int argc, char **argv) {
+    const char *outDir = "host/.out";
     if (argc > 1) {
         outDir = argv[1];
     }
@@ -245,6 +249,7 @@ int main(int argc, char** argv) {
     testLoresHgrPages();
     testMixedModeBoundary();
     testMachineResetKeepsDisks();
+    testDramAppleWinRamInit();
     testSelfTest();
     testGoldenChecksums("fixtures/golden/apple2");
     writeVisuals(outDir);

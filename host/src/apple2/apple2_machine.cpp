@@ -97,6 +97,25 @@ void HostAppleIIMachine::powerOn(RamInitMode ramInit) {
             s = s * 1664525u + 1013904223u;
             ram[i] = static_cast<uint8_t>((s >> 24) & 0xFFu);
         }
+    } else if (ramInit == RamInitMode::DramAppleWin) {
+        // Match apple2js js/util.ts allocMem (borrowed from AppleWin).
+        // Sparse "garbage" uses a fixed LCG so host forensics stay reproducible
+        // (apple2js uses Math.random for those four bytes per 0x200).
+        uint8_t *ram = bus_.ram();
+        for (size_t i = 0; i < Apple2Bus::kRamBytes; ++i) {
+            ram[i] = (i & 0x02u) ? 0x00u : 0xFFu;
+        }
+        uint32_t s = 0xA5A5F00Du;
+        auto garbage = [&]() -> uint8_t {
+            s = s * 1664525u + 1013904223u;
+            return static_cast<uint8_t>((s >> 24) & 0xFFu);
+        };
+        for (size_t i = 0; i < Apple2Bus::kRamBytes; i += 0x200u) {
+            ram[i + 0x28] = garbage();
+            ram[i + 0x29] = garbage();
+            ram[i + 0x68] = garbage();
+            ram[i + 0x69] = garbage();
+        }
     }
     reset();
 }

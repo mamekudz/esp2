@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "id": "little-brick-out",
+  "catalogId": "little-brick-out",
+  "title": "Little Brick Out",
+  "redistribution": "USER_SUPPLIED_ONLY",
+  "localTestOnly": true,
+  "machineProfile": "AppleIIPlus",
+  "romProfile": "user_ii_plus",
+  "romDependency": "USER_APPLE_II_PLUS_ROM",
+  "romDependencyReason": "Applesoft demo — needs Applesoft in ROM",
+  "slot6Mode": "user_or_cleanroom",
+  "bootDisk": true,
+  "classification": [
+    "REAL_SOFTWARE_LORES_TEST",
+    "REAL_SOFTWARE_PADDLE_TEST"
+  ],
+  "media": {
+    "disk1": {
+      "catalogFile": "LittleBrickOut.dsk",
+      "format": "dsk",
+      "sha256": "2f9b78ee27f5d0167a2a7ead2193607a0ded6ef1e90406b30726483c62307f2f",
+      "note": "Cowgod cassette→DSK transfer; LOCAL_TEST_ONLY under local/apple2/disks/; see local/apple2/provenance/little-brick-out.provenance.json"
+    }
+  },
+  "videoModeExpected": "LORES_MIXED",
+  "videoModeResearch": {
+    "lores": true,
+    "mixed": true,
+    "text": true,
+    "page1": true,
+    "page2": false,
+    "verifiedOnHost": false
+  },
+  "inputExpected": {
+    "pdl0": "required",
+    "pdl1": "optional",
+    "pb0": "optional_or_demo_toggle",
+    "pb1": "not_required",
+    "providers": ["windows_cdc_bridge", "logitech_dial", "gamepad", "future_usb_hid", "future_wired_paddle"]
+  },
+  "bootCycleBudget": 40000000,
+  "sustainedCycleBudget": 20000000,
+  "stages": ["boot", "title_or_start", "interactive_play"],
+  "smokeTargets": ["BOOT", "TITLE_SCREEN", "INTERACTIVE"],
+  "checkpoints": [
+    { "type": "surviveCycles", "cycles": 1000000, "phase": "boot" },
+    { "type": "videoModeAny", "modes": ["LORES", "MIXED", "TEXT"], "phase": "title_or_start" }
+  ],
+  "futureCheckpoints": [
+    "correct playfield geometry",
+    "correct brick positions",
+    "correct paddle position",
+    "correct ball position",
+    "correct LORES colors",
+    "stable partial dirty updates",
+    "dirty scanlines / bytes / render / xfer timing"
+  ],
+  "manualSteps": [
+    "Do NOT run until Galaxian physical milestone completes",
+    "Supply user Apple II+ system ROM",
+    "Mount LittleBrickOut.dsk via generic disk path",
+    "Validate LORES via softswitches + LoRes renderer (no title hacks)",
+    "Validate PDL0 via Logitech Dial virtual accumulator or gamepad"
+  ],
+  "hostStatus": "NOT_TESTED",
+  "esp32Status": "NOT_TESTED",
+  "inputStatus": "NOT_TESTED",
+  "audioStatus": "NOT_TESTED",
+  "realSoftwareLoRes": "NOT_TESTED",
+  "paddleInput": "NOT_TESTED",
+  "logitechDial": "NOT_TESTED",
+  "dirtyUpdate": "NOT_TESTED",
+  "notes": "Planned next real-software validation after Galaxian: LORES + paddle + dirty updates. No execution in current milestone."
+}

@@ -20,7 +20,7 @@ env.BuildSources(
         "-<apple2_machine.cpp>",
         "-<input_script.cpp>",
         "-<cpu_harness.cpp>",
-        "-<disk_ii_boot.cpp>",
+        # disk_ii_boot.cpp: decodeSectorFromStream used by clean-room Level-4 path
         "-<gamepad_mapper.cpp>",
         "-<display_effect.cpp>",
     ],

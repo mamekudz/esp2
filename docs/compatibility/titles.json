@@ -78,6 +78,22 @@
       "audio": "SUBJECTIVE_REFERENCE",
       "disk": "USER_SUPPLIED_ONLY",
       "notes": "Browser simulation subjective audio reference only"
+    },
+    {
+      "id": "little-brick-out",
+      "title": "Little Brick Out",
+      "hostStatus": "NOT_TESTED",
+      "esp32Status": "NOT_TESTED",
+      "input": "NOT_TESTED",
+      "video": "LORES_MIXED (expected; not verified)",
+      "audio": "NOT_TESTED",
+      "disk": "USER_SUPPLIED_ONLY",
+      "classification": ["REAL_SOFTWARE_LORES_TEST", "REAL_SOFTWARE_PADDLE_TEST"],
+      "realSoftwareLoRes": "NOT_TESTED",
+      "paddleInput": "NOT_TESTED",
+      "logitechDial": "NOT_TESTED",
+      "dirtyUpdate": "NOT_TESTED",
+      "notes": "Prepared local DSK from Cowgod cassette archive. Run AFTER Galaxian physical milestone. Paddle validation via Windows dial bridge."
     }
   ]
 }

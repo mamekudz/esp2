@@ -352,4 +352,6 @@ Local frames (gitignored): `galaxian_prod_settled.png`, `galaxian_title.png`.
 
 ## Physical
 
-Out of scope until HOST_PASS (no ESP32 upload / serial / WOZ / disk writes).
+HOST_PASS frozen (`GALAXIAN_HOST = PASS`). Physical path uses the same generic
+Disk-II fixes (`c9723a9`, `021be3e`) plus Windows CDC input bridge for
+keyboard/gamepad during bring-up — see `docs/architecture/input-providers.md`.
