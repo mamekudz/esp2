@@ -20,7 +20,9 @@
 
 #include "board_pins.h"
 #include "display_power.h"
+#include "esp2_macro_engine.hpp"
 #include "esp2_sd_bus.hpp"
+#include "esp2_system_config.hpp"
 #include "esp32_sd_storage.hpp"
 #include "i18x_fw.hpp"
 #include "qmi8658_min.h"
@@ -53,7 +55,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_present_v3";
+static constexpr char kBuildId[] = "apple2_config_v1";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -114,6 +116,11 @@ static volatile bool g_sdExclusive = false;
 static char g_mountedDiskPath[96] = {};
 static bool g_diskMounted = false;
 static bool g_slot6UserProm = false;
+
+static esp2_config::SystemConfig g_sysConfig = esp2_config::defaultSystemConfig();
+static esp2_macro::MacroBank g_macroBank{};
+static esp2_macro::Runner g_macroRunner{};
+static bool g_startupConfigApplied = false;
 
 static uint16_t *g_viewportFb = nullptr;
 /** Landscape: rotated+scaled RGB565 (panel-sized or fitted region). */
@@ -464,7 +471,7 @@ static bool mountDiskPath(const char *path) {
     g_galaxianVisibleLogged = false;
     logf("DISK", "mount path=%s size=%u", path, static_cast<unsigned>(sz));
     Serial.printf("#ACK DISK MOUNT path=%s\n", path);
-    g_display_power.notifyActivity("disk_mount");
+    // Do not notifyActivity — disk I/O is not user input (screensaver must still arm).
     sdExclusiveEnd();
     g_emuHold = false;
     return true;
@@ -527,7 +534,6 @@ static bool bootMountedDisk() {
         g_emuHold = false;
         return false;
     }
-    g_display_power.notifyActivity("disk_boot");
     logf("DISK", "boot Autostart path=%s slot6=%d", g_mountedDiskPath, g_slot6UserProm ? 1 : 0);
     Serial.printf("#ACK DISK BOOT path=%s\n", g_mountedDiskPath);
     g_emuHold = false;
@@ -703,6 +709,50 @@ static void handleDevCommandLine(const char *line) {
         emitPresentStatus();
         return;
     }
+    if (strcmp(line, "#ESP2CONFIG STATUS") == 0) {
+        Serial.printf("#ACK CONFIG loaded=%d valid=%d rom=%s drive1=%s boot=%d macro=%s "
+                      "orient=%s color=%s ss=%u\n",
+                      g_sysConfig.loaded ? 1 : 0, g_sysConfig.valid ? 1 : 0,
+                      g_sysConfig.romPath[0] ? g_sysConfig.romPath : "-",
+                      g_sysConfig.drive1[0] ? g_sysConfig.drive1 : "-",
+                      g_sysConfig.bootFromDisk ? 1 : 0,
+                      g_sysConfig.startupMacro[0] ? g_sysConfig.startupMacro : "-",
+                      esp2_config::orientName(g_sysConfig.orientation),
+                      esp2_config::colorName(g_sysConfig.color),
+                      static_cast<unsigned>(g_sysConfig.screensaverSeconds));
+        return;
+    }
+    if (strncmp(line, "#ESP2MACRO RUN ", 15) == 0) {
+        char err[48]{};
+        if (!esp2_macro::startMacro(&g_macroRunner, g_macroBank, line + 15, millis(), err,
+                                    sizeof(err))) {
+            Serial.printf("#NAK MACRO RUN %s\n", err[0] ? err : "fail");
+            return;
+        }
+        Serial.printf("#ACK MACRO RUN id=%s\n", g_macroRunner.activeId);
+        return;
+    }
+    if (strcmp(line, "#ESP2MACRO STOP") == 0) {
+        esp2_macro::stopMacro(&g_macroRunner, "serial_stop");
+        Serial.println("#ACK MACRO STOP");
+        return;
+    }
+    if (strcmp(line, "#ESP2MACRO STATUS") == 0) {
+        const char *st = "idle";
+        if (g_macroRunner.state == esp2_macro::RunState::Running) {
+            st = "running";
+        } else if (g_macroRunner.state == esp2_macro::RunState::Done) {
+            st = "done";
+        } else if (g_macroRunner.state == esp2_macro::RunState::Failed) {
+            st = "failed";
+        }
+        Serial.printf("#ACK MACRO STATUS state=%s id=%s step=%u fail=%s bank=%u\n", st,
+                      g_macroRunner.activeId[0] ? g_macroRunner.activeId : "-",
+                      static_cast<unsigned>(g_macroRunner.index),
+                      g_macroRunner.failReason[0] ? g_macroRunner.failReason : "-",
+                      static_cast<unsigned>(g_macroBank.count));
+        return;
+    }
 }
 
 static void serviceDevSerialCommands() {
@@ -768,7 +818,6 @@ static void maybeLogGalaxianVisible() {
         return;
     }
     g_galaxianVisibleLogged = true;
-    g_display_power.notifyActivity("galaxian_visible");
     markVideoDirty();
     const uint32_t wallUs = micros() - g_wallStartUs;
     const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
@@ -1114,7 +1163,6 @@ static void servicePresentApplyOnDisplayTask() {
         (void)ensurePresentFb();
     }
     markVideoDirty();
-    g_display_power.notifyActivity("present");
     logf("PRESENT", "applied color=%s orient=%s land=%dx%d@%d,%d", presentColorName(),
          presentOrientName(), g_landOutW, g_landOutH, g_landOx, g_landOy);
 }
@@ -1257,6 +1305,13 @@ static bool findUserRomPath(char outPath[96]) {
     }
     g_sdStore.setMounted(true);
     g_sdStore.ensureRomRoot();
+    // Prefer persistent config ROM path when present and valid size.
+    if (g_sysConfig.valid && g_sysConfig.romPath[0] && g_sdStore.exists(g_sysConfig.romPath) &&
+        g_sdStore.fileSize(g_sysConfig.romPath) == Rom::kApple2PlusRomBytes) {
+        strncpy(outPath, g_sysConfig.romPath, 95);
+        outPath[95] = 0;
+        return true;
+    }
     const char *cands[] = {
         Esp32SdStorageBackend::kSystemRom, Esp32SdStorageBackend::kApple2PlusRom,
         Esp32SdStorageBackend::kApple2Rom, "/esp2/roms/apple2+.rom",
@@ -1514,6 +1569,162 @@ static void videoSpotCheck() {
     logf("VIDEO", "TEXT/current frame presented");
 }
 
+static void applyDisplayPowerFromConfig() {
+    DisplayPowerSettings dps = g_display_power.settings();
+    if (!g_sysConfig.valid || g_sysConfig.screensaverSeconds == 0) {
+        dps.screensaver = ScreensaverTimeout::Off;
+        dps.screensaver_override_ms = 0;
+        dps.screen_off = ScreenOffTimeout::Never;
+        dps.screen_off_override_ms = 0;
+    } else {
+        const uint32_t ssMs = g_sysConfig.screensaverSeconds * 1000u;
+        dps.screensaver_override_ms = ssMs;
+        // Panel off a bit after screensaver (same idle clock).
+        dps.screen_off_override_ms = ssMs + 120000u;
+        dps.screensaver = ScreensaverTimeout::Min5;
+        dps.screen_off = ScreenOffTimeout::Min10;
+    }
+    g_display_power.setSettings(dps);
+    logf("CONFIG", "display ss_s=%u ss_ms=%u off_ms=%u",
+         static_cast<unsigned>(g_sysConfig.screensaverSeconds),
+         static_cast<unsigned>(dps.screensaver_override_ms),
+         static_cast<unsigned>(dps.screen_off_override_ms));
+}
+
+static void loadPersistentConfigFromSd() {
+    g_sysConfig = esp2_config::defaultSystemConfig();
+    g_macroBank = esp2_macro::MacroBank{};
+    if (!g_sdOwner.esp2MayUseFat()) {
+        logf("CONFIG", "skip — SD not owned");
+        return;
+    }
+    if (!sdExclusiveBegin()) {
+        logf("CONFIG", "[FAIL] sd_exclusive");
+        return;
+    }
+    char err[64]{};
+    if (g_sdStore.exists(esp2_config::kSystemConfigPath)) {
+        // Keep config small — reject oversized files.
+        const size_t sz = g_sdStore.fileSize(esp2_config::kSystemConfigPath);
+        if (sz == 0 || sz > 4096) {
+            logf("CONFIG", "[FAIL] system.json size=%u — using defaults",
+                 static_cast<unsigned>(sz));
+        } else {
+            char *buf = static_cast<char *>(malloc(sz + 1));
+            if (!buf) {
+                logf("CONFIG", "[FAIL] alloc");
+            } else {
+                size_t got = 0;
+                if (g_sdStore.readAll(esp2_config::kSystemConfigPath,
+                                      reinterpret_cast<uint8_t *>(buf), sz, &got) &&
+                    got == sz) {
+                    buf[sz] = 0;
+                    g_sysConfig = esp2_config::parseSystemConfigJson(buf, sz, err, sizeof(err));
+                    if (!g_sysConfig.valid) {
+                        logf("CONFIG", "[FAIL] parse=%s — safe defaults", err[0] ? err : "?");
+                        g_sysConfig = esp2_config::defaultSystemConfig();
+                    } else {
+                        logf("CONFIG", "system.json ok rom=%s drive1=%s boot=%d macro=%s "
+                                       "orient=%s color=%s ss=%u",
+                             g_sysConfig.romPath[0] ? g_sysConfig.romPath : "-",
+                             g_sysConfig.drive1[0] ? g_sysConfig.drive1 : "-",
+                             g_sysConfig.bootFromDisk ? 1 : 0,
+                             g_sysConfig.startupMacro[0] ? g_sysConfig.startupMacro : "-",
+                             esp2_config::orientName(g_sysConfig.orientation),
+                             esp2_config::colorName(g_sysConfig.color),
+                             static_cast<unsigned>(g_sysConfig.screensaverSeconds));
+                    }
+                } else {
+                    logf("CONFIG", "[FAIL] read system.json");
+                }
+                free(buf);
+            }
+        }
+    } else {
+        logf("CONFIG", "no %s — defaults (no auto disk)", esp2_config::kSystemConfigPath);
+    }
+
+    if (g_sdStore.exists(esp2_config::kMacrosConfigPath)) {
+        const size_t sz = g_sdStore.fileSize(esp2_config::kMacrosConfigPath);
+        if (sz > 0 && sz <= 8192) {
+            char *buf = static_cast<char *>(malloc(sz + 1));
+            if (buf) {
+                size_t got = 0;
+                if (g_sdStore.readAll(esp2_config::kMacrosConfigPath,
+                                      reinterpret_cast<uint8_t *>(buf), sz, &got) &&
+                    got == sz) {
+                    buf[sz] = 0;
+                    if (!esp2_macro::parseMacrosJson(buf, sz, &g_macroBank, err, sizeof(err))) {
+                        logf("CONFIG", "[FAIL] macros=%s", err[0] ? err : "?");
+                        g_macroBank = esp2_macro::MacroBank{};
+                    } else {
+                        logf("CONFIG", "macros.json count=%u",
+                             static_cast<unsigned>(g_macroBank.count));
+                    }
+                }
+                free(buf);
+            }
+        } else {
+            logf("CONFIG", "[FAIL] macros.json size");
+        }
+    } else {
+        logf("CONFIG", "no macros.json");
+    }
+    sdExclusiveEnd();
+    applyDisplayPowerFromConfig();
+}
+
+static void macroInjectKey(uint8_t apple7) {
+    applyLiveKey(apple7, true);
+}
+
+static void applyStartupFromConfig() {
+    if (g_startupConfigApplied) {
+        return;
+    }
+    g_startupConfigApplied = true;
+    if (!g_sysConfig.valid || !g_sysConfig.loaded) {
+        logf("CONFIG", "startup skip — no valid config");
+        return;
+    }
+
+    g_presentColor = (g_sysConfig.color == esp2_config::ColorMode::Artifact)
+                         ? PresentColorMode::ArtifactColor
+                         : PresentColorMode::Sharp;
+    g_presentOrient = (g_sysConfig.orientation == esp2_config::Orient::Landscape)
+                          ? PresentOrientation::Landscape
+                          : PresentOrientation::Classic;
+    applyPresentChange();
+    // Apply immediately on boot task if display task not yet running.
+    servicePresentApplyOnDisplayTask();
+
+    if (!g_sysConfig.drive1[0]) {
+        logf("CONFIG", "startup — no drive1");
+        return;
+    }
+    if (!mountDiskPath(g_sysConfig.drive1)) {
+        logf("CONFIG", "[FAIL] mount drive1=%s", g_sysConfig.drive1);
+        return;
+    }
+    if (g_sysConfig.bootFromDisk) {
+        if (!bootMountedDisk()) {
+            logf("CONFIG", "[FAIL] bootFromDisk");
+            return;
+        }
+        logf("CONFIG", "bootFromDisk ok path=%s", g_mountedDiskPath);
+    }
+    if (g_sysConfig.startupMacro[0]) {
+        char err[48]{};
+        if (!esp2_macro::startMacro(&g_macroRunner, g_macroBank, g_sysConfig.startupMacro, millis(),
+                                    err, sizeof(err))) {
+            logf("CONFIG", "[FAIL] startup macro=%s err=%s", g_sysConfig.startupMacro,
+                 err[0] ? err : "?");
+        } else {
+            logf("CONFIG", "startup macro=%s armed", g_sysConfig.startupMacro);
+        }
+    }
+}
+
 static void bootSuite() {
     logf("APPLE2", "F1 user ROM bring-up");
     g_cpu.setCallbacks(&g_a2bus, Apple2Bus::busRead, Apple2Bus::busWrite);
@@ -1600,6 +1811,23 @@ static void emulatorTask(void *) {
         syncCycle();
         if (g_diskII.romKind() == DiskIIController::RomKind::CleanRoom) {
             serviceCleanRoomCardRequests(g_a2bus.ram(), g_diskII);
+        }
+        if (g_macroRunner.state == esp2_macro::RunState::Running) {
+            // Generic video condition: graphics + HIRES (not title-specific).
+            const auto &ss = g_a2bus.softSwitches();
+            const bool hires = ss.isGraphics() && ss.isHires();
+            const bool still = esp2_macro::tickMacro(&g_macroRunner, millis(), hires, macroInjectKey);
+            if (!still) {
+                if (g_macroRunner.state == esp2_macro::RunState::Done) {
+                    logf("MACRO", "done id=%s", g_macroRunner.activeId);
+                    Serial.printf("#ACK MACRO DONE id=%s\n", g_macroRunner.activeId);
+                } else if (g_macroRunner.state == esp2_macro::RunState::Failed) {
+                    logf("MACRO", "[FAIL] id=%s reason=%s", g_macroRunner.activeId,
+                         g_macroRunner.failReason);
+                    Serial.printf("#NAK MACRO FAIL id=%s reason=%s\n", g_macroRunner.activeId,
+                                  g_macroRunner.failReason);
+                }
+            }
         }
         maybeLogGalaxianVisible();
         maybeLogDiskHeartbeat();
@@ -1740,8 +1968,9 @@ void setup() {
     g_display_power.begin(draw_screensaver_stub, restore_ui_stub, panel_sleep_co5300,
                           panel_wake_co5300);
     DisplayPowerSettings dps{};
-    dps.screensaver_override_ms = 45000;
-    dps.screen_off_override_ms = 90000;
+    // Defaults until /esp2/config/system.json is loaded (no short lab overrides).
+    dps.screensaver = ScreensaverTimeout::Off;
+    dps.screen_off = ScreenOffTimeout::Never;
     g_display_power.setSettings(dps);
     g_display_power.notifyActivity("boot");
 
@@ -1755,7 +1984,9 @@ void setup() {
     xTaskCreatePinnedToCore(
         [](void *) {
             if (g_sdOwner.esp2MayUseFat()) {
+                loadPersistentConfigFromSd();
                 bootSuite();
+                applyStartupFromConfig();
             } else {
                 logf("APPLE2", "bootSuite skipped — SD not owned by ESP2");
             }
