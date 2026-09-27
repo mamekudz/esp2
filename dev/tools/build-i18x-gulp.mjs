@@ -82,8 +82,10 @@ const de = {
     "Pusht den aktuellen Branch zum Upstream-Remote. Stagt und commitet nicht.",
   'Backup to NAS<context="µDisplayName"/>': "NAS-Backup",
   'Backup to NAS (alias)<context="µDisplayName"/>': "NAS-Backup (Alias)",
-  'Alias of backup — NAS form / NAS_TARGET_1..3. Excludes local/apple2 and regenerable trees.<context="µDescription"/>':
-    "Alias von backup — NAS-Formular / NAS_TARGET_1..3. Schließt local/apple2 und regenerierbare Bäume aus.",
+  'Alias of backup — NAS form / NAS_TARGET_1..3. Includes local/apple2 privately; skips disposable caches.<context="µDescription"/>':
+    "Alias von backup — NAS-Formular / NAS_TARGET_1..3. Sichert local/apple2 privat; lässt disposable Caches weg.",
+  'Copies ESP][ project trees plus local/downloaded assets (local/apple2, local/roms, _refs, 3dprint) to up to three private NAS folders. Skips node_modules, .pio, and other disposable caches. Gitignore ≠ NAS exclude.<context="µDescription"/>':
+    "Kopiert ESP][-Projektbäume plus lokale/heruntergeladene Assets (local/apple2, local/roms, _refs, 3dprint) auf bis zu drei private NAS-Ordner. Lässt node_modules, .pio und andere disposable Caches weg. Gitignore ≠ NAS-Ausschluss.",
   'List NAS Backups<context="µDisplayName"/>': "NAS-Backups auflisten",
   'Shows configured NAS destinations and whether essential restore files are present. Read-only.<context="µDescription"/>':
     "Zeigt konfigurierte NAS-Ziele und ob essenzielle Restore-Dateien vorhanden sind. Nur Lesen.",

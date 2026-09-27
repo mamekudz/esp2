@@ -1440,3 +1440,16 @@ Real Apple ROM / Disk II ROM / commercial disk testing uses
 established. CI must stay green without proprietary media.
 Compatibility claims require recorded evidence (see
 `docs/apple2/compatibility-testing.md`).
+
+
+## Backup — Git vs NAS (independent)
+
+**Permanent rule:** Git eligibility and NAS backup eligibility are independent.
+
+- Local / downloaded / user-supplied assets that are valuable to reproduce the
+  project (**SHOULD** be privately NAS-backed) even when they must **never**
+  enter Git (`.gitignore` / `GIT_BACKUP_NEVER_STAGE`).
+- Examples: `local/apple2/` (ROMs, disks, SST vectors, manifests),
+  `local/roms/`, `_refs/`, gitignored `3dprint` vendor dumps.
+- Disposable caches (`node_modules`, `.pio`, …) stay out of NAS backup.
+- Details: `docs/tooling/backup.md`.

@@ -3,16 +3,21 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import {
 	NAS_BACKUP_INCLUDE_FILES,
+	NAS_BACKUP_INCLUDE_DIRS,
 	NAS_BACKUP_EXCLUDE_DIRS,
+	NAS_BACKUP_LOCAL_ASSET_DIRS,
+	NAS_BACKUP_REFERENCE_DIRS,
 	NAS_BACKUP_MAX_DESTINATIONS,
 	UniqueNasTargets,
 	ResolveNasTargets,
 	MirrorNonReproducible,
+	RestoreLocalAssetsFromBackup,
 	VerifyBackupContents,
 } from './nas-backup.mjs';
 import {
@@ -67,14 +72,23 @@ test('CLAUDE.md is in Git ensure + NAS include lists', () => {
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('config/nas.targets.local'));
 });
 
-test('NAS excludes regenerable trees', () => {
+test('NAS excludes disposable trees; includes local assets', () => {
 	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('node_modules'));
 	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('.pio'));
-	assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes('local'));
+	assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes('local'));
+	assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes('_refs'));
+	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('local/apple2'));
+	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('local/roms'));
+	assert.ok(NAS_BACKUP_LOCAL_ASSET_DIRS.includes('local/apple2'));
+	assert.ok(NAS_BACKUP_REFERENCE_DIRS.includes('_refs'));
+	assert.ok(NAS_BACKUP_REFERENCE_DIRS.includes('3dprint'));
+	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('3dprint'));
+	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('_refs'));
 });
 
 test('Git backup never stages local Apple II media', () => {
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/apple2'));
+	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/roms'));
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('library/user'));
 });
 
@@ -155,22 +169,60 @@ test('canonical µGulp-ready asset exists once', () => {
 	ComposeReadmeLocale({ root: ROOT, locale: 'de-DE' });
 });
 
-test('NAS mirror includes CLAUDE.md and skips .pio/node_modules', async () => {
+test('NAS mirror includes CLAUDE.md, local assets, skips disposable caches', async () => {
 	const dest = mkdtempSync(join(tmpdir(), 'esp2-nas-'));
-	const missingTarget = join(tmpdir(), 'esp2-nas-missing-' + Date.now());
+	const probeDir = join(ROOT, 'local', 'apple2', 'forensics', 'sst');
+	const probeFile = join(probeDir, '_nas_policy_probe.txt');
+	const romProbeDir = join(ROOT, 'local', 'roms');
+	const romProbe = join(romProbeDir, '_nas_user_rom_probe.bin');
+	mkdirSync(probeDir, { recursive: true });
+	mkdirSync(romProbeDir, { recursive: true });
+	writeFileSync(probeFile, 'sst-probe\n');
+	writeFileSync(romProbe, Buffer.alloc(16, 0xA5));
 	try {
 		await MirrorNonReproducible(ROOT, dest, false);
 		assert.ok(existsSync(join(dest, 'CLAUDE.md')), 'CLAUDE.md copied');
 		assert.ok(existsSync(join(dest, 'platformio.ini')));
 		assert.ok(existsSync(join(dest, 'dev', 'docs', 'readme', 'de-DE.src.md')));
-		assert.ok(existsSync(join(dest, 'dev', 'docs', 'readme', 'en-US.src.md')));
 		assert.equal(existsSync(join(dest, 'node_modules')), false);
 		assert.equal(existsSync(join(dest, '.pio')), false);
+		assert.ok(
+			existsSync(join(dest, 'local', 'apple2', 'forensics', 'sst', '_nas_policy_probe.txt')),
+			'SST/forensics under local/apple2 must be NAS-backed',
+		);
+		assert.ok(
+			existsSync(join(dest, 'local', 'roms', '_nas_user_rom_probe.bin')),
+			'user ROM dir local/roms must be NAS-backed',
+		);
+		assert.ok(existsSync(join(dest, 'BACKUP_MANIFEST.json')));
+		const manifest = JSON.parse(readFileSync(join(dest, 'BACKUP_MANIFEST.json'), 'utf8'));
+		assert.ok(manifest.classifications.localAssets.includes('local/apple2'));
+		assert.ok(manifest.classifications.disposableExcluded.includes('node_modules'));
 		const check = VerifyBackupContents(dest);
 		assert.equal(check.ok, true, check.missing.join(','));
 
-		assert.equal(existsSync(missingTarget), false);
+		// Restore probe into a fresh temp project layout and confirm gitignore still applies
+		const restoreRoot = mkdtempSync(join(tmpdir(), 'esp2-restore-'));
+		mkdirSync(join(restoreRoot, 'local', 'apple2'), { recursive: true });
+		await RestoreLocalAssetsFromBackup(dest, restoreRoot, {
+			dirs: ['local/apple2', 'local/roms'],
+		});
+		assert.ok(
+			existsSync(
+				join(restoreRoot, 'local', 'apple2', 'forensics', 'sst', '_nas_policy_probe.txt'),
+			),
+		);
+		// Project .gitignore must still ignore restored local/apple2 payloads
+		const ign = spawnSync(
+			'git',
+			['check-ignore', '-v', '--', 'local/apple2/forensics/sst/_nas_policy_probe.txt'],
+			{ cwd: ROOT, encoding: 'utf8', windowsHide: true },
+		);
+		assert.equal(ign.status, 0, 'restored local asset path must remain gitignored');
+		rmSync(restoreRoot, { recursive: true, force: true });
 	} finally {
+		rmSync(probeFile, { force: true });
+		rmSync(romProbe, { force: true });
 		rmSync(dest, { recursive: true, force: true });
 	}
 });

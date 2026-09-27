@@ -594,7 +594,7 @@ _Tag(backup, {
   gulpName: "backup",
   µDisplayName: 'Backup to NAS<context="µDisplayName"/>',
   µDescription:
-    'Copies non-reproducible ESP][ files to up to three NAS folders. Form picks destinations (remembered). Skips node_modules, .pio, secrets.<context="µDescription"/>',
+    'Copies ESP][ project trees plus local/downloaded assets (local/apple2, local/roms, _refs, 3dprint) to up to three private NAS folders. Skips node_modules, .pio, and other disposable caches. Gitignore ≠ NAS exclude.<context="µDescription"/>',
   µTooltip:
     'Form: Destination 1–3 + dry-run. Or NAS_TARGET_1..3 / config/nas.targets.local.<context="µTooltip"/>',
   µGroup: 'Backup<context="µGroup"/>',
@@ -775,7 +775,7 @@ _Tag(backupNas, {
   gulpName: "backup:nas",
   µDisplayName: 'Backup to NAS (alias)<context="µDisplayName"/>',
   µDescription:
-    'Alias of backup — NAS form / NAS_TARGET_1..3. Excludes local/apple2 and regenerable trees.<context="µDescription"/>',
+    'Alias of backup — NAS form / NAS_TARGET_1..3. Includes local/apple2 privately; skips disposable caches.<context="µDescription"/>',
   µGroup: 'Backup<context="µGroup"/>',
   µIcon: "\uE902",
   µOrder: 11,

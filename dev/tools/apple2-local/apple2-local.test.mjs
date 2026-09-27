@@ -34,7 +34,6 @@ import { prepareTitleMedia } from "./media-prepare.mjs";
 import { cleanLocalMedia } from "./media-status.mjs";
 import { GIT_BACKUP_NEVER_STAGE } from "../git-backup.mjs";
 import { NAS_BACKUP_EXCLUDE_DIRS, NAS_BACKUP_INCLUDE_DIRS } from "../nas-backup.mjs";
-
 test("local/apple2 destination is gitignored", () => {
   ensureLocalApple2Layout();
   const check = assertDestinationIgnored(LOCAL_ROMS_DIR);
@@ -64,9 +63,17 @@ test("backup tooling never-stages local media root", () => {
       `GIT_BACKUP_NEVER_STAGE missing ${p}`,
     );
   }
-  assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes("local"));
-  assert.ok(!NAS_BACKUP_INCLUDE_DIRS.includes("local"));
-  assert.ok(!NAS_BACKUP_INCLUDE_DIRS.includes("local/apple2"));
+  // Git vs NAS are independent: local media stays NEVER_STAGE for Git,
+  // but is INCLUDED in NAS backup.
+  assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes("local"));
+  assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes("local/apple2"));
+  assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes("local/roms"));
+});
+
+test("NAS backup includes local/apple2 and SST path roots", () => {
+  assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes("local/apple2"));
+  // SST vectors live under local/apple2/forensics/sst/ → covered by local/apple2
+  assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes("local"));
 });
 
 test("title lookup finds galaxian in catalog when cache present", () => {

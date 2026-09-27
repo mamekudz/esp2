@@ -1,6 +1,12 @@
 // ===========================================
 // nas-backup.mjs — up to 3 NAS destinations for ESP][
 // ===========================================
+//
+// Permanent policy: Git eligibility and NAS backup eligibility are INDEPENDENT.
+// Valuable downloaded / user-supplied / local-reference assets SHOULD be
+// NAS-backed even when they must NEVER enter Git.
+//
+// Do NOT use .gitignore as the NAS exclusion list.
 
 import { spawn } from "node:child_process";
 import {
@@ -16,15 +22,40 @@ import { dirname, join, resolve } from "node:path";
 
 export const NAS_BACKUP_MAX_DESTINATIONS = 3;
 
-/** Non-reproducible trees (µGulp / Watchy selective-backup convention). */
+/**
+ * Independent classification axes (do not conflate):
+ *   GIT_TRACKED | NAS_BACKED_UP | REDISTRIBUTABLE
+ */
+
+/** Tracked / core project trees mirrored to NAS. */
 export const NAS_BACKUP_INCLUDE_DIRS = Object.freeze([
   "src",
   "include",
   "docs",
   "dev",
   "config",
+  "host",
+  "compatibility",
+  "fixtures",
+  "3dprint",
   ".git",
+  // Local / downloaded / user-supplied (gitignored payloads; NAS-backed)
+  "local/apple2",
+  "local/roms",
+  "library/user",
+  // Vendor / research dumps (gitignored; NAS-backed)
+  "_refs",
 ]);
+
+/** Explicit local-asset roots (subset of INCLUDE; for tests + manifest). */
+export const NAS_BACKUP_LOCAL_ASSET_DIRS = Object.freeze([
+  "local/apple2",
+  "local/roms",
+  "library/user",
+]);
+
+/** Downloaded reference / vendor dumps (gitignored; NAS-backed). */
+export const NAS_BACKUP_REFERENCE_DIRS = Object.freeze(["_refs", "3dprint"]);
 
 export const NAS_BACKUP_INCLUDE_FILES = Object.freeze([
   "CLAUDE.md",
@@ -35,19 +66,24 @@ export const NAS_BACKUP_INCLUDE_FILES = Object.freeze([
   "gulpfile.mjs",
   ".gitignore",
   "LICENSE",
+  "NOTICE.md",
 ]);
 
+/**
+ * Disposable / regenerable directory *names* skipped during robocopy (/XD).
+ * Applied by basename anywhere under an include tree — not a substitute for
+ * omitting valuable local asset roots from INCLUDE.
+ */
 export const NAS_BACKUP_EXCLUDE_DIRS = Object.freeze([
   "node_modules",
   ".pio",
   ".cache",
   ".microgulp",
-  "_refs",
   "tmp",
   "temp",
-  // Third-party / user-supplied Apple II media — never silently NAS-backup.
-  // Opt-in archival is a separate future task (not part of backup / backup:all).
-  "local",
+  ".out",
+  "coverage",
+  "__pycache__",
 ]);
 
 export const NAS_BACKUP_EXCLUDE_FILES = Object.freeze([
@@ -69,7 +105,7 @@ export const NAS_BACKUP_REQUIRED_RELATIVE = Object.freeze([
 
 /**
  * @param {Iterable<string>} _paths
- * @returns {string[]}
+ * @returns {{ destinations: string[], rejectedExtra: number }}
  */
 export function UniqueNasTargets(_paths) {
   const seen = new Set();
@@ -172,7 +208,7 @@ export function ResolveNasTargets(_root, _form = null) {
   const pathsEnv = String(process.env.ESP2_NAS_BACKUP_PATHS ?? "").trim();
   if (pathsEnv) {
     const { destinations, rejectedExtra } = UniqueNasTargets(
-      pathsEnv.split(/[|;]/)
+      pathsEnv.split(/[|;]/),
     );
     return {
       destinations,
@@ -226,7 +262,7 @@ export function ResolveNasTargets(_root, _form = null) {
 export function AssertNasBackupTarget(_destination, _sourceResolved) {
   if (!existsSync(_destination)) {
     throw new Error(
-      `destination missing: "${_destination}" (create the folder first; no silent local fallback)`
+      `destination missing: "${_destination}" (create the folder first; no silent local fallback)`,
     );
   }
   const destResolved = resolve(_destination);
@@ -242,7 +278,7 @@ export function AssertNasBackupTarget(_destination, _sourceResolved) {
     /^\\\\[^\\]+\\[^\\]+[\\]?$/.test(destResolved)
   ) {
     throw new Error(
-      "destination must be a dedicated, non-overlapping backup folder, not a drive or share root"
+      "destination must be a dedicated, non-overlapping backup folder, not a drive or share root",
     );
   }
   return destResolved;
@@ -256,7 +292,6 @@ export function AssertNasBackupTarget(_destination, _sourceResolved) {
 function _RunRobocopy(_cmd, _args) {
   return new Promise((_resolve, _reject) => {
     const child = spawn(_cmd, _args, {
-      // no shell — avoids DEP0190; robocopy.exe is on PATH under Windows
       windowsHide: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -266,7 +301,6 @@ function _RunRobocopy(_cmd, _args) {
     });
     child.on("error", _reject);
     child.on("close", (_code) => {
-      // robocopy: 0–7 success-ish, >=8 failure
       const code = _code ?? 1;
       if (code >= 8) {
         _reject(new Error(`robocopy failed (${code}): ${err || _args.join(" ")}`));
@@ -304,6 +338,44 @@ function _CopyTree(_src, _dest, _opts) {
   return count;
 }
 
+function _WriteBackupManifest(_destResolved, _sourceResolved) {
+  const manifest = {
+    project: "ESP][",
+    package: "esp2",
+    createdAt: new Date().toISOString(),
+    source: _sourceResolved,
+    destination: _destResolved,
+    policy:
+      "Git eligibility and NAS backup eligibility are independent. Local/user/downloaded assets may be NAS-backed while remaining gitignored.",
+    classifications: {
+      trackedProjectDirs: [
+        "src",
+        "include",
+        "docs",
+        "dev",
+        "config",
+        "host",
+        "compatibility",
+        "fixtures",
+        ".git",
+      ],
+      localAssets: [...NAS_BACKUP_LOCAL_ASSET_DIRS],
+      downloadedReferences: [...NAS_BACKUP_REFERENCE_DIRS],
+      disposableExcluded: [...NAS_BACKUP_EXCLUDE_DIRS],
+    },
+    // Categories only — do not list private filenames / proprietary payloads.
+    includeDirs: [...NAS_BACKUP_INCLUDE_DIRS],
+    includeFiles: [...NAS_BACKUP_INCLUDE_FILES],
+    excludeDirs: [...NAS_BACKUP_EXCLUDE_DIRS],
+    excludeFiles: [...NAS_BACKUP_EXCLUDE_FILES],
+  };
+  writeFileSync(
+    join(_destResolved, "BACKUP_MANIFEST.json"),
+    JSON.stringify(manifest, null, 2) + "\n",
+    "utf8",
+  );
+}
+
 /**
  * Selective backup into one destination.
  * @param {string} _sourceResolved
@@ -313,7 +385,7 @@ function _CopyTree(_src, _dest, _opts) {
 export async function MirrorNonReproducible(
   _sourceResolved,
   _destResolved,
-  _dryRun
+  _dryRun,
 ) {
   if (process.platform === "win32") {
     let lastExit = 0;
@@ -344,7 +416,7 @@ export async function MirrorNonReproducible(
       (rel) =>
         !rel.includes("/") &&
         !rel.includes("\\") &&
-        existsSync(join(_sourceResolved, rel))
+        existsSync(join(_sourceResolved, rel)),
     );
     if (rootFiles.length > 0) {
       lastExit = await _RunRobocopy("robocopy.exe", [
@@ -357,26 +429,11 @@ export async function MirrorNonReproducible(
     }
 
     if (!_dryRun) {
-      const manifest = {
-        project: "ESP][",
-        package: "esp2",
-        createdAt: new Date().toISOString(),
-        source: _sourceResolved,
-        destination: _destResolved,
-        includeDirs: [...NAS_BACKUP_INCLUDE_DIRS],
-        includeFiles: [...NAS_BACKUP_INCLUDE_FILES],
-        excludeDirs: [...NAS_BACKUP_EXCLUDE_DIRS],
-      };
-      writeFileSync(
-        join(_destResolved, "BACKUP_MANIFEST.json"),
-        JSON.stringify(manifest, null, 2) + "\n",
-        "utf8"
-      );
+      _WriteBackupManifest(_destResolved, _sourceResolved);
     }
     return lastExit;
   }
 
-  // Non-Windows fallback
   let files = 0;
   for (const rel of NAS_BACKUP_INCLUDE_DIRS) {
     const src = join(_sourceResolved, rel);
@@ -391,7 +448,62 @@ export async function MirrorNonReproducible(
     if (!existsSync(src)) continue;
     files += _CopyTree(src, join(_destResolved, rel), { dryRun: _dryRun });
   }
+  if (!_dryRun) {
+    _WriteBackupManifest(_destResolved, _sourceResolved);
+  }
   return files;
+}
+
+/**
+ * Restore selected local/reference asset trees from a NAS backup into the
+ * project root. Does not restore tracked source (use Git for that).
+ * Restored paths remain gitignored — Git must not suddenly track them.
+ *
+ * @param {string} _backupRoot
+ * @param {string} _projectRoot
+ * @param {{ dryRun?: boolean, dirs?: string[] }} [_opts]
+ */
+export async function RestoreLocalAssetsFromBackup(
+  _backupRoot,
+  _projectRoot,
+  _opts = {},
+) {
+  const dirs = _opts.dirs ?? [
+    ...NAS_BACKUP_LOCAL_ASSET_DIRS,
+    ...NAS_BACKUP_REFERENCE_DIRS,
+  ];
+  const dryRun = _opts.dryRun === true;
+  const restored = [];
+  for (const rel of dirs) {
+    const src = join(_backupRoot, rel);
+    if (!existsSync(src)) continue;
+    const dest = join(_projectRoot, rel);
+    if (process.platform === "win32") {
+      const common = [
+        "/E",
+        "/FFT",
+        "/DST",
+        "/R:1",
+        "/W:1",
+        "/NFL",
+        "/NDL",
+        "/NP",
+        "/XD",
+        ...NAS_BACKUP_EXCLUDE_DIRS,
+        "/XF",
+        ...NAS_BACKUP_EXCLUDE_FILES,
+      ];
+      if (dryRun) common.push("/L");
+      await _RunRobocopy("robocopy.exe", [src, dest, ...common]);
+    } else {
+      _CopyTree(src, dest, {
+        dryRun,
+        excludeDirs: new Set(NAS_BACKUP_EXCLUDE_DIRS),
+      });
+    }
+    restored.push(rel);
+  }
+  return { restored, dryRun };
 }
 
 /**

@@ -201,6 +201,8 @@ Generierte READMEs nicht manuell pflegen.
 
 `nas.targets.local` ist gitignored. Maximal drei Ziele; fehlende Ziele werden einzeln übersprungen.
 
+NAS-Backup sichert wertvolle **lokale/heruntergeladene** Bäume (`local/apple2`, `local/roms`, `_refs`, `3dprint`), die **gitignored** bleiben. Git-Eignung ≠ NAS-Eignung — siehe `docs/tooling/backup.md`. Disposable Caches (`node_modules`, `.pio`, …) bleiben ausgeschlossen.
+
 Dry-Run: `ESP2_NAS_DRY_RUN=1`.
 
 ### Git-Backup

@@ -67,9 +67,10 @@ Underlying apple2js tooling remains: `apple2js:sync` / `catalog` / `audit`,
 
 - Before every download, tooling runs `git check-ignore` on the destination and
   **ABORT**s if not ignored.
-- `backup:git` lists `local/apple2` in `GIT_BACKUP_NEVER_STAGE`.
-- NAS `backup` / `backup:all` **do not** include `local/` (explicit exclude).
-  Opt-in archival of third-party media is a separate future task — not silent.
+- `backup:git` lists `local/apple2` in `GIT_BACKUP_NEVER_STAGE` (never stages).
+- NAS `backup` / `backup:all` **do** include `local/apple2/` (and `local/roms/`)
+  as private backup — Git eligibility ≠ NAS eligibility.
+  See `docs/tooling/backup.md`.
 
 ## Tracked vs local manifests
 

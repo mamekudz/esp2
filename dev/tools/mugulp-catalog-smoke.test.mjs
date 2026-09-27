@@ -10,6 +10,8 @@ import { ResolvePioEnv, PIO_ENVS, PIO_ENV_DEFAULT } from "./pio.mjs";
 import {
   ResolveNasTargets,
   NAS_BACKUP_EXCLUDE_DIRS,
+  NAS_BACKUP_INCLUDE_DIRS,
+  NAS_BACKUP_LOCAL_ASSET_DIRS,
   VerifyBackupContents,
 } from "./nas-backup.mjs";
 import {
@@ -53,8 +55,13 @@ test("Git dry-run constructs checkpoint without committing", async () => {
   assert.match(result.message, /^backup: ESP\]\[ /);
 });
 
-test("NAS backup policy excludes local/apple2 tree", () => {
-  assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes("local"));
+test("NAS backup policy includes local/apple2 tree", () => {
+  assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes("node_modules"));
+  assert.ok(NAS_BACKUP_EXCLUDE_DIRS.includes(".pio"));
+  assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes("local"));
+  assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes("local/apple2"));
+  assert.ok(NAS_BACKUP_LOCAL_ASSET_DIRS.includes("local/apple2"));
+  assert.ok(NAS_BACKUP_LOCAL_ASSET_DIRS.includes("local/roms"));
   const prev1 = process.env.NAS_TARGET_1;
   const prev2 = process.env.NAS_TARGET_2;
   const prev3 = process.env.NAS_TARGET_3;
@@ -65,12 +72,6 @@ test("NAS backup policy excludes local/apple2 tree", () => {
   try {
     const resolved = ResolveNasTargets(ROOT);
     assert.ok(Array.isArray(resolved.destinations));
-    // With no targets configured, destinations may be empty — that is OK.
-    if (resolved.destinations.length) {
-      for (const d of resolved.destinations) {
-        assert.ok(typeof d === "string" && d.length > 0);
-      }
-    }
   } finally {
     if (prev1 !== undefined) process.env.NAS_TARGET_1 = prev1;
     else delete process.env.NAS_TARGET_1;

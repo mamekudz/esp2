@@ -205,6 +205,8 @@ Device Storage    (collapsed)
 ## Safety rules preserved
 
 - `GIT_BACKUP_NEVER_STAGE` includes `local/apple2`, `local/roms`, `library/user`, secrets.
-- NAS backup excludes `local/` (hence `local/apple2`) from normal backups.
+- NAS backup **includes** `local/apple2`, `local/roms`, `library/user`, `_refs`,
+  `3dprint` (private). Disposable caches (`node_modules`, `.pio`, …) stay excluded.
+  See `docs/tooling/backup.md`.
 - `git:status` is dry-run only; tests must not create real commits.
 - `backup:verify` / `backup:list` are read-only (no restore).
