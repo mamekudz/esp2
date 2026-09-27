@@ -104,6 +104,7 @@ buildTest("test_speaker", join(root, "host/test_cpp/test_speaker.cpp"));
 buildTest("test_level4", join(root, "host/test_cpp/test_level4.cpp"));
 buildTest("test_perf", join(root, "host/test_cpp/test_perf.cpp"));
 buildTest("test_video_dirty", join(root, "host/test_cpp/test_video_dirty.cpp"));
+buildTest("test_landscape_present", join(root, "host/test_cpp/test_landscape_present.cpp"));
 
 // Build interactive console + esp2_host + boot_forensic + sst_undoc_runner
 // (do not run interactive / media / optional SST here)

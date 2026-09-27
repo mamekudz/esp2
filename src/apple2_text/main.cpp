@@ -40,6 +40,7 @@
 #include "esp_bracket/disk_ii_media.hpp"
 #include "esp_bracket/hgr_decoder.hpp"
 #include "esp_bracket/key_map.hpp"
+#include "esp_bracket/landscape_present.hpp"
 #include "esp_bracket/lores_decoder.hpp"
 #include "esp_bracket/rom.hpp"
 #include "esp_bracket/rom_identity.hpp"
@@ -52,7 +53,7 @@
 
 using namespace esp_bracket;
 
-static constexpr char kBuildId[] = "apple2_present_v2";
+static constexpr char kBuildId[] = "apple2_present_v3";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
 static constexpr int kViewX = 0;
@@ -1000,18 +1001,8 @@ static uint32_t transferScanlineRange(int y0, int y1) {
  * Apple II memory / soft-switches are untouched.
  */
 static void computeLandscapeGeometry() {
-    // After CW rotate: width=kViewH (192), height=kViewW (280).
-    const int rotW = kViewH;
-    const int rotH = kViewW;
-    // Integer scale: fill panel width (280/192), height becomes 280*280/192.
-    g_landOutW = kPanelW;
-    g_landOutH = (rotH * kPanelW) / rotW; // 408
-    if (g_landOutH > kPanelH) {
-        g_landOutH = kPanelH;
-        g_landOutW = (rotW * kPanelH) / rotH;
-    }
-    g_landOx = (kPanelW - g_landOutW) / 2;
-    g_landOy = (kPanelH - g_landOutH) / 2;
+    LandscapePresent::computeOutSize(kPanelW, kPanelH, &g_landOutW, &g_landOutH, &g_landOx,
+                                     &g_landOy);
 }
 
 static bool ensurePresentFb() {
@@ -1037,21 +1028,8 @@ static uint32_t transferLandscapeFromViewport() {
         return 0;
     }
     const uint32_t t0 = micros();
-    // CW rotate + nearest-neighbor scale in one pass.
-    // rot(sx,sy) → (rotW-1-sy, sx) with rotW=192, rotH=280.
-    const int rotW = kViewH;
-    const int rotH = kViewW;
-    for (int dy = 0; dy < g_landOutH; ++dy) {
-        const int ry = (dy * rotH) / g_landOutH;
-        uint16_t *dst = g_presentFb + dy * g_landOutW;
-        for (int dx = 0; dx < g_landOutW; ++dx) {
-            const int rx = (dx * rotW) / g_landOutW;
-            // Inverse CW: srcx = ry, srcy = rotW - 1 - rx
-            const int sx = ry;
-            const int sy = rotW - 1 - rx;
-            dst[dx] = g_viewportFb[sx + sy * kViewW];
-        }
-    }
+    // CW rotate + edge-preserving nearest-neighbor scale (shared host/device math).
+    LandscapePresent::transformRgb565(g_viewportFb, g_presentFb, g_landOutW, g_landOutH);
     g_gfx->draw16bitRGBBitmap(g_landOx, g_landOy, g_presentFb, g_landOutW, g_landOutH);
     g_lastXferUs = micros() - t0;
     g_dispBytes = static_cast<uint32_t>(g_landOutW * g_landOutH * 2);
