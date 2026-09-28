@@ -5,7 +5,7 @@ website-Blöcke können später ergänzt werden; unmarked Text erscheint in der 
 -->
 
 <p align="center">
-  <img src="docs/assets/esp2-logo.svg" alt="ESP][ Logo" width="220">
+  <img src="docs/assets/esp2-pear-logo.svg" alt="ESP][ Logo" width="220">
 </p>
 
 **ESP][ — An Apple in a hand.**

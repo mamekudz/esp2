@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/esp2-logo.svg" alt="ESP][ logo" width="220">
+  <img src="docs/assets/esp2-pear-logo.svg" alt="ESP][ logo" width="220">
 </p>
 
 **ESP][ — An Apple in a hand.**
