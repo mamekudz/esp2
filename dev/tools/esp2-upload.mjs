@@ -195,8 +195,12 @@ function writeAndDrain(port, buf) {
 /**
  * @param {import('serialport').SerialPort} port
  * @param {ReturnType<typeof createLineReader>} reader
+ * @param {string} filePath
+ * @param {string} targetPath
+ * @param {number} chunkSize
+ * @param {{ onProgress?: (p: { offset: number, total: number, seq: number, fraction: number }) => void }} [opts]
  */
-async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
+export async function uploadFile(port, reader, filePath, targetPath, chunkSize, opts = {}) {
   const abs = resolve(filePath);
   if (!existsSync(abs)) {
     throw new Error(`file not found: ${abs}`);
@@ -209,6 +213,7 @@ async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
   const sha = createHash("sha256").update(data).digest();
   const shaHex = sha.toString("hex");
   const t0 = Date.now();
+  const onProgress = typeof opts.onProgress === "function" ? opts.onProgress : null;
 
   const begin = Buffer.concat([
     frameHeader(FrameType.Begin),
@@ -227,6 +232,7 @@ async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
 
   let offset = 0;
   let seq = 0;
+  let lastReported = -1;
   while (offset < data.length) {
     const slice = data.subarray(offset, Math.min(offset + chunkSize, data.length));
     const frame = Buffer.concat([
@@ -245,6 +251,18 @@ async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
     }
     offset += slice.length;
     seq++;
+    const fraction = data.length > 0 ? offset / data.length : 1;
+    const pctWhole = Math.floor(fraction * 100);
+    if (onProgress) {
+      onProgress({ offset, total: data.length, seq, fraction });
+    }
+    // Throttle console noise to ~1% steps (CLI / gulp line parser).
+    if (pctWhole !== lastReported || offset >= data.length) {
+      lastReported = pctWhole;
+      console.log(
+        `PROGRESS offset=${offset} total=${data.length} pct=${(fraction * 100).toFixed(1)} seq=${seq}`,
+      );
+    }
     await new Promise((r) => setTimeout(r, 15));
   }
 
@@ -259,6 +277,10 @@ async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
   }
   const ms = Date.now() - t0;
   const bps = ms > 0 ? (data.length * 1000) / ms : 0;
+  if (onProgress) {
+    onProgress({ offset: data.length, total: data.length, seq, fraction: 1 });
+  }
+  console.log(`PROGRESS offset=${data.length} total=${data.length} pct=100.0 seq=${seq}`);
   return {
     path: target,
     size: data.length,
@@ -267,6 +289,25 @@ async function uploadFile(port, reader, filePath, targetPath, chunkSize) {
     bytesPerSec: bps,
     endAck,
   };
+}
+
+/** Parse a host `PROGRESS …` line from esp2-upload.mjs. Returns 0..1 or null. */
+export function parseMediaUploadProgressLine(line) {
+  const s = String(line || "").trim();
+  if (!s.startsWith("PROGRESS ")) return null;
+  const pct = s.match(/\bpct=(\d+(?:\.\d+)?)/);
+  if (pct) {
+    const v = Number(pct[1]);
+    if (Number.isFinite(v)) return Math.min(1, Math.max(0, v / 100));
+  }
+  const off = s.match(/\boffset=(\d+)/);
+  const tot = s.match(/\btotal=(\d+)/);
+  if (off && tot) {
+    const o = Number(off[1]);
+    const t = Number(tot[1]);
+    if (t > 0 && Number.isFinite(o)) return Math.min(1, Math.max(0, o / t));
+  }
+  return null;
 }
 
 /**

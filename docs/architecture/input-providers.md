@@ -8,10 +8,15 @@ Apple II normalized input
         │
 ┌───────┼───────────┬──────────────┐
 │       │           │              │
-Windows   USB HID    BlueShift       TRRS
-bridge    native     BLE bridge      controllers
-(dev)     future     future          future
+Windows   USB HID    BLE HID         TRRS
+bridge    native     (keyboard /     controllers
+(dev)     future     gamepad host)   future
+                     BlueShift-as-HID
 ```
+
+BLE initial pairing is USB+µGulp only; reconnect is standalone. Details:
+`docs/architecture/ble-hid-setup.md`. Local hotkeys (`RESET_APPLE_II`,
+`OPEN_SETTINGS`) are evaluated before Apple II forwarding.
 
 The Apple II core (`Apple2Bus` keyboard latch / `GameIo` paddles & PB0–PB2)
 must not care which provider supplied the state.
@@ -21,6 +26,7 @@ must not care which provider supplied the state.
 | Provider | Status | Transport |
 | --- | --- | --- |
 | Windows CDC input bridge | **DEV** | USB CDC text lines `#ESP2INPUT …` |
+| BLE HID keyboard / gamepad | **IMPLEMENTED** (physical verify pending) | NimBLE host; setup via µGulp `device:ble` |
 | Serial media upload | **DEV** | USB CDC binary ESPU (exclusive MEDIA session) |
 | Logitech Dial (relative) | **DEV** | Windows Raw Input mouse-wheel channel → virtual absolute PDL0 |
 

@@ -54,18 +54,48 @@ export function PioExecutable() {
 /**
  * @param {string} _command
  * @param {string[]} _args
- * @param {{ cwd: string, label?: string }} _opts
+ * @param {{ cwd: string, label?: string, onProgress?: (p: { fraction: number, label?: string, raw?: string }) => void }} _opts
  */
 export function RunCommand(_command, _args, _opts) {
   const label = _opts.label ?? `${_command} ${_args.join(" ")}`;
+  const onProgress = typeof _opts.onProgress === "function" ? _opts.onProgress : null;
   return new Promise((_resolve, _reject) => {
     Log('Running <cmd/><context="task log"/>', { cmd: label });
     const child = spawn(_command, _args, {
       cwd: _opts.cwd,
-      stdio: "inherit",
+      // Pipe when we need progress parsing; still mirror to the console.
+      stdio: onProgress ? ["ignore", "pipe", "pipe"] : "inherit",
       windowsHide: true,
       env: process.env,
     });
+    /** @type {string} */
+    let carry = "";
+    const feed = (chunk, stream) => {
+      const text = chunk.toString();
+      stream.write(text);
+      if (!onProgress) return;
+      carry += text;
+      const parts = carry.split(/\r?\n/);
+      carry = parts.pop() ?? "";
+      for (const line of parts) {
+        const parsed = parsePioUploadProgress(line);
+        if (parsed != null) {
+          onProgress({ fraction: parsed, label: "upload", raw: line.trim() });
+        }
+      }
+      // esptool often updates the same line with CR only
+      const crParts = text.split(/\r/);
+      for (const part of crParts) {
+        const parsed = parsePioUploadProgress(part);
+        if (parsed != null) {
+          onProgress({ fraction: parsed, label: "upload", raw: part.trim() });
+        }
+      }
+    };
+    if (onProgress) {
+      child.stdout?.on("data", (c) => feed(c, process.stdout));
+      child.stderr?.on("data", (c) => feed(c, process.stderr));
+    }
     child.on("error", _reject);
     child.on("close", (_code) => {
       if (_code === 0) _resolve();
@@ -75,14 +105,45 @@ export function RunCommand(_command, _args, _opts) {
 }
 
 /**
+ * Parse esptool / PlatformIO upload percentage from a console line.
+ * Returns 0..1 or null if the line has no progress.
+ * @param {string} line
+ * @returns {number|null}
+ */
+export function parsePioUploadProgress(line) {
+  const s = String(line || "");
+  // esptool v4/v5: "Writing at 0x00010000... (42 %)" or "... 42.5%"
+  let m = s.match(/Writing at\s+0x[0-9a-fA-F]+[^\d%]*\(?\s*(\d+(?:\.\d+)?)\s*%\)?/i);
+  if (m) {
+    const pct = Number(m[1]);
+    if (Number.isFinite(pct)) return Math.min(1, Math.max(0, pct / 100));
+  }
+  // Bracket form: "[==============================] 100.0%"
+  m = s.match(/\]\s*(\d+(?:\.\d+)?)\s*%/);
+  if (m && /Writing at|Hash of data verified|Compressed/i.test(s)) {
+    const pct = Number(m[1]);
+    if (Number.isFinite(pct)) return Math.min(1, Math.max(0, pct / 100));
+  }
+  // Generic "Progress 50%" / "Upload 50%"
+  m = s.match(/\b(?:Progress|Uploading|Upload)\b[^\d%]*(\d+(?:\.\d+)?)\s*%/i);
+  if (m) {
+    const pct = Number(m[1]);
+    if (Number.isFinite(pct)) return Math.min(1, Math.max(0, pct / 100));
+  }
+  return null;
+}
+
+/**
  * @param {string} _cwd
  * @param {string[]} _args
  * @param {string} [_label]
+ * @param {{ onProgress?: (p: { fraction: number, label?: string, raw?: string }) => void }} [_extra]
  */
-export function Pio(_cwd, _args, _label) {
+export function Pio(_cwd, _args, _label, _extra = {}) {
   return RunCommand(PioExecutable(), _args, {
     cwd: _cwd,
     label: _label ?? `pio ${_args.join(" ")}`,
+    onProgress: _extra.onProgress,
   });
 }
 

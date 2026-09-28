@@ -48,6 +48,15 @@ import {
   SaveNasLocalDefaults,
   VerifyBackupContents,
 } from "./dev/tools/nas-backup.mjs";
+import {
+  buildBleSetupForm,
+  defaultControlBindings,
+  formatGamepadChord,
+  formatKeyboardBinding,
+  openBleSession,
+  parseGamepadChordText,
+  parseKeyboardBindingText,
+} from "./dev/tools/esp2-ble-setup.mjs";
 import { RunGitBackup } from "./dev/tools/git-backup.mjs";
 import {
   AskPort,
@@ -59,6 +68,7 @@ import {
   ResolvePioEnv,
   UploadArgs,
 } from "./dev/tools/pio.mjs";
+import { parseMediaUploadProgressLine } from "./dev/tools/esp2-upload.mjs";
 import { syncApple2js } from "./dev/tools/apple2js/sync.mjs";
 import {
   bindApple2ReadinessAttention,
@@ -93,6 +103,15 @@ import {
   normalizeSystemConfig,
   saveConfigLocal,
 } from "./dev/tools/device-config-form.mjs";
+import {
+  generateProfilesFromApple2jsAudit,
+} from "./dev/tools/device-profiles-from-apple2js.mjs";
+import {
+  activateProfiles,
+  listProfilesForActivation,
+  resolveProfileSelection,
+  DEMO_PROFILE_IDS,
+} from "./dev/tools/device-profiles-activate.mjs";
 import {
   buildGamepadSelectOptions,
   listXInputGamepads,
@@ -241,8 +260,13 @@ export async function flash() {
     port: port ?? "auto/ini",
   });
   await Pio(rootDir, ["run", "-e", firmwareEnv()], "pio build");
-  ReportProgress(0.55, "flash-upload");
-  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload");
+  ReportProgress(0.5, "flash-upload");
+  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload", {
+    onProgress: ({ fraction }) => {
+      // Build already done — map esptool 0..1 into the second half of the bar.
+      ReportProgress(0.5 + 0.5 * fraction, "flash-upload");
+    },
+  });
   ReportProgress(1, "flash-upload");
   Log('Flash finished.<context="task log"/>');
   PlaySignal("success");
@@ -267,7 +291,11 @@ export async function upload() {
   Log('Uploading → <port/><context="task log"/>…', {
     port: port ?? "auto/ini",
   });
-  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload");
+  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload", {
+    onProgress: ({ fraction }) => {
+      ReportProgress(fraction, "upload");
+    },
+  });
   ReportProgress(1, "upload");
   Log('Upload finished.<context="task log"/>');
   PlaySignal("success");
@@ -911,6 +939,50 @@ function runNodeCli(relScript, args, label) {
   if (r.status !== 0) {
     throw new Error(`${label} failed (exit ${r.status})`);
   }
+}
+
+/**
+ * Like runNodeCli, but streams stdout/stderr and maps PROGRESS / esptool lines
+ * into µGulp ReportProgress (0..1 within [progressLo, progressHi]).
+ * @param {string} relScript
+ * @param {string[]} args
+ * @param {string} label
+ * @param {{ progressLo?: number, progressHi?: number, progressId?: string }} [opts]
+ */
+function runNodeCliWithProgress(relScript, args, label, opts = {}) {
+  const script = join(rootDir, relScript);
+  const lo = Number.isFinite(opts.progressLo) ? opts.progressLo : 0;
+  const hi = Number.isFinite(opts.progressHi) ? opts.progressHi : 1;
+  const progressId = opts.progressId || label;
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...args], {
+      cwd: rootDir,
+      shell: false,
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let carry = "";
+    const feed = (chunk, stream) => {
+      const text = chunk.toString();
+      stream.write(text);
+      carry += text;
+      const parts = carry.split(/\r?\n/);
+      carry = parts.pop() ?? "";
+      for (const line of parts) {
+        const media = parseMediaUploadProgressLine(line);
+        if (media != null) {
+          ReportProgress(lo + (hi - lo) * media, progressId);
+        }
+      }
+    };
+    child.stdout.on("data", (c) => feed(c, process.stdout));
+    child.stderr.on("data", (c) => feed(c, process.stderr));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`${label} failed (exit ${code})`));
+    });
+  });
 }
 
 function runNodeTest(relScript, label) {
@@ -1850,11 +1922,15 @@ export async function setupFirstRun() {
 
   ReportProgress(0.75, "setup-config");
   const profileId =
-    listProfileIds(rootDir).includes(`${title}-demo`)
-      ? `${title}-demo`
-      : listProfileIds(rootDir).includes("galaxian-demo")
-        ? "galaxian-demo"
-        : null;
+    listProfileIds(rootDir).includes(title)
+      ? title
+      : listProfileIds(rootDir).includes(`${title}-demo`)
+        ? `${title}-demo`
+        : title === "starblazer" && listProfileIds(rootDir).includes("star-blazer")
+          ? "star-blazer"
+          : listProfileIds(rootDir).includes("galaxian-demo")
+            ? "galaxian-demo"
+            : null;
   if (profileId) {
     const raw = loadProfileSystemJson(rootDir, profileId);
     const normalized = normalizeSystemConfig(raw);
@@ -1907,6 +1983,226 @@ _Tag(setupFirstRun, {
   ],
 });
 gulp.task("setup:first-run", setupFirstRun);
+
+/**
+ * Regenerate path-only device profiles from the apple2js catalog audit.
+ * Does not download disks. Skips hand-maintained demo profiles unless --force.
+ */
+export async function deviceProfilesGenerate() {
+  ReportProgress(0, "device-profiles-generate");
+  const force = cliFlag("force");
+  const category = String(cliArg("category") || "").trim();
+  const categories = category
+    ? category.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+  Log(
+    'Generating device profiles from apple2js audit (path-only; no media download)…<context="task log"/>',
+  );
+  const result = generateProfilesFromApple2jsAudit({ force, categories });
+  Log(
+    'Wrote <count/> profiles (skipped protected: <protected/>).<context="task log"/>',
+    {
+      count: String(result.written.length),
+      protected: result.skippedProtected.join(",") || "(none)",
+    },
+  );
+  ReportProgress(1, "device-profiles-generate");
+  PlaySignal("success");
+}
+_Tag(deviceProfilesGenerate, {
+  gulpName: "device:profiles:generate",
+  µDisplayName: 'Generate Apple ][js device profiles V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Create path-only config/device/profiles/* from the apple2js catalog audit. No disk download. Hand demos (galaxian-demo, little-brick-out, star-blazer) are preserved unless --force.<context="µDescription"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µIcon: "\uD83D\uDCCB",
+  µOrder: 2,
+  µExecutionConcurrency: false,
+  µParameters: [
+    {
+      id: "category",
+      type: "text",
+      optional: true,
+      label: 'Optional category filter (e.g. Game)<context="task parameter"/>'.i18xRegister(),
+    },
+    {
+      id: "force",
+      type: "boolean",
+      optional: true,
+      label: 'Overwrite hand-maintained demos<context="task parameter"/>'.i18xRegister(),
+    },
+  ],
+});
+gulp.task("device:profiles:generate", deviceProfilesGenerate);
+
+function _SetupProfilesForm() {
+  const profiles = listProfilesForActivation(rootDir);
+  const options = [
+    {
+      value: "demos",
+      label: 'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>'.i18xRegister(),
+    },
+    {
+      value: "category:Game",
+      label: 'All Game profiles (many downloads)<context="task parameter"/>'.i18xRegister(),
+    },
+    {
+      value: "category:Demo",
+      label: 'All Demo profiles<context="task parameter"/>'.i18xRegister(),
+    },
+    {
+      value: "all-safe",
+      label: 'All profiles except DO_NOT_DISTRIBUTE (large)<context="task parameter"/>'.i18xRegister(),
+    },
+    ...profiles.map((p) => ({
+      value: p.id,
+      label: p.category
+        ? `${p.title} [${p.category}] (${p.id})`
+        : `${p.title} (${p.id})`,
+    })),
+  ];
+  const seedOptions = [
+    { value: "", label: 'Do not seed local config<context="task parameter"/>'.i18xRegister() },
+    ...DEMO_PROFILE_IDS.filter((id) => listProfileIds(rootDir).includes(id)).map(
+      (id) => ({ value: id, label: id }),
+    ),
+    ...profiles
+      .filter((p) => !DEMO_PROFILE_IDS.includes(p.id))
+      .slice(0, 40)
+      .map((p) => ({ value: p.id, label: p.id })),
+  ];
+  return {
+    title: 'Activate device profiles (download + prepare)<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Activate selection<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "selection",
+        type: "select",
+        default: "demos",
+        remember: false,
+        label: 'Which profiles?<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Downloads LOCAL_TEST_ONLY apple2js media into gitignored local/apple2/ and prepares runtime disks. Commercial titles remain USER_SUPPLIED_ONLY — website availability is not redistribution permission.<context="task parameter"/>'.i18xRegister(),
+        options,
+      },
+      {
+        id: "seedProfile",
+        type: "select",
+        default: "star-blazer",
+        remember: false,
+        label: 'Seed local/device/config from<context="task parameter"/>'.i18xRegister(),
+        options: seedOptions,
+      },
+      {
+        id: "syncRoms",
+        type: "select",
+        default: "yes",
+        remember: false,
+        label: 'Also download redistributable ROMs?<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "yes",
+            label: 'Yes (AppleIIGo etc.)<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "no",
+            label: 'No — disks only<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Fresh-clone helper: selectively download/prepare media for device profiles.
+ */
+export async function setupProfiles() {
+  ReportProgress(0, "setup-profiles");
+  const cliSelection =
+    String(cliArg("profile") || cliArg("profiles") || cliArg("selection") || "").trim();
+  const cliSeed = String(cliArg("seed") || "").trim();
+
+  let selection = cliSelection;
+  let seedProfile = cliSeed;
+  let syncRoms = true;
+
+  if (!selection) {
+    const values = (await RequestForm(_SetupProfilesForm())) || {};
+    selection = String(values.selection || "demos").trim();
+    seedProfile = String(values.seedProfile || "").trim();
+    syncRoms = String(values.syncRoms || "yes").toLowerCase() !== "no";
+  } else {
+    if (process.argv.includes("--no-roms")) syncRoms = false;
+    else if (cliFlag("roms") || cliFlag("sync-roms")) syncRoms = true;
+  }
+
+  const ids = resolveProfileSelection(rootDir, selection);
+  if (!ids.length) {
+    throw new Error(
+      `setup:profiles: no profiles matched selection=${selection}. Run device:profiles:generate first.`,
+    );
+  }
+
+  Log(
+    'Activating <count/> profile(s): <ids/>…<context="task log"/>',
+    { count: String(ids.length), ids: ids.join(", ") },
+  );
+
+  const result = await activateProfiles(rootDir, ids, {
+    download: true,
+    prepare: true,
+    syncRoms,
+    seedProfileId: seedProfile || null,
+    log: (msg) => Log(String(msg)),
+  });
+
+  const failed = result.results.filter((r) => !r.ok);
+  const deferred = result.results.filter((r) => r.prepareError);
+  Log(
+    'Activation finished. ok=<ok/> failed=<failed/> prepare_deferred=<deferred/> seeded=<seeded/><context="task log"/>',
+    {
+      ok: String(result.results.length - failed.length),
+      failed: String(failed.length),
+      deferred: String(deferred.length),
+      seeded: result.seeded || "(none)",
+    },
+  );
+  if (failed.length) {
+    Warn(
+      'Some profiles failed (see log). Media is LOCAL_TEST_ONLY / user-supplied.<context="task warning"/>',
+    );
+  }
+  ReportProgress(1, "setup-profiles");
+  PlaySignal(failed.length ? "warning" : "success");
+}
+_Tag(setupProfiles, {
+  gulpName: "setup:profiles",
+  µDisplayName: 'Activate device profiles V<version/><context="µDisplayName"/>',
+  µDescription:
+    'After clone: choose curated demos, a category, or a single Apple ][js profile; download LOCAL_TEST_ONLY media, prepare runtime disks, optionally seed local/device/config. Does not flash firmware.<context="µDescription"/>',
+  µTooltip:
+    'Selective alternative to first-run when you want Star Blazer or other catalog titles.<context="µTooltip"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µIcon: "\u2B07",
+  µOrder: 1.5,
+  µExecutionConcurrency: false,
+  µParameters: [
+    {
+      id: "profile",
+      type: "text",
+      optional: true,
+      label: 'Selection (profile id, demos, category:Game, all-safe)<context="task parameter"/>'.i18xRegister(),
+    },
+    {
+      id: "seed",
+      type: "text",
+      optional: true,
+      label: 'Optional profile id to seed into local/device/config<context="task parameter"/>'.i18xRegister(),
+    },
+  ],
+});
+gulp.task("setup:profiles", setupProfiles);
 
 if (IsMicroGulp()) {
   try {
@@ -2668,6 +2964,178 @@ _Tag(deviceMacroRun, {
   ],
 });
 
+function _DeviceBleDisplayName() {
+  return 'Set up BLE devices V<version/><context="µDisplayName"/>'.i18xRegister();
+}
+
+export async function deviceBle() {
+  ReportProgress(0, "device-ble");
+  let discovered = [];
+  let known = [];
+  const control = defaultControlBindings();
+  let defaultsPort = String(process.env.ESP2_PORT || "").trim();
+
+  // First form may be scan-only; after scan we re-open with discovered list.
+  for (let round = 0; round < 4; ++round) {
+    const ports = await ListPorts(rootDir);
+    if (!ports.length && !defaultsPort) {
+      throw new Error(
+        'No serial ports found — connect ESP][ via USB or set ESP2_PORT=COMx.<context="task error"/>'.i18xRegister(),
+      );
+    }
+    const portOptions = ports.length
+      ? ports
+      : [{ value: defaultsPort, label: `${defaultsPort} (ESP2_PORT)` }];
+    if (defaultsPort && !portOptions.some((p) => p.value === defaultsPort)) {
+      portOptions.unshift({ value: defaultsPort, label: `${defaultsPort} (ESP2_PORT)` });
+    }
+
+    const form = buildBleSetupForm({
+      port: defaultsPort,
+      portOptions,
+      discovered,
+      known,
+      control,
+    });
+    // RequestForm expects i18x-registered strings on title — register here.
+    form.title = String(form.title).i18xRegister();
+    form.submitLabel = String(form.submitLabel).i18xRegister();
+    for (const f of form.fields) {
+      if (f.label) f.label = String(f.label).i18xRegister();
+      if (f.description) f.description = String(f.description).i18xRegister();
+      if (Array.isArray(f.options)) {
+        f.options = f.options.map((o) => ({
+          ...o,
+          label: String(o.label).i18xRegister(),
+        }));
+      }
+    }
+    const values = await RequestForm(form);
+    const action = String(values.action || "scan");
+    const port = String(values.port || "").trim();
+    if (!port) {
+      throw new Error(
+        'Select an ESP][ COM port from the list.<context="task error"/>'.i18xRegister(),
+      );
+    }
+    defaultsPort = port;
+
+    const session = await openBleSession(port);
+    try {
+      Log('Probing ESP][ on <port/>…<context="task log"/>', { port });
+      await session.init();
+      Log('BLE host ready on <port/>.<context="task log"/>', { port });
+      if (action === "scan") {
+        const sec = Math.max(3, Math.min(30, Number(values.scanSeconds) || 8));
+        Log('Scanning BLE for <sec/> s…<context="task log"/>', { sec });
+        const r = await session.scan(sec);
+        discovered = r.devices || [];
+        Log('Scan done: <count/> device(s).<context="task log"/>', {
+          count: discovered.length,
+        });
+        for (const d of discovered) {
+          Log('  · <name/> (<type/>) rssi=<rssi/> addr=<addr/><context="task log"/>', {
+            name: d.name,
+            type: d.type,
+            rssi: d.rssi,
+            addr: d.address,
+          });
+        }
+        const k = await session.listKnown();
+        known = k.devices || [];
+        // Loop again so user can pair from populated list.
+        continue;
+      }
+      if (action === "pair") {
+        const addr = String(values.discoveredAddress || "").trim();
+        if (!addr) throw new Error("Select a discovered device to pair");
+        Log('Pairing <addr/> …<context="task log"/>', { addr });
+        const line = await session.pair(addr);
+        Log('<line/><context="task log"/>', { line });
+        const k = await session.listKnown();
+        known = k.devices || [];
+        break;
+      }
+      if (action === "connect") {
+        const addr = String(values.knownAddress || "").trim();
+        if (!addr) throw new Error("Select a known device to connect");
+        Log('Connecting <addr/> …<context="task log"/>', { addr });
+        const line = await session.connect(addr);
+        Log('<line/><context="task log"/>', { line });
+        break;
+      }
+      if (action === "disconnect") {
+        const line = await session.disconnect();
+        Log('<line/><context="task log"/>', { line });
+        break;
+      }
+      if (action === "forget") {
+        const addr = String(values.knownAddress || "").trim();
+        if (!addr) throw new Error("Select a known device to forget");
+        Log('Forgetting <addr/> …<context="task log"/>', { addr });
+        const line = await session.forget(addr);
+        Log('<line/><context="task log"/>', { line });
+        break;
+      }
+      if (action === "status") {
+        const st = await session.status();
+        const bd = await session.bindings();
+        Log('<st/><context="task log"/>', { st });
+        Log('<bd/><context="task log"/>', { bd });
+        Log(
+          'Defaults: Reset <rk/> / <rg/>; Settings <sk/> / <sg/><context="task log"/>',
+          {
+            rk: formatKeyboardBinding(control.resetAppleIi.keyboard),
+            rg: formatGamepadChord(control.resetAppleIi.gamepad),
+            sk: formatKeyboardBinding(control.openSettings.keyboard),
+            sg: formatGamepadChord(control.openSettings.gamepad),
+          },
+        );
+        break;
+      }
+      if (action === "save_hotkeys") {
+        // V1: local validate + instruct — firmware rewrite of control section via
+        // bluetooth.json upload path is preferred through device:config apply later.
+        const kbR = parseKeyboardBindingText(values.resetKeyboard);
+        const kbS = parseKeyboardBindingText(values.settingsKeyboard);
+        const hold = Number(values.holdMs) || 1500;
+        const gpR = parseGamepadChordText(values.resetGamepad, hold);
+        const gpS = parseGamepadChordText(values.settingsGamepad, hold);
+        if (!kbR || !kbS || !gpR || !gpS) {
+          throw new Error("Invalid hotkey text — use Ctrl+Alt+R / start+select (hold 1.5 s)");
+        }
+        Log(
+          'Parsed bindings OK. Persist via /esp2/config/bluetooth.json on next pair/save (firmware). Binding capture UI is future work.<context="task log"/>',
+        );
+        Log('Reset KB=<kb/> GP=<gp/><context="task log"/>', {
+          kb: formatKeyboardBinding(kbR),
+          gp: formatGamepadChord(gpR),
+        });
+        Log('Settings KB=<kb/> GP=<gp/><context="task log"/>', {
+          kb: formatKeyboardBinding(kbS),
+          gp: formatGamepadChord(gpS),
+        });
+        break;
+      }
+      throw new Error(`Unknown BLE action: ${action}`);
+    } finally {
+      await session.close();
+    }
+  }
+  ReportProgress(1, "device-ble");
+}
+_Tag(deviceBle, {
+  gulpName: "device:ble",
+  µDisplayName: () => _DeviceBleDisplayName(),
+  µDescription:
+    'USB µGulp workflow: BLE scan / pair / reconnect / forget + hotkey labels. Initial setup needs USB; later reconnect is standalone.<context="µDescription"/>',
+  µTooltip:
+    'Do not enter USB Storage during BLE setup. Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 62,
+});
+gulp.task("device:ble", deviceBle);
+
 export async function deviceUpload() {
   ReportProgress(0, "device-upload");
   const port = GetParameter("port") || process.env.ESP2_PORT || "";
@@ -2677,7 +3145,7 @@ export async function deviceUpload() {
   if (!port) {
     throw new Error("device:upload requires --port COMx (no arbitrary auto-pick)");
   }
-  const args = ["dev/tools/esp2-upload.mjs", "--port", port];
+  const args = ["--port", port];
   if (verify) {
     args.push("--verify", verify);
   } else {
@@ -2686,7 +3154,11 @@ export async function deviceUpload() {
     }
     args.push("--file", file, "--target", target);
   }
-  runNodeCli(args[0], args.slice(1), "device:upload");
+  await runNodeCliWithProgress("dev/tools/esp2-upload.mjs", args, "device:upload", {
+    progressLo: 0.05,
+    progressHi: 0.98,
+    progressId: "device-upload",
+  });
   ReportProgress(1, "device-upload");
 }
 _Tag(deviceUpload, {

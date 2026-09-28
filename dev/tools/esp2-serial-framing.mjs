@@ -76,11 +76,12 @@ export function createLineReader(port) {
       for (;;) {
         while (queue.length > 0) {
           const line = queue.shift();
-          if (line.startsWith("#NAK")) {
-            throw new Error(line);
-          }
+          // Allow callers to accept specific #NAK lines (e.g. #NAK BLE …).
           if (pred(line)) {
             return line;
+          }
+          if (line.startsWith("#NAK")) {
+            throw new Error(line);
           }
         }
         if (Date.now() > deadline) {
@@ -124,4 +125,11 @@ export const DevCommand = {
   DiskMount: "#ESP2DISK MOUNT",
   DiskBoot: "#ESP2DISK BOOT",
   AppleReset: "#ESP2APPLE RESET",
+  BleInit: "#ESP2BLE INIT",
+  BleScan: "#ESP2BLE SCAN",
+  BleStatus: "#ESP2BLE STATUS",
+  BlePair: "#ESP2BLE PAIR",
+  BleConnect: "#ESP2BLE CONNECT",
+  BleDisconnect: "#ESP2BLE DISCONNECT",
+  BleForget: "#ESP2BLE FORGET",
 };

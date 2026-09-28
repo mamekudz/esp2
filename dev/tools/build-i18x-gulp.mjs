@@ -63,6 +63,45 @@ const de = {
     "Hervorgehoben nach dem Clone, wenn lokale Medien/Config fehlen. Netzwerk für Downloads nötig.",
   'Fresh clone / missing local media — run first-run setup.<context="µAttentionTooltip"/>':
     "Frischer Clone / fehlende lokale Medien — Erststart-Setup ausführen.",
+  'Activate device profiles V<version/><context="µDisplayName"/>':
+    "Geräteprofile aktivieren V<version/>",
+  'After clone: choose curated demos, a category, or a single Apple ][js profile; download LOCAL_TEST_ONLY media, prepare runtime disks, optionally seed local/device/config. Does not flash firmware.<context="µDescription"/>':
+    "Nach dem Clone: kuratierte Demos, eine Kategorie oder ein einzelnes Apple-][js-Profil wählen; LOCAL_TEST_ONLY-Medien laden, Laufzeitdisketten vorbereiten, optional local/device/config setzen. Flasht keine Firmware.",
+  'Selective alternative to first-run when you want Star Blazer or other catalog titles.<context="µTooltip"/>':
+    "Selektive Alternative zum Erststart, wenn Star Blazer oder andere Katalogtitel gewünscht sind.",
+  'Activate device profiles (download + prepare)<context="task parameter"/>':
+    "Geräteprofile aktivieren (Download + Prepare)",
+  'Activate selection<context="button text"/>': "Auswahl aktivieren",
+  'Which profiles?<context="task parameter"/>': "Welche Profile?",
+  'Downloads LOCAL_TEST_ONLY apple2js media into gitignored local/apple2/ and prepares runtime disks. Commercial titles remain USER_SUPPLIED_ONLY — website availability is not redistribution permission.<context="task parameter"/>':
+    "Lädt LOCAL_TEST_ONLY-apple2js-Medien nach gitignored local/apple2/ und bereitet Laufzeitdisketten vor. Kommerzielle Titel bleiben USER_SUPPLIED_ONLY — Website-Verfügbarkeit ist keine Weiterverbreitungs-Erlaubnis.",
+  'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>':
+    "Kuratierte Demos (Galaxian, Little Brick Out, Star Blazer)",
+  'All Game profiles (many downloads)<context="task parameter"/>':
+    "Alle Game-Profile (viele Downloads)",
+  'All Demo profiles<context="task parameter"/>': "Alle Demo-Profile",
+  'All profiles except DO_NOT_DISTRIBUTE (large)<context="task parameter"/>':
+    "Alle Profile außer DO_NOT_DISTRIBUTE (groß)",
+  'Seed local/device/config from<context="task parameter"/>':
+    "local/device/config setzen aus",
+  'Do not seed local config<context="task parameter"/>':
+    "Lokale Config nicht setzen",
+  'Also download redistributable ROMs?<context="task parameter"/>':
+    "Auch weiterverbreitbare ROMs laden?",
+  'Yes (AppleIIGo etc.)<context="task parameter"/>': "Ja (AppleIIGo usw.)",
+  'No — disks only<context="task parameter"/>': "Nein — nur Disketten",
+  'Selection (profile id, demos, category:Game, all-safe)<context="task parameter"/>':
+    "Auswahl (Profil-ID, demos, category:Game, all-safe)",
+  'Optional profile id to seed into local/device/config<context="task parameter"/>':
+    "Optionale Profil-ID für local/device/config",
+  'Generate Apple ][js device profiles V<version/><context="µDisplayName"/>':
+    "Apple-][js-Geräteprofile erzeugen V<version/>",
+  'Create path-only config/device/profiles/* from the apple2js catalog audit. No disk download. Hand demos (galaxian-demo, little-brick-out, star-blazer) are preserved unless --force.<context="µDescription"/>':
+    "Erzeugt pfad-only config/device/profiles/* aus dem apple2js-Katalog-Audit. Kein Disketten-Download. Hand-Demos (galaxian-demo, little-brick-out, star-blazer) bleiben erhalten, außer --force.",
+  'Optional category filter (e.g. Game)<context="task parameter"/>':
+    "Optionaler Kategoriefilter (z. B. Game)",
+  'Overwrite hand-maintained demos<context="task parameter"/>':
+    "Handgepflegte Demos überschreiben",
   'ESP][ first-run setup<context="task parameter"/>': "ESP][-Erststart-Setup",
   'Start setup<context="button text"/>': "Setup starten",
   'Demo title id (apple2js)<context="task parameter"/>': "Demo-Titel-ID (apple2js)",

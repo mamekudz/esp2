@@ -34,6 +34,7 @@
     { "id": "test:host", "group": "Tests", "i18x": true, "visible": true },
 
     { "id": "setup:first-run", "group": "Tools", "i18x": true, "visible": true },
+    { "id": "setup:profiles", "group": "Tools", "i18x": true, "visible": true },
     { "id": "firmware:env", "group": "Tools", "i18x": true, "visible": true },
     { "id": "devices", "group": "Tools", "i18x": true, "visible": true },
     { "id": "monitor", "group": "Tools", "i18x": true, "visible": true },
@@ -95,6 +96,7 @@
     { "id": "releases:context-check", "note": "Invoked by releases:update pipeline" },
     { "id": "releases:context-fix", "note": "Invoked by releases:update pipeline" },
     { "id": "releases:i18x-update", "note": "Invoked by releases:update and i18x:gulp" },
-    { "id": "device:usb-storage", "note": "CLI enter/leave MSC; dashboard uses device:sd:computer" }
+    { "id": "device:usb-storage", "note": "CLI enter/leave MSC; dashboard uses device:sd:computer" },
+    { "id": "device:profiles:generate", "note": "Regenerate path-only profiles from apple2js audit; dashboard uses setup:profiles" }
   ]
 }

@@ -21,6 +21,7 @@
 #include "board_pins.h"
 #include "display_power.h"
 #include "esp2_macro_engine.hpp"
+#include "esp2_ble_hid.hpp"
 #include "esp2_sd_bus.hpp"
 #include "esp2_system_config.hpp"
 #include "esp32_sd_storage.hpp"
@@ -29,6 +30,10 @@
 #include "sd_ownership.hpp"
 #include "serial_media_upload.hpp"
 #include "usb_storage_mode.hpp"
+
+#ifndef ESP2_BLE_HID
+#define ESP2_BLE_HID 0
+#endif
 
 #if !ARDUINO_USB_MODE
 #include "USB.h"
@@ -532,6 +537,28 @@ static void resyncEmuWallClock() {
     g_wallStartUs = micros();
 }
 
+static uint32_t g_settingsHintUntilMs = 0;
+static void appleIiResetKeepDisks();
+
+static void onLocalControlAction(esp_bracket::LocalAction action, const char *source) {
+    switch (action) {
+    case esp_bracket::LocalAction::ResetAppleIi:
+        logf("CONTROL", "RESET_APPLE_II source=%s", source ? source : "-");
+        appleIiResetKeepDisks();
+        break;
+    case esp_bracket::LocalAction::OpenSettings:
+        // V1: no full OLED settings menu yet — brief status hint + CDC notice.
+        // Future physical 5-way control must call the same LocalAction::OpenSettings.
+        g_settingsHintUntilMs = millis() + 4000;
+        g_display_power.notifyActivity("settings");
+        logf("CONTROL", "OPEN_SETTINGS source=%s v1=status_hint", source ? source : "-");
+        Serial.printf("#ACK SETTINGS OPEN source=%s\n", source ? source : "-");
+        break;
+    default:
+        break;
+    }
+}
+
 static void appleIiResetKeepDisks() {
     g_a2bus.reset();
     g_a2bus.speaker().reset();
@@ -854,6 +881,135 @@ static void handleDevCommandLine(const char *line) {
                       static_cast<unsigned>(g_macroBank.count));
         return;
     }
+#if ESP2_BLE_HID
+    if (strncmp(line, "#ESP2BLE ", 9) == 0) {
+        const char *cmd = line + 9;
+        if (g_usbStorage.active() || g_usbStorageUi) {
+            Serial.println("#NAK BLE usb_storage_active");
+            return;
+        }
+        if (strcmp(cmd, "INIT") == 0) {
+            if (!esp2_ble::init()) {
+                Serial.println("#NAK BLE INIT");
+                return;
+            }
+            Serial.println("#ACK BLE INIT");
+            return;
+        }
+        if (strncmp(cmd, "SCAN", 4) == 0) {
+            if (!esp2_ble::ready() && !esp2_ble::init()) {
+                Serial.println("#NAK BLE not_ready");
+                return;
+            }
+            unsigned sec = 8;
+            if (cmd[4] == ' ') {
+                sscanf(cmd + 5, "%u", &sec);
+            }
+            Serial.println("#ACK BLE SCAN start");
+            esp2_ble::scan(sec);
+            for (size_t i = 0; i < esp2_ble::discoveredCount(); ++i) {
+                esp2_ble::DiscoveredDevice d{};
+                if (!esp2_ble::getDiscovered(i, &d)) {
+                    continue;
+                }
+                Serial.printf("#BLE DEV index=%u name=\"%s\" type=%s addr=%s addrType=%u "
+                              "rssi=%d known=%d connected=%d\n",
+                              static_cast<unsigned>(i), d.name, esp2_ble::kindName(d.kind),
+                              d.address, static_cast<unsigned>(d.addrType),
+                              static_cast<int>(d.rssi), d.known ? 1 : 0, d.connected ? 1 : 0);
+            }
+            Serial.printf("#ACK BLE SCAN done count=%u\n",
+                          static_cast<unsigned>(esp2_ble::discoveredCount()));
+            return;
+        }
+        if (strcmp(cmd, "STATUS") == 0) {
+            const auto st = esp2_ble::status();
+            Serial.printf("#ACK BLE STATUS ready=%d scanning=%d connected=%d addr=%s name=\"%s\" "
+                          "type=%s known=%u discovered=%u maxConn=%u\n",
+                          st.ready ? 1 : 0, st.scanning ? 1 : 0, st.connected ? 1 : 0,
+                          st.connectedAddr[0] ? st.connectedAddr : "-",
+                          st.connectedName[0] ? st.connectedName : "-",
+                          esp2_ble_config::deviceTypeName(st.connectedType),
+                          static_cast<unsigned>(st.knownCount),
+                          static_cast<unsigned>(st.discoveredCount),
+                          static_cast<unsigned>(st.maxSimultaneousConnections));
+            return;
+        }
+        if (strcmp(cmd, "LIST KNOWN") == 0) {
+            const auto &cfg = esp2_ble::config();
+            for (size_t i = 0; i < cfg.knownCount; ++i) {
+                const auto &d = cfg.known[i];
+                Serial.printf("#BLE KNOWN index=%u name=\"%s\" type=%s addr=%s addrType=%u "
+                              "auto=%d bonded=%d\n",
+                              static_cast<unsigned>(i), d.name,
+                              esp2_ble_config::deviceTypeName(d.type), d.address,
+                              static_cast<unsigned>(d.addrType), d.autoReconnect ? 1 : 0,
+                              d.bonded ? 1 : 0);
+            }
+            Serial.printf("#ACK BLE LIST KNOWN count=%u\n",
+                          static_cast<unsigned>(cfg.knownCount));
+            return;
+        }
+        if (strncmp(cmd, "PAIR ", 5) == 0) {
+            if (!esp2_ble::ready() && !esp2_ble::init()) {
+                Serial.println("#NAK BLE not_ready");
+                return;
+            }
+            if (!g_sdOwner.esp2MayUseFat()) {
+                Serial.println("#NAK BLE sd_not_owned");
+                return;
+            }
+            if (!esp2_ble::pairAddress(cmd + 5)) {
+                Serial.println("#NAK BLE PAIR");
+                return;
+            }
+            Serial.printf("#ACK BLE PAIR addr=%s\n", cmd + 5);
+            return;
+        }
+        if (strncmp(cmd, "CONNECT ", 8) == 0) {
+            if (!esp2_ble::ready() && !esp2_ble::init()) {
+                Serial.println("#NAK BLE not_ready");
+                return;
+            }
+            if (!esp2_ble::connectAddress(cmd + 8)) {
+                Serial.println("#NAK BLE CONNECT");
+                return;
+            }
+            Serial.printf("#ACK BLE CONNECT addr=%s\n", cmd + 8);
+            return;
+        }
+        if (strcmp(cmd, "DISCONNECT") == 0) {
+            esp2_ble::disconnect();
+            Serial.println("#ACK BLE DISCONNECT");
+            return;
+        }
+        if (strncmp(cmd, "FORGET ", 7) == 0) {
+            if (!g_sdOwner.esp2MayUseFat()) {
+                Serial.println("#NAK BLE sd_not_owned");
+                return;
+            }
+            if (!esp2_ble::forgetAddress(cmd + 7)) {
+                Serial.println("#NAK BLE FORGET");
+                return;
+            }
+            Serial.printf("#ACK BLE FORGET addr=%s\n", cmd + 7);
+            return;
+        }
+        if (strcmp(cmd, "BINDINGS") == 0) {
+            const auto &c = esp2_ble::config().control;
+            char kbR[48]{}, kbS[48]{};
+            esp_bracket::formatKeyboardBinding(c.resetAppleIi.keyboard, kbR, sizeof(kbR));
+            esp_bracket::formatKeyboardBinding(c.openSettings.keyboard, kbS, sizeof(kbS));
+            Serial.printf("#ACK BLE BINDINGS reset_kb=\"%s\" reset_gp_hold_ms=%u "
+                          "settings_kb=\"%s\" settings_gp_hold_ms=%u\n",
+                          kbR, static_cast<unsigned>(c.resetAppleIi.gamepad.holdMs), kbS,
+                          static_cast<unsigned>(c.openSettings.gamepad.holdMs));
+            return;
+        }
+        Serial.println("#NAK BLE cmd");
+        return;
+    }
+#endif
 }
 
 static void serviceDevSerialCommands() {
@@ -861,7 +1017,7 @@ static void serviceDevSerialCommands() {
     if (esp2_upload::isSessionActive()) {
         return;
     }
-    static char line[128];
+static char line[160];
     static size_t len = 0;
     while (Serial.available()) {
         const int b = Serial.read();
@@ -1841,6 +1997,13 @@ static void loadPersistentConfigFromSd() {
     }
     sdExclusiveEnd();
     applyDisplayPowerFromConfig();
+#if ESP2_BLE_HID
+    // Bluetooth known-devices + hotkey bindings (sibling of system.json / macros.json).
+    if (g_sdOwner.esp2MayUseFat() && sdExclusiveBegin()) {
+        esp2_ble::loadConfigFromSd();
+        sdExclusiveEnd();
+    }
+#endif
 }
 
 static void macroInjectKey(uint8_t apple7) {
@@ -2014,6 +2177,9 @@ static void emulatorTask(void *) {
         }
         maybeLogGalaxianVisible();
         maybeLogDiskHeartbeat();
+#if ESP2_BLE_HID
+        esp2_ble::service(millis());
+#endif
         const uint64_t after = g_cpu.cycles();
         const uint64_t emuSince = after - g_emuCyclesAtBoot;
         const uint64_t targetUs = (emuSince * 1000000ULL) / kAppleIiHz;
@@ -2051,6 +2217,14 @@ static void displayTask(void *) {
             continue;
         }
         g_display_power.update(now);
+        if (g_settingsHintUntilMs != 0 && now < g_settingsHintUntilMs && g_gfx &&
+            g_display_power.state() == DisplayPowerState::Active) {
+            // V1 OPEN_SETTINGS: minimal status banner (not a full settings UI).
+            g_gfx->fillRect(0, 0, kPanelW, 28, 0x0010);
+            g_gfx->setTextColor(0xFFFF);
+            g_gfx->setCursor(8, 8);
+            g_gfx->print("ESP][ Settings (V1 stub)");
+        }
         const auto st = g_display_power.state();
         if (static_cast<uint32_t>(st) != lastPower) {
             lastPower = static_cast<uint32_t>(st);
@@ -2228,6 +2402,28 @@ void setup() {
                 writeBootStage("boot_suite_done");
                 applyStartupFromConfig();
                 writeBootStage(g_diskMounted ? "startup_media_ok" : "startup_no_disk");
+#if ESP2_BLE_HID
+                if (esp2_ble::init()) {
+                    esp2_ble::setInjectors(applyLiveKey, applyLivePad);
+                    esp2_ble::setLocalActionHandler(onLocalControlAction);
+                    // Standalone reconnect: try first autoReconnect known device.
+                    const auto &bcfg = esp2_ble::config();
+                    for (size_t i = 0; i < bcfg.knownCount; ++i) {
+                        if (!bcfg.known[i].autoReconnect) {
+                            continue;
+                        }
+                        logf("BLE", "auto-reconnect addr=%s name=\"%s\"", bcfg.known[i].address,
+                             bcfg.known[i].name);
+                        if (esp2_ble::connectAddress(bcfg.known[i].address)) {
+                            break;
+                        }
+                    }
+                    writeBootStage("ble_ready");
+                } else {
+                    logf("BLE", "[FAIL] init");
+                    writeBootStage("ble_fail");
+                }
+#endif
             } else {
                 logf("APPLE2", "bootSuite skipped — SD not owned by ESP2");
                 writeBootStage("sd_not_owned");

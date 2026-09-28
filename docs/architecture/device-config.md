@@ -21,12 +21,16 @@ Galaxian (or any title) is a **user profile on the SD card**, not compiled-in fi
 | --- | --- |
 | `/esp2/config/system.json` | Canonical device configuration |
 | `/esp2/config/macros.json` | Named input macros |
+| `/esp2/config/bluetooth.json` | Known BLE devices + local control hotkeys |
 
 Tracked examples (host repo, not auto-copied):
 
 - `config/device/system.example.json`
 - `config/device/macros.example.json`
 - `config/device/profiles/galaxian-demo/` — demonstration profile
+- `config/device/profiles/little-brick-out/` — LORES paddle demo profile
+- `config/device/profiles/star-blazer/` — HGR artifact demo profile
+- Additional path-only profiles under `config/device/profiles/` may be generated from the [Apple ][js](https://www.scullinsteel.com/apple2) catalog (`gulp device:profiles:generate`). Disk images are never committed; activate selectively with `gulp setup:profiles`.
 
 ## Schema (`system.json`)
 
@@ -97,6 +101,7 @@ While the panel sleeps, Apple II emulation continues.
 | Task | Role |
 | --- | --- |
 | `device:config` | Form → write profile → upload `system.json` + `macros.json` |
+| `device:ble` | BLE scan / pair / reconnect / forget + hotkey labels (USB CDC) |
 | `device:input-bridge` | Windows CDC bridge using profile `input.hostBridge` |
 | `device:macro:run` | Run a macro on a live device |
 
