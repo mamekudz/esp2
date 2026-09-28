@@ -1,110 +1,67 @@
-# USB storage & serial media transfer
+# USB storage & SD ownership
 
-## Why exclusive ownership
-
-The microSD uses a FAT filesystem. **Simultaneous read/write mounts from
-Windows and ESP][ corrupt the volume.** ESP][ therefore implements an
-explicit ownership state machine:
+## One ownership state machine
 
 | State | Who may access |
 | --- | --- |
-| `ESP2_OWNS_SD` | ESP][ mounts FAT; Windows has no MSC |
-| `TRANSITION_TO_USB` | FAT unmounting; no clients |
-| `USB_OWNS_SD` | Windows MSC block I/O only; ESP][ must not open files |
-| `TRANSITION_TO_ESP2` | MSC tearing down; remounting FAT |
-| `ERROR` | Recovery required |
+| `ESP2_OWNS_SD` / DEVICE | ESP][ mounts FAT; host has no MSC |
+| `TRANSITION_TO_USB` | firmware closing FAT / Disk II |
+| `USB_OWNS_SD` / HOST | USB MSC block I/O only |
+| `TRANSITION_TO_ESP2` | remount FAT |
+| `ERROR` | ownership uncertain |
 
-## USB stack audit (ESP32-S3 / pioarduino 55.03.32)
+**Hard invariant:** firmware and host OS must never have writable ownership at once.
 
-| Item | Finding |
+Shared host tooling (`esp2-sd-ownership-session.mjs`) is used by:
+
+- **SD card on computer** (`device:sd:computer`)
+- **Back up SD card** (`device:sd:backup`)
+- **Restore SD card** (`device:sd:restore`)
+
+CLI helper `device:usb-storage` remains for scripts (not a dashboard task).
+
+## USB stack (ESP32-S3)
+
+| Flag | Role |
 | --- | --- |
-| Peripheral | Native USB (USB-OTG device + USB-Serial/JTAG) |
-| Arduino flag `ARDUINO_USB_MODE=1` | **HW USB-Serial/JTAG** — reliable `esptool` flash + CDC on COM5 |
-| Arduino flag `ARDUINO_USB_MODE=0` | **TinyUSB OTG** — enables `USBMSC` + TinyUSB CDC composite |
-| TinyUSB MSC | `CONFIG_TINYUSB_MSC_ENABLED=1` in framework sdkconfig; API `USBMSC` |
-| Block I/O | SPI `SD` + `sdcard_unmount` then `sd_read_raw` / `sd_write_raw` |
+| `ARDUINO_USB_MODE=1` (default) | HW USB-Serial/JTAG — reliable flash/CDC; **MSC unavailable** |
+| `ARDUINO_USB_MODE=0` | TinyUSB OTG — composite CDC + MSC intended |
 
-### Composite CDC + MSC — board constraint
+Default firmware stays MODE=1 for development (keyboard bridge, Dial, flash).
+MSC-backed Explorer/Finder access and auto-mount require a TinyUSB build.
 
-Preferred architecture is TinyUSB composite (CDC + MSC). On this Waveshare
-board’s **single USB-C**:
+Power-only USB adapters must **not** trigger HOST ownership. Auto mode uses
+TinyUSB `tud_mounted()` (data host), never VBUS alone.
 
-1. Flashing `ARDUINO_USB_MODE=0` replaces the HW USB-Serial/JTAG application
-   interface with TinyUSB.
-2. Application TinyUSB CDC did **not** produce usable serial traffic in the
-   first physical trial (0 bytes on COM6).
-3. `esptool` could no longer connect for the next flash until the port
-   reappeared as HW CDC (COM5) — recovery may require **BOOT** strap /
-   power cycle.
+## Config: `usb.storageMode`
 
-**Default `apple2_text` therefore remains `ARDUINO_USB_MODE=1`.**
+In `/esp2/config/system.json`:
 
-| Feature | Default build (`USB_MODE=1`) | Experimental OTG (`USB_MODE=0`) |
-| --- | --- | --- |
-| CDC diagnostics | **PASS** (HW) | TinyUSB CDC — needs further bring-up |
-| `esptool` flash | **PASS** | Difficult / BOOT button |
-| MSC mass storage | Code present; `UsbStorageMode::isSupported()==false` | Intended path |
-| Serial media upload | **Supported** | Supported once CDC works |
-
-Do **not** claim Windows MSC physically verified until an OTG build mounts
-on Windows with clean eject + ESP remount.
-
-## Serial media upload (development — primary path)
-
-Binary framed protocol `ESPU` v1:
-
-- magic `0x55505345`, version 1
-- chunk default **2048** bytes (max 4096)
-- SHA-256 end-to-end
-- staging `<target>.upload` then rename/replace
-- destinations only under `/esp2/`
-
-```bash
-# Do NOT use RTS reset on ESP32-S3 USB-Serial/JTAG — it enters DOWNLOAD mode.
-node dev/tools/esp2-upload.mjs --port COM5 --file local.bin --target /esp2/roms/system.rom
-gulp device:upload --port COM5 --file local.bin --target /esp2/roms/system.rom
-node dev/tools/esp2-upload.mjs --port COM5 --verify /esp2/roms/system.rom
+```json
+"usb": { "storageMode": "normal" }
 ```
 
-`--port` is **required** (no arbitrary COM auto-pick). Default is mid-run
-upload (device already running). Optional `--reset` uses a mild DTR toggle only.
-
-Physical evidence (project-owned test file, not a ROM):
-
-| Field | Value |
+| Value | Behavior |
 | --- | --- |
-| Target | `/esp2/diagnostics/upload-test.txt` |
-| Size | 25 |
-| SHA-256 | `c0db922924147f58f7001910265dadbf8df405aa5992610aa93842c12f356831` |
-| Result | `ok: true` (~70 ms) |
+| `normal` (default) | SD stays on ESP][ until user opens **SD card on computer** |
+| `auto` | On real USB data host + MSC supported → DEVICE→HOST |
 
-## Enter USB Storage Mode (when supported)
+## Manual UX
 
-```bash
-gulp device:usb-storage --port COM5
-gulp device:usb-storage --port COM5 --leave true
-```
+**SD card on computer:** Make available → ENTER MSC → OS mounts → optional
+Explorer/Finder. Return → eject first → LEAVE MSC → remount `/esp2`.
 
-Serial: `#ESP2USBMSC` / `#ESP2USBMSC LEAVE`
+While HOST owns SD: Disk II / runtime SD access is unavailable.
 
-On-device UI uses i18x keys `usb_storage.*` (en-US / de-DE).
+## Backup / restore
 
-## Canonical SD layout
+Same ownership session. Logical `/esp2` tree only (not raw card images).
+See `docs/architecture/sd-backup-restore.md`.
 
-```
-/esp2/
-  roms/
-  disks/
-  config/
-  diagnostics/storage-manifest.json
-```
+## Host platforms
 
-## Physical verification status (this milestone)
-
-| Check | Status |
-| --- | --- |
-| Serial uploader host tests | PASS |
-| Serial uploader on device | requires flash of MODE=1 build after OTG experiment |
-| Windows MSC mount | **NOT physically verified** (OTG CDC/flash conflict) |
-| Local user ROM | `NO_LOCAL_ROM_FOUND` under `local/roms/` |
-| F1 readiness | `F1_BLOCKED_NO_LOCAL_ROM` until `/esp2/roms/system.rom` exists |
+| | Detection | Open folder | Safe eject |
+| --- | --- | --- | --- |
+| Windows | volume before/after MSC | Explorer | instruct user (automatic eject unreliable) |
+| macOS | `/Volumes` before/after | Finder | `diskutil eject` when possible |
+| Linux | best-effort | `xdg-open` | instruct user |

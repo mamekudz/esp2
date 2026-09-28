@@ -17,6 +17,71 @@ export const DEVICE_CONFIG_SCHEMA = 1;
 export const LOCAL_CONFIG_DIR = "local/device/config";
 export const PROFILES_DIR = "config/device/profiles";
 
+/** Host CDC bridge only — firmware ignores `input` (unknown keys). */
+export const HOST_BRIDGE_GAMEPAD_VALUES = ["none", "auto", "0", "1", "2", "3"];
+export const HOST_BRIDGE_PDL0_VALUES = ["auto", "gamepadX", "dial", "none"];
+export const HOST_BRIDGE_PDL1_VALUES = ["auto", "gamepadY", "none"];
+export const HOST_BRIDGE_PB0_VALUES = ["auto", "gamepadA", "none"];
+// Legacy values still accepted then normalized away (MX Dial has no press switch).
+const HOST_BRIDGE_PB0_LEGACY = ["dialPress", "or"];
+
+/**
+ * Normalize Windows bridge settings stored under system.json → input.hostBridge.
+ * @param {unknown} raw
+ * @returns {{ ok: true, hostBridge: object } | { ok: false, errors: string[] }}
+ */
+export function normalizeHostBridge(raw) {
+  const errors = [];
+  const src = raw && typeof raw === "object" ? raw : {};
+  let gamepad = String(src.gamepad ?? "none").trim().toLowerCase();
+  if (gamepad === "") gamepad = "none";
+  const gamepadId = String(src.gamepadId ?? "").trim();
+  let pdl0 = String(src.pdl0 ?? "auto").trim();
+  let pdl1 = String(src.pdl1 ?? "auto").trim();
+  let pb0 = String(src.pb0 ?? "auto").trim();
+  if (HOST_BRIDGE_PB0_LEGACY.includes(pb0)) {
+    // MX Dial has no physical click — map legacy dialPress/or → gamepadA.
+    pb0 = "gamepadA";
+  }
+  const dial = Boolean(src.dial);
+  const keyboard = src.keyboard === false ? false : true;
+  const deadzone = Number(src.deadzone ?? 0.08);
+
+  if (!HOST_BRIDGE_GAMEPAD_VALUES.includes(gamepad)) {
+    errors.push("input.hostBridge.gamepad must be none|auto|0|1|2|3");
+  }
+  if (gamepadId && gamepadId.length > 64) {
+    errors.push("input.hostBridge.gamepadId is too long");
+  }
+  if (!HOST_BRIDGE_PDL0_VALUES.includes(pdl0)) {
+    errors.push("input.hostBridge.pdl0 must be auto|gamepadX|dial|none");
+  }
+  if (!HOST_BRIDGE_PDL1_VALUES.includes(pdl1)) {
+    errors.push("input.hostBridge.pdl1 must be auto|gamepadY|none");
+  }
+  if (!HOST_BRIDGE_PB0_VALUES.includes(pb0)) {
+    errors.push("input.hostBridge.pb0 must be auto|gamepadA|none");
+  }
+  if (!Number.isFinite(deadzone) || deadzone < 0 || deadzone > 0.5) {
+    errors.push("input.hostBridge.deadzone must be 0..0.5");
+  }
+  if (errors.length) return { ok: false, errors };
+
+  return {
+    ok: true,
+    hostBridge: {
+      gamepad,
+      gamepadId,
+      pdl0,
+      pdl1,
+      pb0,
+      dial,
+      keyboard,
+      deadzone,
+    },
+  };
+}
+
 /**
  * @param {string} root
  */
@@ -73,6 +138,8 @@ export function normalizeSystemConfig(raw) {
   const presentation =
     raw.presentation && typeof raw.presentation === "object" ? raw.presentation : {};
   const display = raw.display && typeof raw.display === "object" ? raw.display : {};
+  const input = raw.input && typeof raw.input === "object" ? raw.input : {};
+  const usb = raw.usb && typeof raw.usb === "object" ? raw.usb : {};
 
   const rom = String(machine.rom ?? "").trim();
   const drive1 = String(media.drive1 ?? "").trim();
@@ -95,6 +162,13 @@ export function normalizeSystemConfig(raw) {
   if (effect === "crt_tv" || effect === "tv") effect = "crt";
   if (effect === "sharp" || effect === "off" || effect === "none") effect = "clean";
   const screensaverSeconds = Number(display.screensaverSeconds ?? 0);
+  let usbStorageMode = String(usb.storageMode ?? usb.usbStorageMode ?? "normal")
+    .trim()
+    .toLowerCase();
+  if (usbStorageMode === "automount" || usbStorageMode === "auto-mount") usbStorageMode = "auto";
+  if (usbStorageMode !== "normal" && usbStorageMode !== "auto") {
+    errors.push("usb.storageMode must be normal|auto");
+  }
 
   if (rom && !rom.startsWith("/esp2/")) errors.push("ROM path must be under /esp2/");
   if (drive1 && !drive1.startsWith("/esp2/")) errors.push("Drive 1 path must be under /esp2/");
@@ -114,6 +188,9 @@ export function normalizeSystemConfig(raw) {
   if (macro && !/^[A-Za-z0-9_-]+$/.test(macro)) {
     errors.push("startup macro id is invalid");
   }
+
+  const hb = normalizeHostBridge(input.hostBridge);
+  if (!hb.ok) errors.push(...hb.errors);
 
   if (errors.length) return { ok: false, errors };
 
@@ -139,6 +216,12 @@ export function normalizeSystemConfig(raw) {
       },
       display: {
         screensaverSeconds: Math.floor(screensaverSeconds),
+      },
+      usb: {
+        storageMode: usbStorageMode,
+      },
+      input: {
+        hostBridge: hb.hostBridge,
       },
     },
   };
@@ -171,6 +254,10 @@ export function loadLocalOrDemoSystemJson(root) {
     startup: { bootFromDisk: false, macro: "" },
     presentation: { orientation: "classic", monitor: "white", effect: "clean", color: "sharp" },
     display: { screensaverSeconds: 0 },
+    usb: { storageMode: "normal" },
+    input: {
+      hostBridge: normalizeHostBridge({}).hostBridge,
+    },
   };
 }
 
@@ -217,6 +304,7 @@ export function formDefaultsFromPreset(root, presetId = "custom") {
   }
   const n = normalizeSystemConfig(raw);
   const c = n.ok ? n.config : normalizeSystemConfig({ schemaVersion: 1 }).config;
+  const hb = c.input?.hostBridge ?? normalizeHostBridge({}).hostBridge;
   const usingNamed = Boolean(preset && preset !== "custom" && loadProfileSystemJson(root, preset));
   return {
     preset: usingNamed ? preset : "custom",
@@ -238,6 +326,13 @@ export function formDefaultsFromPreset(root, presetId = "custom") {
     /** @deprecated use monitor — kept for older form field ids */
     color: c.presentation.color,
     screensaverSeconds: c.display.screensaverSeconds,
+    usbStorageMode: c.usb?.storageMode ?? "normal",
+    gamepad: hb.gamepad,
+    gamepadId: hb.gamepadId,
+    pdl0: hb.pdl0,
+    pdl1: hb.pdl1,
+    pb0: hb.pb0,
+    dial: hb.dial,
     action: "save_local",
     port: process.env.ESP2_PORT || "",
     profiles,
@@ -293,6 +388,19 @@ export function configFromFormValues(root, values) {
     },
     display: {
       screensaverSeconds: Number(values.screensaverSeconds ?? 0),
+    },
+    usb: {
+      storageMode: String(values.usbStorageMode ?? "normal"),
+    },
+    input: {
+      hostBridge: {
+        gamepad: String(values.gamepad ?? "none"),
+        gamepadId: String(values.gamepadId ?? ""),
+        pdl0: String(values.pdl0 ?? "auto"),
+        pdl1: String(values.pdl1 ?? "auto"),
+        pb0: String(values.pb0 ?? "auto"),
+        dial: Boolean(values.dial),
+      },
     },
   });
 }
@@ -366,8 +474,9 @@ export function saveConfigLocal(root, config, profileName, presetForMacros = "cu
  * Upload local system.json + macros.json only (paths). Never ROM/disk bytes.
  * @param {string} root
  * @param {string} port
+ * @param {{ nodeBin?: string }} [opts]
  */
-export function applyConfigToDevice(root, port) {
+export function applyConfigToDevice(root, port, opts = {}) {
   const local = localConfigPaths(root);
   if (!existsSync(local.system) || !existsSync(local.macros)) {
     throw new Error("local config missing — Save locally before Apply");
@@ -375,12 +484,18 @@ export function applyConfigToDevice(root, port) {
   if (!port) {
     throw new Error("Apply requires a serial port");
   }
+  const nodeBin =
+    (opts.nodeBin && String(opts.nodeBin)) ||
+    (process.platform === "win32" && existsSync("C:\\Program Files\\nodejs\\node.exe")
+      ? "C:\\Program Files\\nodejs\\node.exe"
+      : null) ||
+    (/\bnode(\.exe)?$/i.test(String(process.execPath || "")) ? process.execPath : "node");
   for (const [file, target] of [
     ["system.json", "/esp2/config/system.json"],
     ["macros.json", "/esp2/config/macros.json"],
   ]) {
     const r = spawnSync(
-      process.execPath,
+      nodeBin,
       [
         join(root, "dev/tools/esp2-upload.mjs"),
         "--port",

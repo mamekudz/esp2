@@ -83,7 +83,9 @@
     { "id": "device:config", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:macro:run", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:upload", "group": "Device", "i18x": true, "visible": true },
-    { "id": "device:usb-storage", "group": "Device", "i18x": true, "visible": true }
+    { "id": "device:sd:computer", "group": "Device", "i18x": true, "visible": true },
+    { "id": "device:sd:backup", "group": "Device", "i18x": true, "visible": true },
+    { "id": "device:sd:restore", "group": "Device", "i18x": true, "visible": true }
   ],
   "cliAliases": [
     { "id": "backup:nas", "aliasOf": "backup", "note": "CLI compatibility; not a separate dashboard entry" }
@@ -92,6 +94,7 @@
     { "id": "backup:git", "note": "CLI commit(+push) helper; dashboard uses git:commit / git:push" },
     { "id": "releases:context-check", "note": "Invoked by releases:update pipeline" },
     { "id": "releases:context-fix", "note": "Invoked by releases:update pipeline" },
-    { "id": "releases:i18x-update", "note": "Invoked by releases:update and i18x:gulp" }
+    { "id": "releases:i18x-update", "note": "Invoked by releases:update and i18x:gulp" },
+    { "id": "device:usb-storage", "note": "CLI enter/leave MSC; dashboard uses device:sd:computer" }
   ]
 }

@@ -13,8 +13,8 @@
 
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { existsSync, mkdirSync } from "node:fs";
-import { spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
 import gulp from "gulp";
 import {
   Log,
@@ -93,6 +93,12 @@ import {
   normalizeSystemConfig,
   saveConfigLocal,
 } from "./dev/tools/device-config-form.mjs";
+import {
+  buildGamepadSelectOptions,
+  listXInputGamepads,
+  pulseXInputRumble,
+  waitForXInputButtonPress,
+} from "./dev/tools/esp2-input-bridge.mjs";
 
 InstallStringExtensions();
 
@@ -364,7 +370,7 @@ _Tag(monitor, {
   µDescription:
     'Opens the PlatformIO serial monitor at 115200 baud.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog. Free COM5 if another monitor holds it.<context="µTooltip"/>',
+    'Set ESP2_PORT=COMx to skip the port dialog. Use device:port:release if Access denied.<context="µTooltip"/>',
   µIcon: "\u2399",
   µGroup: 'Tools<context="µGroup"/>',
   µOrder: 20,
@@ -1980,13 +1986,47 @@ function _DeviceConfigPresetParameters() {
 /**
  * Step 2 — editable values (defaults already taken from the chosen preset).
  * @param {ReturnType<typeof formDefaultsFromPreset>} d
+ * @param {{ gamepadOptions?: { value: string, label: string }[] }} [extra]
  */
-function _DeviceConfigEditForm(d) {
+function _DeviceConfigEditForm(d, extra = {}) {
   const macros = (d.macros || ["none"]).map((id) =>
     id === "none"
       ? { value: "none", label: 'none<context="task parameter"/>'.i18xRegister() }
       : { value: id, label: id },
   );
+  const gamepadOptions = (extra.gamepadOptions || []).map((o) => ({
+    value: o.value,
+    label:
+      o.value === "none"
+        ? 'None<context="task parameter"/>'.i18xRegister()
+        : o.value === "auto"
+          ? 'Auto (first connected)<context="task parameter"/>'.i18xRegister()
+          : o.value === "press"
+            ? '▶ Press any button on the desired pad…<context="task parameter"/>'.i18xRegister()
+            : o.label,
+  }));
+  if (!gamepadOptions.length) {
+    gamepadOptions.push(
+      { value: "none", label: 'None<context="task parameter"/>'.i18xRegister() },
+      {
+        value: "auto",
+        label: 'Auto (first connected)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        value: "press",
+        label: '▶ Press any button on the desired pad…<context="task parameter"/>'.i18xRegister(),
+      },
+      { value: "0", label: 'XInput #0<context="task parameter"/>'.i18xRegister() },
+      { value: "1", label: 'XInput #1<context="task parameter"/>'.i18xRegister() },
+      { value: "2", label: 'XInput #2<context="task parameter"/>'.i18xRegister() },
+      { value: "3", label: 'XInput #3<context="task parameter"/>'.i18xRegister() },
+    );
+  }
+  // Prefer press-to-identify when profile only says auto and pads are ambiguous.
+  const gamepadDefault =
+    d.gamepad === "press" || (d.gamepad === "auto" && extra.preferPress)
+      ? "press"
+      : d.gamepad ?? "none";
   return {
     title: 'ESP][ device configuration — edit values<context="task parameter"/>'.i18xRegister(),
     submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
@@ -1999,6 +2039,70 @@ function _DeviceConfigEditForm(d) {
         label: 'Profile name (local save)<context="task parameter"/>'.i18xRegister(),
         description:
           'Saved under local/device/config/ and optionally config/device/profiles/<name>/.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "gamepad",
+        type: "select",
+        default: gamepadDefault,
+        remember: false,
+        label: 'Host gamepad (Windows bridge)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Choose a connected pad, or “Press any button…” after Continue. 8BitDo must be in X-input mode. Dial has no press for identify. Asleep slots stay selectable.<context="task parameter"/>'.i18xRegister(),
+        options: gamepadOptions,
+      },
+      {
+        id: "pdl0",
+        type: "select",
+        default: d.pdl0 ?? "auto",
+        remember: false,
+        label: 'PDL0 source (host bridge)<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "auto", label: 'Auto<context="task parameter"/>'.i18xRegister() },
+          {
+            value: "gamepadX",
+            label: 'Gamepad left stick X<context="task parameter"/>'.i18xRegister(),
+          },
+          { value: "dial", label: 'Logitech Dial<context="task parameter"/>'.i18xRegister() },
+          { value: "none", label: 'None<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "pdl1",
+        type: "select",
+        default: d.pdl1 ?? "auto",
+        remember: false,
+        label: 'PDL1 source (host bridge)<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "auto", label: 'Auto<context="task parameter"/>'.i18xRegister() },
+          {
+            value: "gamepadY",
+            label: 'Gamepad left stick Y<context="task parameter"/>'.i18xRegister(),
+          },
+          { value: "none", label: 'None<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "pb0",
+        type: "select",
+        default: d.pb0 ?? "auto",
+        remember: false,
+        label: 'PB0 button mapping (not pad identity)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Which button becomes Apple II PB0. MX Dial has no physical press switch — use gamepad A (or keyboard).<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "auto", label: 'Auto<context="task parameter"/>'.i18xRegister() },
+          { value: "gamepadA", label: 'A / Cross button<context="task parameter"/>'.i18xRegister() },
+          { value: "none", label: 'None<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "dial",
+        type: "boolean",
+        default: Boolean(d.dial),
+        remember: false,
+        label: 'Enable Logitech MX Dial (host bridge)<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Rotation only → absolute PDL0 (no press switch on MX Dial). Options+ must not steal the wheel path.<context="task parameter"/>'.i18xRegister(),
       },
       {
         id: "rom",
@@ -2094,6 +2198,25 @@ function _DeviceConfigEditForm(d) {
           'Idle seconds before AMOLED screensaver. 0 disables. Unit: seconds.<context="task parameter"/>'.i18xRegister(),
       },
       {
+        id: "usbStorageMode",
+        type: "select",
+        default: d.usbStorageMode ?? "normal",
+        remember: false,
+        label: 'USB connection behavior<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Normal keeps the SD on ESP][ when a PC is connected. Auto-mount exposes the SD via USB Storage only when a real USB data host enumerates — never on power-only adapters.<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "normal",
+            label: 'Normal — ESP][ keeps SD<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "auto",
+            label: 'Auto-mount SD on computer<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      },
+      {
         id: "action",
         type: "select",
         default: "save_local",
@@ -2157,17 +2280,86 @@ export async function deviceConfig() {
     preset: defaults.preset,
   });
 
-  // Step 2: edit form rebuilt from the chosen preset (fields actually update).
+  let pads = [];
+  try {
+    pads = await listXInputGamepads({ enrichNames: true });
+  } catch (e) {
+    Warn(`Gamepad enumerate failed: ${e?.message || e}`);
+  }
+  const connectedCount = pads.filter((p) => p.connected).length;
+  for (const p of pads) {
+    Log('Host gamepad <index/>: <label/><context="task log"/>', {
+      index: String(p.index),
+      label: p.label || p.name,
+    });
+  }
+  for (const name of pads.pnpNames || []) {
+    Log('PnP gamepad-like device: <name/><context="task log"/>', { name });
+  }
+  for (const r of pads.rawPads || []) {
+    Log('RawGameController <index/>: <name/><context="task log"/>', {
+      index: String(r.index),
+      name: r.name || "(unnamed)",
+    });
+  }
+  if (connectedCount === 0) {
+    Warn(
+      "No XInput pads awake yet — Bluetooth controllers often show asleep until a button is pressed. 8BitDo must be in X-input mode (often Start+B / Start+X).",
+    );
+  }
+
+  const editGamepadOptions = buildGamepadSelectOptions(pads, { includePress: true });
   let values;
   if (process.env.ESP2_DEVICE_CONFIG_JSON) {
     values = JSON.parse(process.env.ESP2_DEVICE_CONFIG_JSON);
   } else {
-    values = (await RequestForm(_DeviceConfigEditForm(defaults))) || {};
+    values =
+      (await RequestForm(
+        _DeviceConfigEditForm(defaults, {
+          gamepadOptions: editGamepadOptions,
+          preferPress: true,
+        }),
+      )) || {};
+  }
+
+  // Resolve press-to-identify after the single edit form (no extra modal).
+  if (String(values.gamepad || "") === "press") {
+    Log(
+      'Press any button NOW on the desired pad (25s). Wake Bluetooth pads first. Dial press is not used here.<context="task log"/>',
+    );
+    const hit = await waitForXInputButtonPress({ timeoutMs: 25000 });
+    if (!hit) {
+      throw new Error(
+        'No gamepad button press detected — wake the pad, use X-input mode (8BitDo), or pick slot #0/#1/#2/#3 manually.<context="task error"/>',
+      );
+    }
+    try {
+      pads = await listXInputGamepads({ enrichNames: true });
+    } catch {
+      /* keep prior list */
+    }
+    const pad = pads.find((p) => p.index === hit.index);
+    values.gamepad = String(hit.index);
+    values.gamepadId =
+      (hit.name && !/^XInput#/.test(hit.name) ? hit.name : null) ||
+      (pad?.name && !/^XInput#/.test(pad.name) ? String(pad.name) : "");
+    await pulseXInputRumble(hit.index, 400);
+    Log('Detected gamepad slot <index/> (<label/>, api=<api/>) — rumble pulsed.<context="task log"/>', {
+      index: String(hit.index),
+      label: pad?.label || hit.name || `XInput#${hit.index}`,
+      api: hit.api || "xinput",
+    });
+  } else {
+    const pad = pads.find((p) => String(p.index) === String(values.gamepad));
+    if (pad?.name && !/^XInput#/.test(pad.name)) {
+      values.gamepadId = String(pad.name);
+    }
   }
 
   const action = String(values.action || "save_local");
   const resolved = configFromFormValues(rootDir, {
     ...values,
+    gamepadId: values.gamepadId ?? defaults.gamepadId ?? "",
     preset: defaults.preset,
     loadPreset: false,
   });
@@ -2192,7 +2384,7 @@ export async function deviceConfig() {
       'Applying config to device via <port/> (system.json + macros.json only).<context="task log"/>',
       { port },
     );
-    applyConfigToDevice(rootDir, port);
+    applyConfigToDevice(rootDir, port, { nodeBin: resolveNodeExecutable() });
     Log(
       'Device config applied. Power-cycle ESP][ to load. Media images were not uploaded.<context="task log"/>',
     );
@@ -2207,12 +2399,241 @@ _Tag(deviceConfig, {
   gulpName: "device:config",
   µDisplayName: () => _DeviceConfigDisplayName(),
   µDescription:
-    'Two-step form: choose a preset (fills fields), then edit/save locally or Apply to device. Opening the form uploads nothing; media bytes are never uploaded here.<context="µDescription"/>',
+    'Preset → edit profile (host gamepad: pick slot or press a button to identify) → save. Opening uploads nothing; media bytes are never uploaded here.<context="µDescription"/>',
   µTooltip:
-    'Pick galaxian-demo (or another preset) first — the next form shows those values. Apply is explicit.<context="µTooltip"/>',
+    'Host gamepad is in the edit form. “Press any button…” rumble-identifies the controller after Continue.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 60,
   µParameters: _DeviceConfigPresetParameters(),
+});
+
+/**
+ * Absolute Node binary for child consoles. Under µGulp/Cursor `process.execPath`
+ * is the IDE (Electron) — must not be used to run .mjs bridge scripts.
+ * @returns {string}
+ */
+function resolveNodeExecutable() {
+  const exe = String(process.execPath || "");
+  const norm = exe.replace(/\\/g, "/").toLowerCase();
+  if (
+    (norm.endsWith("/node.exe") || norm.endsWith("/node")) &&
+    existsSync(exe)
+  ) {
+    return exe;
+  }
+  for (const key of ["NODE_BINARY", "MICROGULP_NODE", "NODE"]) {
+    const v = String(process.env[key] || "").trim();
+    if (v && existsSync(v)) return v;
+  }
+  const winDefault = "C:\\Program Files\\nodejs\\node.exe";
+  if (process.platform === "win32" && existsSync(winDefault)) return winDefault;
+  try {
+    const r = spawnSync(
+      process.platform === "win32" ? "where.exe" : "which",
+      ["node"],
+      { encoding: "utf8", windowsHide: true },
+    );
+    const first = String(r.stdout || "")
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .find(Boolean);
+    if (first && existsSync(first)) return first;
+  } catch {
+    /* PATH fallback */
+  }
+  return "node";
+}
+
+/**
+ * Launch the CDC input bridge in its own visible Windows console.
+ * µGulp/Electron Job objects kill detached spawn children when the task
+ * ends — so the launcher must finish (spawnSync) before we return.
+ * WScript.Shell.Run(…, 1) forces a normal visible window out of the Job.
+ * @param {string} script absolute path to esp2-input-bridge.mjs
+ * @param {string[]} args
+ */
+function startInputBridgeConsole(script, args) {
+  const nodeBin = resolveNodeExecutable();
+  if (process.platform === "win32") {
+    const microDir = join(rootDir, ".microgulp");
+    mkdirSync(microDir, { recursive: true });
+    const bat = join(microDir, "run-input-bridge.cmd");
+    const winQuote = (s) => `"${String(s).replace(/"/g, "")}"`;
+    const argLine = [script, ...args.map(String)]
+      .map((a) => (/\s/.test(a) ? winQuote(a) : a))
+      .join(" ");
+    const batBody = [
+      "@echo off",
+      "title ESP2 Input Bridge",
+      `cd /d ${winQuote(rootDir)}`,
+      `${winQuote(nodeBin)} ${argLine}`,
+      "echo.",
+      "echo Bridge exited — press any key to close this window.",
+      "pause >nul",
+      "",
+    ].join("\r\n");
+    writeFileSync(bat, batBody, "utf8");
+    Log(
+      'Bridge launcher node=<node/> bat=<bat/><context="task log"/>',
+      { node: nodeBin, bat },
+    );
+    // Run style 1 = normal focus; false = don't wait for bridge exit.
+    const cmdLine = `cmd /k call ${winQuote(bat)}`;
+    const ps = [
+      `$w = New-Object -ComObject WScript.Shell`,
+      `$code = $w.Run(${psLiteral(cmdLine)}, 1, $false)`,
+      `if ($code -lt 0) { throw "WScript.Shell.Run failed: $code" }`,
+      `Write-Output "launched=$code"`,
+    ].join("; ");
+    const r = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps],
+      { cwd: rootDir, encoding: "utf8", windowsHide: true, timeout: 20000 },
+    );
+    if (r.status !== 0) {
+      throw new Error(
+        `Input Bridge console launch failed: ${(r.stderr || r.stdout || r.error || "unknown").toString().trim()}`,
+      );
+    }
+    Log('Bridge console launch ok (<out/>).<context="task log"/>', {
+      out: String(r.stdout || "").trim() || "ok",
+    });
+    return;
+  }
+  const child = spawn(nodeBin, [script, ...args.map(String)], {
+    cwd: rootDir,
+    detached: true,
+    stdio: "ignore",
+  });
+  child.unref();
+}
+
+/** PowerShell single-quoted string literal. */
+function psLiteral(s) {
+  return `'${String(s).replace(/'/g, "''")}'`;
+}
+
+export async function deviceInputBridge() {
+  ReportProgress(0, "device-input-bridge");
+  // µGulp may remember an empty profile from a prior run and override the
+  // µParameters default — never start without a profile when local config
+  // had gamepad:"none".
+  let profile = String(GetParameter("profile", "galaxian-demo") ?? "").trim();
+  if (!profile) profile = "galaxian-demo";
+  const diag = GetParameter("diag") === true || GetParameter("diag") === "true";
+  const port = await resolveDeviceSerialPort("Input bridge — serial port");
+  const args = ["--port", String(port), "--profile", profile];
+  if (diag) args.push("--diag");
+  Log(
+    'Opening Input Bridge console on <port/> (profile=<profile/>, node=<node/>). Focus that window for keyboard; gamepads need XInput (not D-input).<context="task log"/>',
+    { port, profile, node: resolveNodeExecutable() },
+  );
+  const script = join(rootDir, "dev/tools/esp2-input-bridge.mjs");
+  startInputBridgeConsole(script, args);
+  Log(
+    'Bridge runs in a separate console. Close that window (or device:port:release) to stop.<context="task log"/>',
+  );
+  ReportProgress(1, "device-input-bridge");
+}
+_Tag(deviceInputBridge, {
+  gulpName: "device:input-bridge",
+  µDisplayName: 'Input Bridge V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Opens a Windows console for the CDC input bridge (keyboard + XInput gamepad + optional Dial). Reads input.hostBridge from the chosen profile or local/device/config.<context="µDescription"/>',
+  µTooltip:
+    'Set ESP2_PORT=COMx. Pad must be in X-input mode. Default profile galaxian-demo.<context="µTooltip"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 62,
+  µParameters: [
+    {
+      id: "profile",
+      name: "profile",
+      type: "string",
+      optional: true,
+      default: "galaxian-demo",
+      µDisplayName: 'Profile id (hostBridge)<context="task parameter"/>',
+      µDescription:
+        'config/device/profiles/<id>/ — e.g. galaxian-demo or little-brick-out.<context="task parameter"/>',
+    },
+    {
+      id: "diag",
+      name: "diag",
+      type: "boolean",
+      optional: true,
+      default: false,
+      µDisplayName: 'Diagnostic pad/key log<context="task parameter"/>',
+    },
+  ],
+});
+
+export async function devicePortRelease() {
+  ReportProgress(0, "device-port-release");
+  const dry =
+    GetParameter("dryRun") === true || GetParameter("dryRun") === "true";
+  let port = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
+  if (!port && !dry) {
+    try {
+      port = (await AskPort(rootDir, "Release serial port — which COM?")) || "";
+    } catch {
+      port = process.env.ESP2_PORT || "";
+    }
+  }
+  const { releaseComPort } = await import("./dev/tools/esp2-release-com.mjs");
+  Log(
+    'Releasing COM holders (input-bridge / PIO monitor / upload)… port=<port/><context="task log"/>',
+    { port: port || "(any known holder)" },
+  );
+  const result = await releaseComPort({
+    port,
+    dryRun: dry,
+    log: (s) => Log(String(s)),
+  });
+  if (result.killed.length) {
+    Log('Stopped <count/> holder process(es).<context="task log"/>', {
+      count: String(result.killed.length),
+    });
+  } else {
+    Log('No matching holder processes were running.<context="task log"/>');
+  }
+  if (port && result.probe) {
+    if (result.probe.ok) {
+      Log('Port <port/> is free.<context="task log"/>', { port });
+    } else {
+      Warn(`Port ${port} still busy: ${result.probe.reason}`);
+      throw new Error(
+        `Port ${port} still busy after release — close other serial apps manually.`,
+      );
+    }
+  }
+  ReportProgress(1, "device-port-release");
+}
+_Tag(devicePortRelease, {
+  gulpName: "device:port:release",
+  µDisplayName: 'Release COM Port V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Stops ESP][ host processes that lock the USB CDC port (input bridge, PlatformIO monitor, upload helpers) and probes that the port opens again.<context="µDescription"/>',
+  µTooltip:
+    'Use when flash/monitor/input-bridge says Access denied. Set ESP2_PORT=COMx or pick the port.<context="µTooltip"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 61,
+  µParameters: [
+    {
+      name: "port",
+      type: "string",
+      optional: true,
+      default: "",
+      µDisplayName: 'Serial port (optional)<context="task parameter"/>',
+      µDescription:
+        'e.g. COM5. Empty → ESP2_PORT or AskPort. Probe verifies this port is free after kill.<context="task parameter"/>',
+    },
+    {
+      name: "dryRun",
+      type: "boolean",
+      optional: true,
+      default: false,
+      µDisplayName: 'Dry run (list only)<context="task parameter"/>',
+    },
+  ],
 });
 
 export async function deviceMacroRun() {
@@ -2283,7 +2704,8 @@ _Tag(deviceUpload, {
   ],
 });
 
-export async function deviceUsbStorage() {
+/** CLI-only (not dashboard): prefer device:sd:computer. Kept for scripts. */
+async function deviceUsbStorage() {
   ReportProgress(0, "device-usb-storage");
   const port = GetParameter("port") || process.env.ESP2_PORT || "";
   const leave = GetParameter("leave") === true || GetParameter("leave") === "true";
@@ -2296,20 +2718,378 @@ export async function deviceUsbStorage() {
   runNodeCli("dev/tools/esp2-upload.mjs", args, "device:usb-storage");
   ReportProgress(1, "device-usb-storage");
 }
-_Tag(deviceUsbStorage, {
-  gulpName: "device:usb-storage",
-  µDisplayName: 'USB Storage Mode V<version/><context="µDisplayName"/>',
+gulp.task("device:usb-storage", deviceUsbStorage);
+
+export async function deviceSdComputer() {
+  ReportProgress(0, "device-sd-computer");
+  const { buildSdComputerForm, registerFormI18x } = await loadSdUx();
+  const { openHostSdSession, runUsbStorageCommand } = await import(
+    "./dev/tools/esp2-sd-ownership-session.mjs"
+  );
+  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
+  const values =
+    (await RequestForm(
+      registerFormI18x(buildSdComputerForm({ defaultPort }), (s) => s.i18xRegister()),
+    )) || {};
+  const action = String(values.action || "make_available").trim();
+  let port = String(values.port || "").trim();
+  if (!port) {
+    port = await resolveDeviceSerialPort("ESP][ SD card on computer — serial port");
+  }
+  const openExplorer =
+    values.openExplorer === true ||
+    values.openExplorer === "true" ||
+    values.openExplorer === undefined;
+
+  if (action === "return_esp") {
+    Log('Returning SD to ESP][ on <port/>…<context="task log"/>', { port });
+    Log(
+      'If the SD is still visible in Explorer/Finder, eject it first.<context="task log"/>',
+    );
+    runUsbStorageCommand(rootDir, port, "leave");
+    Log('SD returned to ESP][.<context="task log"/>');
+    ReportProgress(1, "device-sd-computer");
+    return;
+  }
+
+  const session = await openHostSdSession({
+    mode: "browse",
+    port,
+    projectRoot: rootDir,
+    openExplorer: Boolean(openExplorer),
+    log: (msg, vars) => Log(msg, vars),
+    requestAmbiguousPick: async (candidates) => {
+      const pick = await RequestForm({
+        title: 'Select ESP][ SD volume<context="task parameter"/>'.i18xRegister(),
+        submitLabel: 'Use this volume<context="button text"/>'.i18xRegister(),
+        fields: [
+          {
+            id: "root",
+            type: "select",
+            required: true,
+            label: 'Detected volumes<context="task parameter"/>'.i18xRegister(),
+            options: candidates.map((c) => ({
+              value: c.root,
+              label: `${c.root} · ${c.filesystem || "?"} · ${c.label || ""}`,
+            })),
+          },
+        ],
+      });
+      return pick?.root || null;
+    },
+  });
+
+  Log(
+    'SD is on the computer at <path/>. Disk II/runtime SD access is unavailable until returned.<context="task log"/>',
+    { path: session.mountRoot },
+  );
+  Log(
+    'When finished: eject in Explorer/Finder, then run this task with “Return to ESP][”.<context="task log"/>',
+  );
+  // Keep MSC active for manual browsing — do not auto-leave.
+  ReportProgress(1, "device-sd-computer");
+}
+_Tag(deviceSdComputer, {
+  gulpName: "device:sd:computer",
+  µDisplayName: 'SD card on computer V<version/><context="µDisplayName"/>',
   µDescription:
-    'Enter or leave USB MSC ownership of the microSD (TinyUSB OTG).<context="µDescription"/>',
+    'Make the ESP][ microSD available to Windows/macOS (USB Storage), or return it to ESP][. While on the computer, Apple II Disk II cannot use the SD.<context="µDescription"/>',
+  µTooltip:
+    'Uses the same USB Storage ownership path as SD backup/restore. Requires TinyUSB MSC on device (USB_MODE=0).<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 71,
-  µParameters: [
-    { name: "port", type: "string", optional: false },
-    { name: "leave", type: "boolean", optional: true },
-  ],
+});
+
+/** Lazy import cache for SD backup/restore UX helpers. */
+let _sdUxMod = null;
+async function loadSdUx() {
+  if (!_sdUxMod) {
+    _sdUxMod = await import("./dev/tools/esp2-sd-backup-ux.mjs");
+  }
+  return _sdUxMod;
+}
+
+export async function deviceSdBackup() {
+  ReportProgress(0, "device-sd-backup");
+  const {
+    buildSdBackupForm,
+    registerFormI18x,
+    resolveSdMountViaUx,
+    SD_UX_ACCESS_DEVICE,
+  } = await loadSdUx();
+  const defaultRoot = join(rootDir, "local/sd-backups");
+  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
+  const values =
+    (await RequestForm(
+      registerFormI18x(
+        buildSdBackupForm({ defaultBackupRoot: defaultRoot, defaultPort }),
+        (s) => s.i18xRegister(),
+      ),
+    )) || {};
+  // Opening the form must not enter MSC — device work starts only here.
+  const destRoot = String(values.destRoot || defaultRoot).trim();
+  const accessMode = String(values.accessMode || SD_UX_ACCESS_DEVICE).trim();
+  let port = String(values.port || "").trim();
+  if (accessMode === SD_UX_ACCESS_DEVICE && !port) {
+    port = await resolveDeviceSerialPort("ESP][ SD backup — serial port");
+  }
+
+  const session = await resolveSdMountViaUx({
+    mode: "backup",
+    accessMode,
+    advancedPath: String(values.advancedSource || "").trim(),
+    port,
+    projectRoot: rootDir,
+    log: (msg, vars) => Log(msg, vars),
+    requestAmbiguousPick: async (candidates) => {
+      const pick = await RequestForm({
+        title: 'Select ESP][ SD volume<context="task parameter"/>'.i18xRegister(),
+        submitLabel: 'Use this volume<context="button text"/>'.i18xRegister(),
+        fields: [
+          {
+            id: "root",
+            type: "select",
+            required: true,
+            label: 'Detected volumes<context="task parameter"/>'.i18xRegister(),
+            options: candidates.map((c) => ({
+              value: c.root,
+              label: `${c.root} · ${c.filesystem || "?"} · ${c.label || ""}`,
+            })),
+          },
+        ],
+      });
+      return pick?.root || null;
+    },
+  });
+
+  try {
+    const { backupEsp2Sd, probeVolumeInfo, resolveEsp2Root } = await import(
+      "./dev/tools/esp2-sd-backup.mjs"
+    );
+    const resolved = resolveEsp2Root(session.mountRoot);
+    const vol = probeVolumeInfo(resolved.mountRoot);
+    Log(
+      'SD backup (logical /esp2 tree, not raw image). source=<source/> fs=<fs/> capacity=<cap/><context="task log"/>',
+      {
+        source: resolved.mountRoot,
+        fs: vol.filesystem || "unknown",
+        cap: vol.capacityBytes != null ? String(vol.capacityBytes) : "unknown",
+      },
+    );
+    Log('Copying…<context="task log"/>');
+    const t0 = Date.now();
+    const result = await backupEsp2Sd(rootDir, {
+      sourcePath: session.mountRoot,
+      destRoot,
+    });
+    const ms = Date.now() - t0;
+    const mbs =
+      result.manifest.totals.bytes > 0
+        ? (result.manifest.totals.bytes / (1024 * 1024) / (ms / 1000)).toFixed(2)
+        : "0";
+    Log('Verifying…<context="task log"/>');
+    Log(
+      'SD backup PASS → <path/> files=<files/> bytes=<bytes/> verified SHA-256 (~<mbs/> MB/s)<context="task log"/>',
+      {
+        path: result.backupDir,
+        files: String(result.manifest.totals.files),
+        bytes: String(result.manifest.totals.bytes),
+        mbs,
+      },
+    );
+    Log('Finished.<context="task log"/>');
+  } finally {
+    await session.release();
+  }
+  ReportProgress(1, "device-sd-backup");
+}
+_Tag(deviceSdBackup, {
+  gulpName: "device:sd:backup",
+  µDisplayName: 'Back up SD card V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Read-only logical backup of the SD currently in the connected ESP][ (USB Storage → hash-verified copy under local/sd-backups). Not a raw card image.<context="µDescription"/>',
+  µTooltip:
+    'Select ESP][ COM port if needed. Destination defaults to local/sd-backups/. Advanced card-reader path available if MSC auto-detect fails.<context="µTooltip"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 72,
+});
+
+export async function deviceSdRestore() {
+  ReportProgress(0, "device-sd-restore");
+  const {
+    buildSdRestoreForm,
+    buildSdRestoreConfirmForm,
+    registerFormI18x,
+    resolveSdMountViaUx,
+    resolveBackupDirFromForm,
+    SD_UX_ACCESS_DEVICE,
+  } = await loadSdUx();
+  const {
+    listSdBackups,
+    restoreEsp2Sd,
+    loadAndValidateManifest,
+    probeVolumeInfo,
+    resolveEsp2Root,
+    defaultSdBackupRoot,
+  } = await import("./dev/tools/esp2-sd-backup.mjs");
+
+  const defaultRoot = defaultSdBackupRoot(rootDir);
+  const backups = listSdBackups(defaultRoot);
+  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
+  const values =
+    (await RequestForm(
+      registerFormI18x(
+        buildSdRestoreForm({
+          defaultBackupRoot: defaultRoot,
+          defaultPort,
+          backups,
+        }),
+        (s) => s.i18xRegister(),
+      ),
+    )) || {};
+
+  const backupDir = resolveBackupDirFromForm(values, defaultRoot);
+  const dryRun = values.dryRun === true || values.dryRun === "true";
+  const accessMode = String(values.accessMode || SD_UX_ACCESS_DEVICE).trim();
+  if (!backupDir) {
+    throw new Error('Select a backup.<context="task error"/>');
+  }
+  const { manifest } = loadAndValidateManifest(backupDir);
+
+  let port = String(values.port || "").trim();
+  if (accessMode === SD_UX_ACCESS_DEVICE && !port) {
+    port = await resolveDeviceSerialPort("ESP][ SD restore — serial port");
+  }
+
+  const session = await resolveSdMountViaUx({
+    mode: "restore",
+    accessMode,
+    advancedPath: String(values.advancedDest || "").trim(),
+    port,
+    projectRoot: rootDir,
+    log: (msg, vars) => Log(msg, vars),
+    requestAmbiguousPick: async (candidates) => {
+      const pick = await RequestForm({
+        title: 'Select destination SD volume<context="task parameter"/>'.i18xRegister(),
+        submitLabel: 'Use this volume<context="button text"/>'.i18xRegister(),
+        fields: [
+          {
+            id: "root",
+            type: "select",
+            required: true,
+            label: 'Detected volumes<context="task parameter"/>'.i18xRegister(),
+            options: candidates.map((c) => ({
+              value: c.root,
+              label: `${c.root} · ${c.filesystem || "?"} · ${c.label || ""}`,
+            })),
+          },
+        ],
+      });
+      return pick?.root || null;
+    },
+  });
+
+  try {
+    const destResolved = resolveEsp2Root(session.mountRoot, { allowMissingEsp2: true });
+    const destMount = destResolved.mountRoot;
+    const destEsp2 = destResolved.esp2Root;
+    const vol = probeVolumeInfo(destMount);
+    const summary =
+      session.summary ||
+      {
+        text: [
+          `path=${destMount}`,
+          `fs=${vol.filesystem || "?"}`,
+          `capacity=${vol.capacityBytes ?? "?"}`,
+          `free=${vol.freeBytes ?? "?"}`,
+        ].join(" · "),
+      };
+
+    Log(
+      'RESTORE plan backup=<backup/> → dest=<dest/> files=<files/> bytes=<bytes/> info=<info/><context="task log"/>',
+      {
+        backup: backupDir,
+        dest: destMount,
+        files: String(manifest.totals?.files ?? 0),
+        bytes: String(manifest.totals?.bytes ?? 0),
+        info: summary.text,
+      },
+    );
+
+    if (!dryRun) {
+      const conf =
+        (await RequestForm(
+          registerFormI18x(
+            buildSdRestoreConfirmForm({
+              summaryText: summary.text,
+              backupLabel: backupDir,
+            }),
+            (s) => s.i18xRegister(),
+          ),
+        )) || {};
+      const confirm = conf.confirm === true || conf.confirm === "true";
+      if (!confirm) {
+        throw new Error(
+          'Confirmation required after reviewing the detected destination SD.<context="task error"/>',
+        );
+      }
+    }
+
+    Log(dryRun ? 'Dry run…<context="task log"/>' : 'Copying…<context="task log"/>');
+    const t0 = Date.now();
+    const result = await restoreEsp2Sd(rootDir, {
+      backupDir,
+      destPath: destMount,
+      dryRun,
+    });
+    const ms = Date.now() - t0;
+    if (dryRun) {
+      Log(
+        'Dry run only — no writes. Would restore <files/> files (<bytes/> bytes); stale remove=<stale/>.<context="task log"/>',
+        {
+          files: String(result.filesToWrite),
+          bytes: String(result.bytes),
+          stale: String(result.staleToRemove?.length ?? 0),
+        },
+      );
+    } else {
+      Log('Verifying…<context="task log"/>');
+      const mbs =
+        result.bytesRestored > 0
+          ? (result.bytesRestored / (1024 * 1024) / (ms / 1000)).toFixed(2)
+          : "0";
+      Log(
+        'SD restore PASS → <dest/> files=<files/> bytes=<bytes/> SHA-256 verified (~<mbs/> MB/s)<context="task log"/>',
+        {
+          dest: destEsp2,
+          files: String(result.filesRestored),
+          bytes: String(result.bytesRestored),
+          mbs,
+        },
+      );
+    }
+    Log('Finished.<context="task log"/>');
+  } finally {
+    await session.release();
+  }
+  ReportProgress(1, "device-sd-restore");
+}
+_Tag(deviceSdRestore, {
+  gulpName: "device:sd:restore",
+  µDisplayName: 'Restore SD card V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Restores a verified backup onto the SD currently in the connected ESP][ (USB Storage). Card sizes may differ if data fits. Requires confirmation after the destination is detected.<context="µDescription"/>',
+  µTooltip:
+    'Pick a backup under local/sd-backups/. Destination mount is auto-detected via USB Storage — never guessed by card size alone.<context="µTooltip"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 73,
 });
 
 gulp.task("device:config", deviceConfig);
+gulp.task("device:port:release", devicePortRelease);
+gulp.task("device:input-bridge", deviceInputBridge);
 gulp.task("device:macro:run", deviceMacroRun);
 gulp.task("device:upload", deviceUpload);
-gulp.task("device:usb-storage", deviceUsbStorage);
+gulp.task("device:sd:computer", deviceSdComputer);
+gulp.task("device:sd:backup", deviceSdBackup);
+gulp.task("device:sd:restore", deviceSdRestore);

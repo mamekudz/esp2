@@ -248,6 +248,17 @@ SystemConfig parseSystemConfigJson(const char *json, size_t len, char *err, size
     if (const char *p = findKey(json, len, "screensaverSeconds")) {
         parseUIntAfter(p, end, &cfg.screensaverSeconds);
     }
+    // usb.storageMode: "normal" | "auto" (also accept top-level usbStorageMode)
+    if (const char *p = findKey(json, len, "storageMode")) {
+        char m[32]{};
+        if (parseStringAfter(p, end, m, sizeof(m))) {
+            if (strcmp(m, "auto") == 0 || strcmp(m, "automount") == 0) {
+                cfg.usbStorageAuto = true;
+            } else {
+                cfg.usbStorageAuto = false;
+            }
+        }
+    }
 
     char verr[64]{};
     if (!validateSystemConfig(&cfg, verr, sizeof(verr))) {

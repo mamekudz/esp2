@@ -46,6 +46,12 @@ struct SystemConfig {
     Effect effect = Effect::Clean;
     /** 0 = screensaver disabled; >0 = idle seconds before panel screensaver. */
     uint32_t screensaverSeconds = 0;
+    /**
+     * USB microSD exposure preference.
+     * Normal (default): ESP][ keeps SD when a PC is connected.
+     * Auto: enter MSC only when a real USB data host enumerates (never power-only).
+     */
+    bool usbStorageAuto = false;
     bool loaded = false;
     bool valid = false;
 

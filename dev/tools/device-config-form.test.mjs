@@ -45,6 +45,21 @@ test("galaxian-demo profile normalizes", () => {
   assert.equal(n.config.presentation.color, "artifact");
   assert.equal(n.config.display.screensaverSeconds, 300);
   assert.equal(n.config.startup.macro, "galaxian-start");
+  assert.equal(n.config.input.hostBridge.gamepad, "auto");
+  assert.equal(n.config.input.hostBridge.pdl0, "gamepadX");
+});
+
+test("little-brick-out profile selects host gamepad", () => {
+  const raw = JSON.parse(
+    readFileSync(join(ROOT, "config/device/profiles/little-brick-out/system.json"), "utf8"),
+  );
+  const n = normalizeSystemConfig(raw);
+  assert.equal(n.ok, true);
+  assert.equal(n.config.input.hostBridge.gamepad, "auto");
+  assert.equal(n.config.input.hostBridge.pdl0, "gamepadX");
+  assert.equal(n.config.input.hostBridge.pdl1, "none");
+  assert.equal(n.config.input.hostBridge.pb0, "gamepadA");
+  assert.equal(n.config.input.hostBridge.dial, false);
 });
 
 test("formDefaultsFromPreset loads galaxian-demo into editable fields", () => {
@@ -58,6 +73,8 @@ test("formDefaultsFromPreset loads galaxian-demo into editable fields", () => {
   assert.equal(d.monitor, "artifact");
   assert.equal(d.effect, "clean");
   assert.equal(d.screensaverSeconds, 300);
+  assert.equal(d.gamepad, "auto");
+  assert.equal(d.pdl0, "gamepadX");
 });
 
 test("form defaults expose editable demo values", () => {
@@ -91,11 +108,19 @@ test("configFromFormValues validates and accepts form fields", () => {
     monitor: "artifact",
     effect: "crt",
     screensaverSeconds: 300,
+    gamepad: "0",
+    gamepadId: "",
+    pdl0: "gamepadX",
+    pdl1: "gamepadY",
+    pb0: "gamepadA",
+    dial: false,
   });
   assert.equal(ok.ok, true);
   assert.equal(ok.config.media.drive2, null);
   assert.equal(ok.config.presentation.monitor, "artifact");
   assert.equal(ok.config.presentation.effect, "crt");
+  assert.equal(ok.config.input.hostBridge.gamepad, "0");
+  assert.equal(ok.config.input.hostBridge.pdl0, "gamepadX");
 });
 
 test("saveConfigLocal writes JSON without upload (temp dir sandbox via profile name)", () => {

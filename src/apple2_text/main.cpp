@@ -32,6 +32,7 @@
 
 #if !ARDUINO_USB_MODE
 #include "USB.h"
+#include "tusb.h"
 #endif
 
 #include "esp_bracket/apple2_bus.hpp"
@@ -352,6 +353,44 @@ static bool leaveUsbStorageMode(bool unsafe) {
          unsafe ? 1 : 0);
     Serial.println("#ESP2USBMSC LEFT");
     return true;
+}
+
+/**
+ * True when a USB *data* host has enumerated (not mere 5 V power).
+ * TinyUSB: tud_mounted(). HW CDC: MSC unavailable — never auto-enter.
+ */
+static bool usbDataHostPresent() {
+#if ARDUINO_USB_MODE
+    (void)0;
+    return false;
+#else
+    return tud_mounted();
+#endif
+}
+
+static void maybeAutoEnterUsbStorage() {
+    if (!g_sysConfig.usbStorageAuto) {
+        return;
+    }
+    if (g_usbStorage.active() || g_usbStorageUi) {
+        return;
+    }
+    if (!UsbStorageMode::isSupported()) {
+        static bool once = false;
+        if (!once) {
+            once = true;
+            logf("USB", "auto storageMode ignored — MSC unsupported (need USB_MODE=0)");
+        }
+        return;
+    }
+    if (!usbDataHostPresent()) {
+        return; // power-only / not enumerated — keep DEVICE ownership
+    }
+    if (!g_sdOwner.esp2MayUseFat()) {
+        return;
+    }
+    logf("USB", "auto: USB host present — DEVICE→HOST");
+    (void)enterUsbStorageMode();
 }
 
 static bool ensureDskBuffers() {
@@ -848,6 +887,7 @@ static void serviceDevSerialCommands() {
         g_usbStorage.clearEjectRequest();
         leaveUsbStorageMode(false);
     }
+    maybeAutoEnterUsbStorage();
 }
 
 static void maybeLogGalaxianVisible() {
@@ -1010,13 +1050,15 @@ static void renderTextRows(uint16_t *fb, int row0, int row1) {
     TextDecoder::decodeScreen(g_a2bus.ram(), vs.textPageBase(), chars);
     const uint16_t onPx = presentMonoPixel(true);
     const uint16_t offPx = presentMonoPixel(false);
+    const int flashPhase = static_cast<int>((millis() / 250) & 1);
     for (int row = row0; row <= row1; ++row) {
         for (int gy = 0; gy < 8; ++gy) {
             uint16_t *dst = fb + (row * 8 + gy) * kViewW;
             for (int col = 0; col < 40; ++col) {
                 const uint8_t cell = chars[row * 40 + col];
-                const uint8_t ascii7 = static_cast<uint8_t>(cell & 0x7F);
-                const bool inverse = (cell & 0x80) == 0;
+                uint8_t ascii7 = 0x20;
+                bool inverse = false;
+                TextDecoder::mapAppleTextByte(cell, flashPhase, &ascii7, &inverse);
                 uint8_t bits = 0;
                 if (gy < TextDecoder::kGlyphH) {
                     bits = TextDecoder::glyphRow(ascii7, gy);
@@ -1026,8 +1068,11 @@ static void renderTextRows(uint16_t *fb, int row0, int row1) {
                     const bool lit = inverse ? !on : on;
                     dst[col * kTextCellW + gx] = lit ? onPx : offPx;
                 }
-                dst[col * kTextCellW + 5] = offPx;
-                dst[col * kTextCellW + 6] = offPx;
+                // Cell padding must match cell background so inverse runs form a
+                // continuous bar (Apple II has no black gutters between glyphs).
+                const uint16_t gapPx = inverse ? onPx : offPx;
+                dst[col * kTextCellW + 5] = gapPx;
+                dst[col * kTextCellW + 6] = gapPx;
             }
         }
     }
@@ -1037,7 +1082,11 @@ static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
     uint8_t blocks[LoresDecoder::kRows * LoresDecoder::kCols];
     LoresDecoder::decode(g_a2bus.ram(), vs.textPageBase(), blocks);
-    const bool phosphor = g_presentMonitor != PresentMonitor::Artifact;
+    // LORES uses the classic 16-color palette. Only Green/Amber monitors force
+    // true monochrome phosphor — White/Artifact keep LORES color (never HGR
+    // ArtifactRenderer). Green/Amber derive luminance from LORES RGB.
+    const bool phosphorMono = g_presentMonitor == PresentMonitor::Green ||
+                              g_presentMonitor == PresentMonitor::Amber;
     const VideoColorMode monoMode = presentVideoColorMode();
     for (int py = scan0; py <= scan1; ++py) {
         const int brow = py / LoresDecoder::kBlockH;
@@ -1046,7 +1095,7 @@ static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
             uint8_t r, g, b;
             LoresDecoder::colorRgb(blocks[brow * 40 + bx], &r, &g, &b);
             uint16_t c;
-            if (phosphor) {
+            if (phosphorMono) {
                 const uint8_t lum = luminanceFromRgb888(r, g, b);
                 c = mapLuminanceToPhosphorRgb565(monoMode, lum);
             } else {
@@ -1751,6 +1800,8 @@ static void loadPersistentConfigFromSd() {
                              esp2_config::monitorName(g_sysConfig.monitor),
                              esp2_config::effectName(g_sysConfig.effect),
                              static_cast<unsigned>(g_sysConfig.screensaverSeconds));
+                        logf("CONFIG", "usb.storageMode=%s",
+                             g_sysConfig.usbStorageAuto ? "auto" : "normal");
                     }
                 } else {
                     logf("CONFIG", "[FAIL] read system.json");

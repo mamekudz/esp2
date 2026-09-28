@@ -4,12 +4,18 @@ Danach: npx gulp docs  → zweisprachige README.md (EN dann DE) + Baselines.
 website-Blöcke können später ergänzt werden; unmarked Text erscheint in der Git-README.
 -->
 
-# ESP][
+<p align="center">
+  <img src="docs/assets/esp2-logo.svg" alt="ESP][ Logo" width="220">
+</p>
 
 **ESP][ — An Apple in a hand.**
 
 *Better an Apple in the hand than a dove on the roof.*  
 *(bewusst leicht absurde Anspielung auf: „Lieber den Spatz in der Hand als die Taube auf dem Dach.“)*
+
+<p align="center">
+  <img src="docs/assets/an-apple-in-a-hand.gif" alt="ESP][ — An Apple in a hand" width="420">
+</p>
 
 <p align="center">
   <a href="https://microgulp.dev/de/ready/">
@@ -143,6 +149,14 @@ Beispielprofil **galaxian-demo** (nur Pfade; Medien nicht in Git):
 
 **Standalone-Formulierung:** Der persistente Startup-Pfad ist **implementiert** und für Betrieb nur mit USB-Stromversorgung (ohne PC) gedacht. Die unabhängige Bestätigung eines reinen Netzteil-**Kaltstarts** bis zur vollen Galaxian-Demo wird noch validiert — `STANDALONE_GALAXIAN = PASS` ist noch nicht als erledigt zu behandeln. Details: `docs/architecture/device-config.md`.
 
+### microSD-Backup / -Wiederherstellung
+
+µGulp-**Device**-Aktionen sichern und stellen den ESP][-Baum `/esp2` als
+**logische**, SHA-256-verifizierte Dateisystemkopie unter gitignored
+`local/sd-backups/` her (privat NAS-gesichert). Kein rohes Kartenabbild —
+Quell- und Zielkartenkapazität dürfen sich unterscheiden, wenn die Daten
+passen. Details: `docs/architecture/sd-backup-restore.md`.
+
 ---
 
 ## Presentation (Classic vs. Landscape)
@@ -212,6 +226,8 @@ Während das Panel schläft oder aus ist, **läuft die Apple-II-Emulation weiter
 - TEXT / LORES / HGR auf dem CO5300
 - HGR Sharp + Artifact Color; Classic- + Landscape-Presentation
 - Windows-11→USB-CDC-Tastatur-Bridge (Galaxian)
+- Windows-11→USB-CDC-Multi-Input-Bridge (Tastatur + Logitech Dial → PDL0) für Little Brick Out
+- Little Brick Out physisches LORES+MIXED-Spielfeld (WHITE/CLEAN)
 - Persistente Gerätekonfiguration + Makros (Pfade auf der SD)
 
 ### HOST_VERIFIED
@@ -224,9 +240,8 @@ Während das Panel schläft oder aus ist, **läuft die Apple-II-Emulation weiter
 
 - Control Screen; Bluetooth-Tastatur/-Gamepad/-Audio als Primärpfad
 - Lokaler Piezo; verdrahtete Paddles; natives USB-HID-Host
-- WOZ / voller Write-Pfad; schwerere CRT-Effekte (V1: leichtes CRT/TV bereits vorhanden)
+- WOZ / voller Write-Pfad
 - Finale Gehäuse-CAD-Varianten
-- **Little Brick Out** — geplanter späterer Validierungskandidat für LORES / Paddle / Logitech Dial (derzeit **NOT_TESTED**)
 
 ---
 
@@ -253,10 +268,10 @@ Geplante Zusatzhardware: Piezo / lokaler Lautsprecher, physischer Reset-/Control
 | Titel | Host | ESP32 |
 | --- | --- | --- |
 | Galaxian | PASS / PLAYFIELD | **PASS / PLAYFIELD** (Input/Audio partiell) |
+| Little Brick Out | PASS / LORES+MIXED (HOST) | **PASS / LORES+MIXED** (physisch; Dial-Bridge LIVE) |
 | ESP][ Boot Test | COMPLETED_TEST_PATH | Level-4 Spot PASS |
-| Little Brick Out | NOT_TESTED | NOT_TESTED |
 
-Vollmatrix: `docs/compatibility/titles.json`. Nur user-supplied Medien — Galaxian ist ein **verifizierter Kompatibilitätstitel**, kein mitgeliefertes Firmware-Medium.
+Vollmatrix: `docs/compatibility/titles.json`. Nur user-supplied Medien — Galaxian (HGR) und Little Brick Out (LORES + Paddle / Logitech Dial über Windows-CDC) sind **verifizierte Kompatibilitätstitel**, keine mitgelieferten Firmware-Medien.
 
 ---
 
@@ -286,6 +301,12 @@ Quellen: `dev/docs/readme/en-US.src.md` und `de-DE.src.md` → eine zweisprachig
 Ausführliche Projekthistorie: Root-**`RELEASES.json`** und der µGulp-Workflow `releases:history` — hier nicht als Changelog verdoppelt.
 
 NAS-/Git-Backup: siehe englische README / `docs/tooling/backup.md`.
+
+---
+
+## Danksagung
+
+Die spiel-/titelorientierte Bibliotheks-UX von ESP][ ist von **[Apple ][js](https://www.scullinsteel.com/apple2)** von Will Scullin inspiriert — danke für diesen hervorragenden Browser-Apple-II-Emulator und dafür, die Plattform online zugänglich zu halten.
 
 ---
 

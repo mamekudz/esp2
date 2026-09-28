@@ -84,18 +84,18 @@
     {
       "id": "little-brick-out",
       "title": "Little Brick Out",
-      "hostStatus": "NOT_TESTED",
-      "esp32Status": "NOT_TESTED",
-      "input": "NOT_TESTED",
-      "video": "LORES_MIXED (expected; not verified)",
-      "audio": "NOT_TESTED",
+      "hostStatus": "PASS",
+      "esp32Status": "PASS",
+      "input": "CDC SPACE+PB0 start; Dial bridge LIVE",
+      "video": "LORES_MIXED page1 (HOST+ESP32)",
+      "audio": "HOST_SPEAKER_EDGES_OBSERVED",
       "disk": "USER_SUPPLIED_ONLY",
       "classification": ["REAL_SOFTWARE_LORES_TEST", "REAL_SOFTWARE_PADDLE_TEST"],
-      "realSoftwareLoRes": "NOT_TESTED",
-      "paddleInput": "NOT_TESTED",
-      "logitechDial": "NOT_TESTED",
+      "realSoftwareLoRes": "PASS",
+      "paddleInput": "HOST_PASS",
+      "logitechDial": "PARTIAL",
       "dirtyUpdate": "NOT_TESTED",
-      "notes": "Prepared local DSK from Cowgod cassette archive. Run AFTER Galaxian physical milestone. Paddle validation via Windows dial bridge."
+      "notes": "Physical LORES+MIXED WHITE/CLEAN ~1.023 MHz. Dial VID_046D&PID_C354 + CDC bridge LIVE; author should rotate Dial to confirm paddle."
     }
   ]
 }

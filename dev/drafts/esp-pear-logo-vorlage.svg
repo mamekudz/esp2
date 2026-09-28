@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1254" height="1254" viewBox="0 0 1254 1254" version="1.1" aria-labelledby="title description">
+  <title id="title">ESP][ Birnenlogo</title>
+  <desc id="description">Flächige Vektorinterpretation der Bildvorlage. Sieben horizontale Regenbogenstreifen, schwarze Birnenkontur, grünes Blatt, brauner Stiel, drei cremefarbene Leiterbahnen und ESP][ als editierbare Pfade. Transparenter Hintergrund; keine Rasterbilder, Verläufe, Filter oder Schriftabhängigkeiten.</desc>
+  <g id="stem">
+    <path fill="#080D12" d="M602 242 C600 179 622 111 666 65 C674 56 684 61 698 72 C713 84 724 98 719 107 C717 111 701 120 687 135 C656 168 641 202 637 243 Z"/>
+    <path fill="#845021" d="M612 230 C611 174 633 114 675 73 L689 82 C652 116 627 172 621 230 Z"/>
+  </g>
+  <g id="leaf">
+    <path fill="#080D12" d="M673 228 C701 159 754 94 825 72 C876 54 931 65 994 53 C993 112 968 170 925 207 C857 268 758 266 673 228 Z"/>
+    <path fill="#087A20" d="M699 215 C726 158 771 113 828 93 C870 79 921 86 971 77 C960 125 941 161 907 188 C853 236 775 246 699 215 Z"/>
+    <path fill="#7EC600" d="M699 215 C726 158 771 113 828 93 C870 79 921 86 971 77 C930 116 885 129 838 140 C783 153 736 180 699 215 Z"/>
+  </g>
+  <!-- Seven separate closed paths, sharing the same Bezier boundary geometry. -->
+  <g id="pear-bands">
+    <path id="green" fill="#57B500" d="M612 240 C526 239 486 294 478 375 H746 C738 294 698 239 612 240 Z"/>
+    <path id="yellow" fill="#FFD000" d="M478 375 H746 C751 411 758 440 774 469 H450 C466 440 473 411 478 375 Z"/>
+    <path id="orange" fill="#FF9200" d="M450 469 H774 C793 502 825 534 847 565 H377 C399 534 431 502 450 469 Z"/>
+    <path id="red" fill="#F12D16" d="M377 565 H847 C867 594 879 628 881 662 H343 C345 628 357 594 377 565 Z"/>
+    <path id="magenta" fill="#C90068" d="M343 662 H881 C885 696 881 726 871 755 H353 C343 726 339 696 343 662 Z"/>
+    <path id="violet" fill="#3929B8" d="M353 755 H871 C861 784 847 809 829 829 H395 C377 809 363 784 353 755 Z"/>
+    <path id="blue" fill="#008BE8" d="M395 829 H829 C798 871 755 918 706 922 C668 925 645 906 612 907 C579 906 556 925 518 922 C469 918 426 871 395 829 Z"/>
+  </g>
+  <!-- Filled trace shapes rather than effects or raster overlays. -->
+  <g id="circuit-traces" fill="#FFFCE0">
+    <path id="trace-center" d="M604 516 H620 V829 H604 Z"/>
+    <path id="trace-left" d="M530 646 L546 639 L567 671 C573 680 575 691 575 704 V829 H559 V704 C559 695 557 687 552 680 Z"/>
+    <path id="trace-right" d="M678 639 L694 646 L672 680 C667 687 665 695 665 704 V829 H649 V704 C649 691 651 680 657 671 Z"/>
+  </g>
+  <g id="circuit-pads" fill="#FFFCE0" fill-rule="evenodd">
+    <path id="pad-center" d="M651 487 A39 39 0 1 1 573 487 A39 39 0 1 1 651 487 Z M635 487 A23 23 0 1 0 589 487 A23 23 0 1 0 635 487 Z"/>
+    <path id="pad-left" d="M559 626 A35 35 0 1 1 489 626 A35 35 0 1 1 559 626 Z M543 626 A19 19 0 1 0 505 626 A19 19 0 1 0 543 626 Z"/>
+    <path id="pad-right" d="M735 626 A35 35 0 1 1 665 626 A35 35 0 1 1 735 626 Z M719 626 A19 19 0 1 0 681 626 A19 19 0 1 0 719 626 Z"/>
+  </g>
+  <g id="pear-outline" fill="none" stroke="#080D12" stroke-width="24" stroke-linejoin="round">
+    <path d="M612 240 C698 239 738 294 746 375 C751 411 758 440 774 469 C793 502 825 534 847 565 C867 594 879 628 881 662 C885 696 881 726 871 755 C861 784 847 809 829 829 C798 871 755 918 706 922 C668 925 645 906 612 907 C579 906 556 925 518 922 C469 918 426 871 395 829 C377 809 363 784 353 755 C343 726 339 696 343 662 C345 628 357 594 377 565 C399 534 431 502 450 469 C466 440 473 411 478 375 C486 294 526 239 612 240 Z"/>
+  </g>
+  <!-- Custom outlined lettering. No fonts required. -->
+  <g id="wordmark-ESP-brackets" fill="#080D12">
+    <path id="letter-E" d="M255 970 H429 Q432 970 432 973 V1013 Q432 1016 429 1016 H318 V1039 H401 Q404 1039 404 1042 V1079 Q404 1082 401 1082 H318 V1105 H429 Q432 1105 432 1108 V1147 Q432 1150 429 1150 H255 Q252 1150 252 1147 V973 Q252 970 255 970 Z"/>
+    <path id="letter-S" d="M503 970 H625 Q628 970 628 973 V1013 Q628 1016 625 1016 H520 Q508 1016 508 1027 Q508 1039 520 1039 H574 C613 1039 631 1055 631 1093 C631 1133 612 1150 574 1150 H450 Q447 1150 447 1147 V1108 Q447 1105 450 1105 H557 Q570 1105 570 1093 Q570 1082 557 1082 H504 C464 1082 447 1066 447 1028 C447 990 466 970 503 970 Z"/>
+    <path id="letter-P" fill-rule="evenodd" d="M648 970 H751 C794 970 816 990 816 1034 C816 1078 794 1097 751 1097 H705 V1147 Q705 1150 702 1150 H648 Q645 1150 645 1147 V973 Q645 970 648 970 Z M705 1016 V1053 H742 Q758 1053 758 1034 Q758 1016 742 1016 Z"/>
+    <path id="bracket-right" d="M822 968 H895 Q898 968 898 971 V1154 Q898 1157 895 1157 H822 Q819 1157 819 1154 V1131 Q819 1128 822 1128 H841 Q845 1128 845 1124 V1001 Q845 997 841 997 H822 Q819 997 819 994 V971 Q819 968 822 968 Z"/>
+    <path id="bracket-left" d="M926 968 H999 Q1002 968 1002 971 V994 Q1002 997 999 997 H980 Q976 997 976 1001 V1124 Q976 1128 980 1128 H1001 Q1004 1128 1004 1131 V1154 Q1004 1157 1001 1157 H926 Q923 1157 923 1154 V971 Q923 968 926 968 Z"/>
+  </g>
+</svg>

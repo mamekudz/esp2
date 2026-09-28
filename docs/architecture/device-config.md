@@ -40,8 +40,28 @@ Tracked examples (host repo, not auto-copied):
 | `startup.bootFromDisk` | If true, Autostart Slot-6 boot after mount |
 | `startup.macro` | Macro id from `macros.json`, or `""` |
 | `presentation.orientation` | `classic` \| `landscape` |
-| `presentation.color` | `sharp` \| `artifact` |
+| `presentation.monitor` | `white` \| `green` \| `amber` \| `artifact` |
+| `presentation.effect` | `clean` \| `crt` |
+| `presentation.color` | Legacy alias (`sharp`/`artifact`/…) — prefer `monitor` |
 | `display.screensaverSeconds` | `0` = off; else idle seconds before AMOLED screensaver |
+| `usb.storageMode` | `normal` (default) \| `auto` — auto enters USB MSC only on a real USB **data** host when TinyUSB MSC is available; never on power-only |
+| `input.hostBridge.*` | **Host-only** Windows CDC bridge (firmware ignores) |
+
+### `input.hostBridge` (host tooling)
+
+Stored in the same profile `system.json` so `device:config` / `device:input-bridge`
+share one selection. ESP32 firmware does not read these fields.
+
+| Field | Meaning |
+| --- | --- |
+| `gamepad` | `none` \| `auto` \| `0`…`3` (XInput user index) |
+| `gamepadId` | Optional name/id regex (overrides slot when set) |
+| `pdl0` | `auto` \| `gamepadX` \| `dial` \| `none` |
+| `pdl1` | `auto` \| `gamepadY` \| `none` |
+| `pb0` | `auto` \| `gamepadA` \| `none` (legacy `dialPress`/`or` → `gamepadA`; MX Dial has no press) |
+| `dial` | Enable Logitech Dial Raw Input path |
+| `keyboard` | Forward host TTY keys (default true) |
+| `deadzone` | Stick deadzone 0…0.5 (default 0.08) |
 
 Invalid / missing config → concise `[CONFIG][FAIL]` log → **safe defaults** (historical interactive ROM bring-up, no auto disk). No reboot loop.
 
@@ -77,6 +97,7 @@ While the panel sleeps, Apple II emulation continues.
 | Task | Role |
 | --- | --- |
 | `device:config` | Form → write profile → upload `system.json` + `macros.json` |
+| `device:input-bridge` | Windows CDC bridge using profile `input.hostBridge` |
 | `device:macro:run` | Run a macro on a live device |
 
 ## Serial diagnostics
@@ -92,4 +113,6 @@ While the panel sleeps, Apple II emulation continues.
 
 Do not commit ROM/disk bytes. Configuration stores paths only.
 
-Future input-provider selection (Windows bridge / USB HID / BlueShift / paddles) may extend `system.json` — not implemented here.
+`input.hostBridge` selects the Windows development gamepad/Dial mapping per
+profile. Native USB HID / BlueShift / TRRS providers remain future work
+(see `docs/architecture/input-providers.md`).

@@ -75,6 +75,10 @@ local/roms/**
 /local/apple2/**
 !/local/apple2/README.md
 
+# Logical ESP][ microSD backups (may contain proprietary ROMs/media/config)
+/local/sd-backups/**
+!/local/sd-backups/README.md
+
 # Local ROM path config (personal)
 config/roms.local.json
 

@@ -131,6 +131,7 @@ test("internal/alias tasks are not exported as dashboard entries", async () => {
     "releases:context-check",
     "releases:context-fix",
     "releases:i18x-update",
+    "device:usb-storage",
   ]) {
     assert.equal(tasks.has(id), false, `${id} must not be a tagged dashboard task`);
   }
@@ -139,6 +140,7 @@ test("internal/alias tasks are not exported as dashboard entries", async () => {
   assert.equal(typeof mod.RELEASES_CONTEXT_CHECK, "undefined");
   assert.equal(typeof mod.RELEASES_CONTEXT_FIX, "undefined");
   assert.equal(typeof mod.RELEASES_I18X_UPDATE, "undefined");
+  assert.equal(typeof mod.deviceUsbStorage, "undefined");
   const gulpSrc = readFileSync(GULPFILE, "utf8");
   assert.equal(gulpSrc.includes("(alias)"), false);
   assert.equal(gulpSrc.includes("Release context CHECK"), false);
@@ -165,6 +167,7 @@ test("CLI aliases remain registered with gulp", () => {
     "releases:context-check",
     "releases:context-fix",
     "releases:i18x-update",
+    "device:usb-storage",
   ]) {
     assert.ok(ids.includes(need), `gulp task missing: ${need}`);
   }

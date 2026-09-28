@@ -5,6 +5,26 @@
 			"main": 0,
 			"minor": 1,
 			"revision": 0,
+			"date": "2026-09-28 09:45",
+			"beta": true,
+			"info": [
+				"Added verified ESP][ SD backup and restore for card migration and recovery."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
+			"date": "2026-09-27 21:45",
+			"beta": true,
+			"info": [
+				"Verified Little Brick Out as a second real-software title on the physical ESP][: LORES+MIXED playfield on the CO5300, with the Windows USB/CDC multi-input bridge ready for Logitech Dial as Apple II paddle 0."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
 			"date": "2026-09-27 20:30",
 			"beta": true,
 			"info": [

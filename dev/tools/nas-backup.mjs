@@ -42,6 +42,7 @@ export const NAS_BACKUP_INCLUDE_DIRS = Object.freeze([
   // Local / downloaded / user-supplied (gitignored payloads; NAS-backed)
   "local/apple2",
   "local/roms",
+  "local/sd-backups",
   "library/user",
   // Vendor / research dumps (gitignored; NAS-backed)
   "_refs",
@@ -51,6 +52,7 @@ export const NAS_BACKUP_INCLUDE_DIRS = Object.freeze([
 export const NAS_BACKUP_LOCAL_ASSET_DIRS = Object.freeze([
   "local/apple2",
   "local/roms",
+  "local/sd-backups",
   "library/user",
 ]);
 

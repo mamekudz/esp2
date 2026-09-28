@@ -31,6 +31,7 @@ export const GIT_BACKUP_NEVER_STAGE = Object.freeze([
   // Downloaded / runtime Apple II media (also gitignored under /local/apple2/**)
   "local/apple2",
   "local/roms",
+  "local/sd-backups",
   "library/user",
 ]);
 

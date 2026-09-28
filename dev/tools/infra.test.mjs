@@ -131,7 +131,9 @@ test('NAS excludes disposable trees; includes local assets', () => {
 	assert.ok(!NAS_BACKUP_EXCLUDE_DIRS.includes('_refs'));
 	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('local/apple2'));
 	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('local/roms'));
+	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('local/sd-backups'));
 	assert.ok(NAS_BACKUP_LOCAL_ASSET_DIRS.includes('local/apple2'));
+	assert.ok(NAS_BACKUP_LOCAL_ASSET_DIRS.includes('local/sd-backups'));
 	assert.ok(NAS_BACKUP_REFERENCE_DIRS.includes('_refs'));
 	assert.ok(NAS_BACKUP_REFERENCE_DIRS.includes('3dprint'));
 	assert.ok(NAS_BACKUP_INCLUDE_DIRS.includes('3dprint'));
@@ -141,6 +143,7 @@ test('NAS excludes disposable trees; includes local assets', () => {
 test('Git backup never stages local Apple II media', () => {
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/apple2'));
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/roms'));
+	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('local/sd-backups'));
 	assert.ok(GIT_BACKUP_NEVER_STAGE.includes('library/user'));
 });
 

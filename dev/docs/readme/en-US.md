@@ -1,8 +1,14 @@
-# ESP][
+<p align="center">
+  <img src="docs/assets/esp2-logo.svg" alt="ESP][ logo" width="220">
+</p>
 
 **ESP][ — An Apple in a hand.**
 
 *Better an Apple in the hand than a dove on the roof.*
+
+<p align="center">
+  <img src="docs/assets/an-apple-in-a-hand.gif" alt="ESP][ — An Apple in a hand" width="420">
+</p>
 
 *English (below) · [Deutsch](#deutsch)*
 
@@ -137,6 +143,14 @@ Example **galaxian-demo** profile (paths only; media not in Git):
 
 **Standalone wording:** the persistent startup path is **implemented** and intended for USB-power-only operation without a PC. Independent confirmation of a plain power-supply **cold boot** to the full Galaxian demo is still being validated — do not treat `STANDALONE_GALAXIAN = PASS` as settled until that check is recorded. Details: `docs/architecture/device-config.md`.
 
+### microSD backup / restore
+
+µGulp **Device** actions back up and restore the ESP][ `/esp2` tree as a
+**logical**, SHA-256–verified filesystem copy under gitignored
+`local/sd-backups/` (privately NAS-backed). Not a raw card image — source and
+destination card capacities may differ when the data fits. Details:
+`docs/architecture/sd-backup-restore.md`.
+
 ---
 
 ## Presentation (Classic vs Landscape)
@@ -210,6 +224,8 @@ While the panel sleeps or is off, **Apple II emulation continues**. User activit
 - TEXT / LORES / HGR to the CO5300
 - HGR Sharp + Artifact Color; Classic + Landscape presentations
 - Windows 11 → USB CDC keyboard bridge (Galaxian)
+- Windows 11 → USB CDC multi-input bridge (keyboard + Logitech Dial → PDL0) for Little Brick Out
+- Little Brick Out physical LORES+MIXED playfield (WHITE/CLEAN)
 - Persistent device config + macros (paths on SD)
 
 ### HOST_VERIFIED
@@ -222,9 +238,8 @@ While the panel sleeps or is off, **Apple II emulation continues**. User activit
 
 - Control Screen UI; Bluetooth keyboard / gamepad / audio as primary I/O
 - Local piezo audio; wired paddles; native USB HID host
-- WOZ / full disk write path; CRT/Monitor display effects
+- WOZ / full disk write path
 - Final miniature enclosure CAD variants
-- **Little Brick Out** — planned later validation candidate for LORES / paddle / Logitech Dial (currently **NOT_TESTED**)
 
 ---
 
@@ -251,11 +266,11 @@ Planned additional hardware: piezo / local speaker, physical reset / control but
 | Title | Host | ESP32 |
 | --- | --- | --- |
 | Galaxian | PASS / PLAYFIELD (HOST) | **PASS / PLAYFIELD** (physical; input/audio partial) |
+| Little Brick Out | PASS / LORES+MIXED (HOST) | **PASS / LORES+MIXED** (physical; Dial bridge LIVE) |
 | ESP][ Boot Test | COMPLETED_TEST_PATH | Level-4 spot PASS |
-| Little Brick Out | NOT_TESTED | NOT_TESTED |
 | Choplifter / Night Mission / … | see matrix | NOT_TESTED |
 
-Full matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ incompatible. User-supplied media only — Galaxian is a **verified compatibility title**, not bundled firmware media.
+Full matrix: `docs/compatibility/titles.json`. `NOT_TESTED` ≠ incompatible. User-supplied media only — Galaxian (HGR) and Little Brick Out (LORES + paddle / Logitech Dial via Windows CDC) are **verified compatibility titles**, not bundled firmware media.
 
 ---
 
@@ -313,6 +328,12 @@ Explicit checkpoint (`backup: ESP][ YYYY-MM-DD HH:mm`), including **CLAUDE.md**,
 ## µGulp-ready
 
 ESP][ is wired for the µGulp workflow (task catalog, docs generation, backup). See [microgulp.dev](https://microgulp.dev/).
+
+---
+
+## Acknowledgments
+
+ESP][’s game-library / title-first UX is inspired by **[Apple ][js](https://www.scullinsteel.com/apple2)** by Will Scullin — thank you for that excellent browser Apple II emulator and for years of keeping the platform approachable online.
 
 ---
 

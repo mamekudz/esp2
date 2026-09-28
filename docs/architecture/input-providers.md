@@ -25,14 +25,30 @@ must not care which provider supplied the state.
 | Logitech Dial (relative) | **DEV** | Windows Raw Input mouse-wheel channel → virtual absolute PDL0 |
 
 Host tool: `dev/tools/esp2-input-bridge.mjs` (+ `esp2-paddle-accumulator.mjs`).
+µGulp: `device:input-bridge` (reads `input.hostBridge` from the chosen profile
+or `local/device/config/system.json`).
 
 Multi-device composition stays on the **host** bridge (e.g. PDL0←Dial,
-PDL1←8BitDo, PB0←dial press ∨ gamepad A). The Apple II core only sees
+PDL1←8BitDo, PB0←gamepad A). The Apple II core only sees
 normalized paddles/buttons.
 
+**Profile gamepad selection:** `system.json` → `input.hostBridge.gamepad`
+(`none` / `auto` / XInput slot `0`…`3`) plus optional `gamepadId` regex.
+Edit via `device:config`. Firmware ignores the `input` object.
+
 Dial: relative deltas accumulate into 0…255 (default center 128, sensitivity 2,
-clamp at ends — no wraparound). Press uses middle-button Raw Input only when
-the host maps a press; never faked.
+clamp at ends — no wraparound).
+
+**Logitech MX Dial has no physical press switch** (Logitech hardware design).
+Do **not** map PB0 to a Dial “click”. Use gamepad A / keyboard / a real paddle
+button for PB0. Rotation-only for PDL0.
+
+**Logitech Options+:** If Dial rotation only changes Windows volume, Options+
+is intercepting the HID path. Disable Dial→volume / Smart Actions (or map the
+crown to mouse wheel) so Raw Input can see wheel/HWHEEL deltas.
+
+**Keyboard:** CDC keyboard injection requires the bridge terminal to have
+focus (Node raw stdin). Gamepad (XInput) and Dial (Raw Input) do not.
 
 CDC roles on one serial stream (mutually exclusive sessions):
 
