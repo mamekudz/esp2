@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "rom": "/esp2/roms/system.rom"
+  },
+  "media": {
+    "drive1": "/esp2/disks/XMasCard.dsk",
+    "drive2": null
+  },
+  "startup": {
+    "bootFromDisk": true,
+    "macro": ""
+  },
+  "presentation": {
+    "orientation": "classic",
+    "monitor": "white",
+    "effect": "clean",
+    "color": "sharp"
+  },
+  "display": {
+    "screensaverSeconds": 300
+  },
+  "usb": {
+    "storageMode": "normal"
+  },
+  "input": {
+    "hostBridge": {
+      "gamepad": "auto",
+      "gamepadId": "",
+      "pdl0": "gamepadX",
+      "pdl1": "gamepadY",
+      "pb0": "gamepadA",
+      "dial": false,
+      "keyboard": true,
+      "deadzone": 0.08
+    }
+  },
+  "meta": {
+    "title": "X-Mas Card",
+    "category": "Personal",
+    "apple2jsBasename": "xmas-card",
+    "apple2jsFilename": "json/disks/xmas-card.json",
+    "redistribution": "UNKNOWN",
+    "source": "apple2js-catalog"
+  }
+}

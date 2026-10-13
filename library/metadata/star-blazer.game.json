@@ -18,18 +18,18 @@
   "videoColorMode": "CompositeColor",
   "displayEffect": "Sharp",
   "effectStrength": "Off",
-  "notes": "Future audio/video compatibility reference. Disk image not bundled with ESP][.",
+  "notes": "Future audio/video compatibility reference. Disk image not bundled with ESP][ — use gulp setup:profiles --profile star-blazer (LOCAL_TEST_ONLY).",
   "mediaStatus": "not_installed",
   "source": {
-    "type": "manual",
-    "site": null,
+    "type": "apple2js-website",
+    "site": "https://www.scullinsteel.com/apple2",
     "inGitRepo": false,
-    "onWebsite": false
+    "onWebsite": true
   },
   "redistribution": {
     "status": "USER_SUPPLIED_ONLY",
-    "evidence": "Commercial title. No redistribution grant. Subjective browser-simulation audio reference only.",
-    "preferredUpstream": null,
+    "evidence": "Commercial title on Apple ][js website catalog. Website availability is not redistribution permission. LOCAL_TEST_ONLY.",
+    "preferredUpstream": "json/disks/starblazer.json",
     "publisherHint": null
   },
   "audioNote": "SUBJECTIVE_REFERENCE — browser Apple II simulation sounded subjectively close to original; not an automated pass."

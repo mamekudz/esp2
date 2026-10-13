@@ -42,8 +42,8 @@
     "Attract-mode detection is heuristic from host diagnostics/text dump"
   ],
   "hostStatus": "BOOT",
-  "esp32Status": "NOT_TESTED",
+  "esp32Status": "PASS",
   "inputStatus": "NOT_TESTED",
   "audioStatus": "NOT_TESTED",
-  "notes": "Furthest host evidence under AppleIIGo: BOOT only. Proven intentional motherboard ROM DATA dependency (no ROM code fetch before hang). User Apple II+ ROM required for further progress. Physical deferred."
+  "notes": "Furthest AppleIIGo-only host smoke remains BOOT without user II+ ROM. With USER_APPLE_II_PLUS_ROM: HOST playfield path and ESP32 physical playfield PASS (cracktro→input→HGR). PHYSICALLY_VERIFIED long-run: MICROS_WRAP_REGRESSION=PASS, GALAXIAN_2H_SOAK=PASS (≥2 h; cycles past former ~71.6 min micros() wrap). Evidence: docs/apple2/galaxian-2h-soak.json. Does not claim 24h or all-title stability."
 }

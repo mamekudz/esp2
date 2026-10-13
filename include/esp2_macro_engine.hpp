@@ -16,7 +16,7 @@ static constexpr size_t kIdMax = 48;
 static constexpr uint32_t kMaxWaitMs = 180000;
 static constexpr uint32_t kMaxTotalWaitMs = 300000;
 
-enum class Op : uint8_t { Wait = 0, Key = 1, WaitHires = 2 };
+enum class Op : uint8_t { Wait = 0, Key = 1, WaitHires = 2, Pb0 = 3 };
 
 struct Action {
     Op op = Op::Wait;
@@ -51,7 +51,7 @@ struct Runner {
 };
 
 /** HGR must hold this long before waitHires succeeds (debounce). */
-static constexpr uint32_t kHiresHoldMs = 400;
+static constexpr uint32_t kHiresHoldMs = 1200;
 
 /** Parse macros.json (array of {id,actions}). */
 bool parseMacrosJson(const char *json, size_t len, MacroBank *out, char *err, size_t errLen);
@@ -67,8 +67,10 @@ void stopMacro(Runner *r, const char *reason);
  * Advance one cooperative step.
  * @param hiresNow current Apple II soft-switch HGR state
  * @param injectKey callback for 7-bit Apple key (same path as live input)
+ * @param injectPb0 optional pulse for Apple button 0 (joystick fire)
  * @return true if still running
  */
-bool tickMacro(Runner *r, uint32_t nowMs, bool hiresNow, void (*injectKey)(uint8_t));
+bool tickMacro(Runner *r, uint32_t nowMs, bool hiresNow, void (*injectKey)(uint8_t),
+               void (*injectPb0)() = nullptr);
 
 } // namespace esp2_macro

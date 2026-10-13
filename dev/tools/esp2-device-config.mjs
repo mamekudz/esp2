@@ -26,8 +26,12 @@ function has(name) {
 
 function main() {
   const profile = arg("profile", "galaxian-demo");
-  const port = arg("port", process.env.ESP2_PORT || "COM5");
+  const port = arg("port", "");
   const dry = has("dry-run");
+  if (!dry && !port) {
+    console.error("esp2-device-config requires --port (no COM5 fallback)");
+    process.exit(2);
+  }
   const outDir = join(ROOT, "local/device/config");
   const srcDir = join(ROOT, "config/device/profiles", profile);
   if (!existsSync(srcDir)) {

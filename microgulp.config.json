@@ -1,0 +1,42 @@
+{
+	"gulpfile": "gulpfile.mjs",
+	"preload": true,
+	"watchGulpfiles": true,
+	"metadataWatchFiles": [
+		"package.json",
+		"RELEASES.json"
+	],
+	"project": {
+		"title": "ESP][",
+		"description": "Apple II emulator for ESP32-S3",
+		"logo": "./assets/esp2.svg",
+		"controls": [
+			{
+				"id": "platform",
+				"type": "radio",
+				"label": "Target",
+				"default": "waveshare-amoled-s3",
+				"tooltip": "Hardware target for build, upload, and board-specific tasks",
+				"icon": "build",
+				"options": [
+					{
+						"value": "waveshare-amoled-s3",
+						"label": "Waveshare AMOLED",
+						"tooltip": "Waveshare ESP32-S3-Touch-AMOLED-1.64 (CO5300 / FT3168) — production ESP][ target"
+					},
+					{
+						"value": "diymore-es3c28p",
+						"label": "diymore 2.8\"",
+						"tooltip": "diymore ESP32-S3 2.8\" Touch · AM03-FBBA0125-AAA · ES3C28P — bring-up only"
+					},
+					{
+						"value": "waveshare-rlcd42",
+						"label": "RLCD 4.2",
+						"tooltip": "Waveshare/Luckfox ESP32-S3-RLCD-4.2 (ST7305 reflective, no touch) — bring-up"
+					}
+				]
+			}
+		]
+	},
+	"externalControl": true
+}

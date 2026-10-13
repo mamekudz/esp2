@@ -4,6 +4,30 @@
 		{
 			"main": 0,
 			"minor": 1,
+			"revision": 1,
+			"date": "2026-10-13 19:26",
+			"beta": true,
+			"info": [
+				"Added Waveshare/Luckfox ESP32-S3-RLCD-4.2 as an ESP][ target (ST7305 mono): PlatformIO envs rlcd42_bringup / rlcd42_display_probe / rlcd42_apple2, SDMMC 1-bit SD, KEY/BOOT Control Center (PHYSICALLY_VERIFIED Galaxian boot path).",
+				"RLCD classic present defaults to sharp integer 1× (280×192 with letterbox); optional full-panel fit remains available in the Display menu.",
+				"Sped up RLCD frame output with batched ST7305 SPI transfers and a one-pass mono pack (drawPixel flush was the previous bottleneck).",
+				"Shipped on-device Control Center as a frontend over existing presentation, Disk II, BLE HID, and SD-ownership services (touch on AMOLED; buttons on RLCD).",
+				"Expanded multi-board Project Control: diymore ES3C28P and RLCD 4.2 platform IDs alongside the Waveshare AMOLED production baseline."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
+			"revision": 0,
+			"date": "2026-09-29 18:45",
+			"beta": true,
+			"info": [
+				"Fixed a long-run Apple II throttle stall caused by the 32-bit microsecond timer wrapping after about 71.6 minutes; Galaxian now passes a 2-hour physical soak test (PHYSICALLY_VERIFIED)."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
 			"revision": 0,
 			"date": "2026-09-28 09:45",
 			"beta": true,

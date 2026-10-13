@@ -1,7 +1,8 @@
 # Extra script: portable apple2 core for physical ROM + Disk II port.
 Import("env")
 
-if env["PIOENV"] != "apple2_text":
+pioenv = env["PIOENV"]
+if pioenv not in ("apple2_text", "diymore_apple2", "rlcd42_apple2"):
     Return()
 
 from pathlib import Path
@@ -21,9 +22,9 @@ env.BuildSources(
         "-<input_script.cpp>",
         "-<cpu_harness.cpp>",
         # disk_ii_boot.cpp: decodeSectorFromStream used by clean-room Level-4 path
-        "-<gamepad_mapper.cpp>",
+        # gamepad_mapper.cpp: BLE HID → GameIo (native path)
         # display_effect.cpp: CRT/TV RGB565 pass (presentation only)
     ],
 )
 
-print("[apple2_text] portable core + ROM F1 + Disk II from", apple2)
+print("[%s] portable core + ROM F1 + Disk II from %s" % (pioenv, apple2))

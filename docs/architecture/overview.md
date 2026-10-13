@@ -36,7 +36,7 @@ ESP][ keeps concerns separated as required by `CLAUDE.md` §31.
 | `media/` | VirtualDrive, DiskImage, StorageBackend | Apple II CPU internals |
 | `audio/` | speaker events → PCM / local / future BLE audio | display |
 | `diagnostics/` | session model, OK/NOT OK workflow | game logic |
-| `ui/` | Control Screen, virtual keyboard presentation | disk bit timing |
+| `ui/` | Control Center (touch frontend), virtual keyboard presentation | disk bit timing, MSC/BLE stacks |
 | `hardware/` | known-good board bring-up wrappers | Apple II |
 
 ## Rules

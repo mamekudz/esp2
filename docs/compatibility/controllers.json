@@ -40,6 +40,22 @@
       "evidence": "ESP][ BLE scanner; connection diagnosis incomplete"
     },
     {
+      "id": "m2-dual-mode-mini-keyboard",
+      "name": "M2 Dual Mode 2.4G + BLE mini keyboard (BLE mode)",
+      "directEspBracket": "pending",
+      "reasonDirect": "On-device BLE pairing menu added; physical M2 BLE identity/HID not yet logged on ESP][",
+      "blueshift": "n/a",
+      "evidence": "firmware milestone — use BLE not 2.4 GHz dongle"
+    },
+    {
+      "id": "mx-dialpad",
+      "name": "MX Dialpad",
+      "directEspBracket": "pending",
+      "reasonDirect": "Windows BTHLE device DB:EE:9E:2E:60:FC observed; ESP][ scan did not see advertising while Windows held HID association; #ESP2BLE PAIR → NAK. Composite keyboard+pad path implemented; physical APPLE II verify not done.",
+      "blueshift": "n/a",
+      "evidence": "2026-09-29 COM5 apple2_text scan/pair attempt; Windows PnP FriendlyName MX Dialpad"
+    },
+    {
       "id": "terios-t3-shanwan-bm769",
       "name": "Terios T3 / ShanWan BM-769",
       "directEspBracket": "pending",

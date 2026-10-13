@@ -39,7 +39,8 @@ struct KeyboardEvent {
 
 enum class HotkeyAction : uint8_t {
     None = 0,
-    OpenControlScreen,
+    OpenControlScreen, // legacy alias — prefer OpenSettings
+    OpenSettings = OpenControlScreen,
     ToggleVideoMode,
     ToggleEffect,
     PauseResume,

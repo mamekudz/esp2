@@ -1,6 +1,6 @@
 {
   "name": "esp2",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "ESP][ — µGulp / Gulp task runner (Apple II emulator bring-up)",
   "type": "module",
@@ -31,6 +31,7 @@
     "backup:nas": "gulp backup",
     "backup:all": "gulp backup:all",
     "test:infra": "node --test dev/tools/infra.test.mjs",
+    "test:platforms": "node --test dev/tools/esp2-platforms.test.mjs",
     "test:mugulp-catalog": "node --test dev/tools/mugulp-task-catalog.test.mjs",
     "test:mugulp-smoke": "node --test dev/tools/mugulp-catalog-smoke.test.mjs",
     "test:apple2-local": "node --test dev/tools/apple2-local/apple2-local.test.mjs",
@@ -54,13 +55,15 @@
     "gulp:tasks": "gulp --tasks",
     "device:upload": "gulp device:upload",
     "device:usb-storage": "gulp device:usb-storage",
-    "test:upload": "node --test dev/tools/esp2-upload.test.mjs"
+    "test:upload": "node --test dev/tools/esp2-upload.test.mjs",
+    "test:device-resolver": "node --test dev/tools/esp2-device-resolver.test.mjs dev/tools/esp2-usb-msc-protocol.test.mjs"
   },
   "microgulp": {
     "ready": true
   },
   "devDependencies": {
     "gulp": "^5.0.0",
+    "gulp-mu-build-filter": "^2.0.7",
     "gulp-mu-gulp-api": "^0.5.0",
     "serialport": "^13.0.0"
   }

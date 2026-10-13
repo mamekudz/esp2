@@ -7,7 +7,9 @@
         { "op": "wait", "ms": 8000 },
         { "op": "waitHires", "ms": 90000 },
         { "op": "wait", "ms": 2000 },
-        { "op": "key", "code": "A" }
+        { "op": "key", "code": "A" },
+        { "op": "wait", "ms": 800 },
+        { "op": "key", "code": "SPACE" }
       ]
     }
   ]

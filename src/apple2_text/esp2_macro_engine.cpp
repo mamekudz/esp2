@@ -187,6 +187,11 @@ bool parseActionObject(const char **pp, const char *end, Action *act) {
         act->key7 = keyFromToken(code);
         return act->key7 != 0;
     }
+    if (strcmp(op, "pb0") == 0 || strcmp(op, "button0") == 0 || strcmp(op, "fire") == 0) {
+        act->op = Op::Pb0;
+        act->ms = ms; // optional hold hint; pulse uses fixed short press
+        return true;
+    }
     return false;
 }
 
@@ -400,7 +405,8 @@ void stopMacro(Runner *r, const char *reason) {
     strncpy(r->failReason, reason ? reason : "stop", sizeof(r->failReason) - 1);
 }
 
-bool tickMacro(Runner *r, uint32_t nowMs, bool hiresNow, void (*injectKey)(uint8_t)) {
+bool tickMacro(Runner *r, uint32_t nowMs, bool hiresNow, void (*injectKey)(uint8_t),
+               void (*injectPb0)()) {
     if (!r || r->state != RunState::Running || !r->macro) {
         return false;
     }
@@ -455,6 +461,13 @@ bool tickMacro(Runner *r, uint32_t nowMs, bool hiresNow, void (*injectKey)(uint8
     case Op::Key:
         if (injectKey) {
             injectKey(a.key7);
+        }
+        ++r->index;
+        r->waitDeadlineMs = 0;
+        break;
+    case Op::Pb0:
+        if (injectPb0) {
+            injectPb0();
         }
         ++r->index;
         r->waitDeadlineMs = 0;

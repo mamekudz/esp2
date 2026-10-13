@@ -124,6 +124,28 @@ export function FilterChannels(_text, _channel = "git") {
 }
 
 /**
+ * Expand `<!-- include:relative/path.md -->`.
+ * Missing files become an HTML comment warning so compose stays non-fatal.
+ * @param {string} _text
+ * @param {string} _root
+ */
+export function ExpandIncludes(_text, _root = PROJECT_ROOT) {
+  return String(_text).replace(
+    /^\s*<!--\s*include:([^\s>]+)\s*-->\s*$/gm,
+    (_m, rel) => {
+      const path = join(_root, String(rel).trim());
+      if (!existsSync(path)) {
+        return `<!-- include missing: ${rel} — run: node dev/tools/device-profile-catalog-doc.mjs -->\n`;
+      }
+      let chunk = readFileSync(path, "utf8").replace(/\r\n/g, "\n");
+      // Drop leading H1 so the surrounding README heading stays authoritative.
+      chunk = chunk.replace(/^#[^\n]*\n+/, "");
+      return chunk.replace(/\n*$/, "\n");
+    },
+  );
+}
+
+/**
  * @param {string} path
  * @param {string} next
  * @returns {boolean} whether file changed
@@ -159,7 +181,7 @@ export function ComposeReadmeLocale(_opts = {}) {
   }
 
   const raw = readFileSync(sourcePath, "utf8");
-  const composed = FilterChannels(raw, "git");
+  const composed = ExpandIncludes(FilterChannels(raw, "git"), root);
   const changed = writeIfChanged(baselinePath, composed);
 
   return {

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "knownDevices": [],
+  "control": {
+    "resetAppleIi": {
+      "keyboard": { "ctrl": true, "alt": true, "shift": false, "meta": false, "key": "R" },
+      "gamepad": { "buttons": ["start", "b"], "holdMs": 1500 }
+    },
+    "openSettings": {
+      "keyboard": { "ctrl": true, "alt": true, "shift": false, "meta": false, "key": "S" },
+      "gamepad": { "buttons": ["start", "select"], "holdMs": 1500 }
+    }
+  }
+}

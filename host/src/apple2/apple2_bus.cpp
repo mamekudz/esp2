@@ -157,13 +157,13 @@ uint8_t Apple2Bus::handleIoRead(uint16_t address, bool sideEffects) {
         return v;
     }
 
-    // $C010–$C01F strobe clear
+    // $C010–$C01F strobe clear. Return the pre-clear latch (bit7 still set if a
+    // key was pending). II+ software that waits with BIT/LDA $C010 / BPL must
+    // see the strobe on the same access that clears it.
     if (pageOff <= 0x1F) {
-        if (sideEffects) {
-            keyboard_.clearStrobe();
-        }
         const uint8_t v = keyboard_.readData();
         if (sideEffects) {
+            keyboard_.clearStrobe();
             trace(false, address, v, "strobe-clear");
         }
         return v;

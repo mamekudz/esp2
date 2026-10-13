@@ -19,8 +19,9 @@
     "disk1": {
       "catalogFile": "LittleBrickOut.dsk",
       "format": "dsk",
-      "sha256": "2f9b78ee27f5d0167a2a7ead2193607a0ded6ef1e90406b30726483c62307f2f",
-      "note": "Cowgod cassette→DSK transfer; LOCAL_TEST_ONLY under local/apple2/disks/; see local/apple2/provenance/little-brick-out.provenance.json"
+      "sha256": "50502098248f122d02fd5ab9779b8e94be1f040803fde2913f9f31f718eea505",
+      "sourceSha256": "2f9b78ee27f5d0167a2a7ead2193607a0ded6ef1e90406b30726483c62307f2f",
+      "note": "Cowgod cassette→DSK; HELLO patched to RUN LITTLE BRICK OUT (Color-Demos leftover removed). Original kept as LittleBrickOut.cowgod-original.dsk. LOCAL_TEST_ONLY."
     }
   },
   "videoModeExpected": "LORES_MIXED",
@@ -30,13 +31,15 @@
     "text": true,
     "page1": true,
     "page2": false,
-    "verifiedOnHost": false
+    "verifiedOnHost": true,
+    "hostEvidence": "FIRST_LORES+MIXED page1; SCORE playfield; PDL0/PDL1/PB0 softswitch traffic"
   },
   "inputExpected": {
     "pdl0": "required",
-    "pdl1": "optional",
-    "pb0": "optional_or_demo_toggle",
-    "pb1": "not_required",
+    "pdl1": "used_at_start",
+    "pb0": "title_and_name_skip_and_new_game",
+    "pb1": "checked_at_start_not_required",
+    "keyboard": "SPACE_title_name_RETURN_ESC_end",
     "providers": ["windows_cdc_bridge", "logitech_dial", "gamepad", "future_usb_hid", "future_wired_paddle"]
   },
   "bootCycleBudget": 40000000,
@@ -63,13 +66,21 @@
     "Validate LORES via softswitches + LoRes renderer (no title hacks)",
     "Validate PDL0 via Logitech Dial virtual accumulator or gamepad"
   ],
-  "hostStatus": "NOT_TESTED",
-  "esp32Status": "NOT_TESTED",
-  "inputStatus": "NOT_TESTED",
-  "audioStatus": "NOT_TESTED",
-  "realSoftwareLoRes": "NOT_TESTED",
-  "paddleInput": "NOT_TESTED",
-  "logitechDial": "NOT_TESTED",
+  "hostStatus": "PASS",
+  "esp32Status": "PASS",
+  "inputStatus": "CDC_PB0_SPACE_START",
+  "audioStatus": "HOST_SPEAKER_EDGES_OBSERVED",
+  "realSoftwareLoRes": "PASS",
+  "paddleInput": "HOST_PASS",
+  "logitechDial": "PARTIAL",
   "dirtyUpdate": "NOT_TESTED",
-  "notes": "Planned next real-software validation after Galaxian: LORES + paddle + dirty updates. No execution in current milestone."
+  "esp32Evidence": {
+    "devicePath": "/esp2/disks/LittleBrickOut.dsk",
+    "sha256": "50502098248f122d02fd5ab9779b8e94be1f040803fde2913f9f31f718eea505",
+    "firstLores": "DISK HB video=LORES+MIXED page2=0 after CDC SPACE+PB0",
+    "presentation": "WHITE + CLEAN + LANDSCAPE",
+    "cps": "~1023000",
+    "dialBridge": "LIVE PDL0←dial PB0←dialPress sensitivity=2 api=windows_rawinput_mouse_wheel VID_046D&PID_C354"
+  },
+  "notes": "HOST+ESP32 LORES+MIXED playfield PASS. Logitech Dial hardware detected and CDC bridge LIVE; physical rotation confirmation left for author (DIAL=PARTIAL until paddle motion observed)."
 }

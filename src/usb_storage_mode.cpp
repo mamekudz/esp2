@@ -1,10 +1,8 @@
 #include "usb_storage_mode.hpp"
 
-#include "board_pins.h"
 #include "esp2_sd_bus.hpp"
 
 #include <Arduino.h>
-#include <SD.h>
 #include <cstring>
 
 #include "sd_diskio.h"
@@ -108,6 +106,7 @@ bool UsbStorageMode::enter() {
     sdPdrv_ = discoverPdrv();
     if (sdPdrv_ == 0xFF) {
         owner_.setError("sd_pdrv");
+        owner_.setState(SdOwnerState::Esp2OwnsSd);
         g_mscInstance = nullptr;
         return false;
     }
@@ -115,6 +114,7 @@ bool UsbStorageMode::enter() {
     sectorSize_ = static_cast<uint16_t>(sdcard_sector_size(sdPdrv_));
     if (sectorCount_ == 0 || sectorSize_ == 0) {
         owner_.setError("sd_geometry");
+        owner_.setState(SdOwnerState::Esp2OwnsSd);
         g_mscInstance = nullptr;
         return false;
     }

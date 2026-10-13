@@ -54,3 +54,8 @@ optimize Disk II. Re-measure with user ROM present before F2.
 - `a2emu` core1 — cycles + denibble service + 1× throttle
 - `a2disp` core0 — dirty → render → CO5300; power/touch
 - Disk activity does **not** count as display user activity
+
+Long-run throttle wall-clock: **`esp_timer_get_time()` / `int64_t`** (not
+`micros()` as absolute timebase). See `docs/architecture/apple2-throttle.md`.
+Former ~71.6 min wrap stall: **PHYSICALLY_VERIFIED** closed
+(`MICROS_WRAP_REGRESSION = PASS`, `GALAXIAN_2H_SOAK = PASS`).

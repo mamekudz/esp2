@@ -1,15 +1,19 @@
 # ESP][ — BLE HID setup & local control hotkeys
 
 Status: **IMPLEMENTED** (apple2_text + µGulp `device:ble`). Physical verification
-pending on real BLE keyboard / gamepad hardware.
+of a composite BLE keyboard + integrated pad is **blocked** when the device is
+already bonded to Windows as HID host (see Physical tests).
 
 ## Purpose
 
-Initial BLE keyboard/gamepad configuration is performed from the PC:
+BLE keyboard/gamepad configuration works **on-device** (primary) or from the PC
+(development / µGulp):
 
 ```text
-PC → USB CDC → µGulp device:ble → ESP][ NimBLE host
-       → scan / pair / manage → /esp2/config/bluetooth.json
+Touch / hotkey → Settings → Input devices → Add BLE device / Devices
+       → NimBLE scan / pair / reconnect → /esp2/config/bluetooth.json
+
+PC → USB CDC → µGulp device:ble → same NimBLE host + bluetooth.json
 ```
 
 After pairing, ESP][ can reconnect known devices **standalone** (USB power only,
@@ -45,21 +49,47 @@ Tracked example: `config/device/bluetooth.example.json`.
 | `#ESP2BLE DISCONNECT` | Drop active HID link |
 | `#ESP2BLE FORGET <addr>` | Remove one known entry (+ disconnect if active) |
 | `#ESP2BLE BINDINGS` | Human-readable hotkey summary |
+| `#ESP2BLE HIDMON [1\|0]` | Rate-limited `#BLE HID …` report monitor |
+| `#ESP2BLE PADMODE joystick\|paddle\|off` | Integrated pointer → Apple II mapping |
+| `#ESP2BLE SENS <1..32>` | Relative-pad accumulation sensitivity |
+| `#ESP2BLE RECENTER` | Recenter virtual absolute X/Y |
+| `#ESP2BLE PADSTAT` | Normalized pad snapshot |
 
 BLE setup refuses when USB Storage / MSC is active (`#NAK BLE usb_storage_active`).
 
+Physical audit helper: `node dev/tools/ble-hid-physical-audit.mjs COM5`.
+
+## Composite HID (keyboard + integrated pad)
+
+One BLE link may expose **multiple HID report shapes** (boot keyboard + relative
+mouse/touchpad and/or gamepad). ESP][ classifies **each report**:
+
+| Shape | Heuristic | Path |
+| --- | --- | --- |
+| Boot keyboard | len 8–10, reserved byte 0 | → `LocalControlEngine` → Apple II latch |
+| Relative pointer | short report, buttons + dx/dy | → virtual axes → `GamepadMapper` → GameIo |
+| Gamepad | remaining when caps include gamepad/joystick | → `GamepadMapper` → GameIo |
+
+Relative pads do **not** pretend to be absolute joystick coordinates until
+accumulated into a virtual axis (`RECENTER`, `SENS`). Absolute/gamepad axes use
+the existing mapper + deadzone when those reports are present.
+
+Do **not** put vendor/model checks in `AppleIIMachine` — quirks stay in BLE HID /
+profile layers if ever required.
+
 ## Simultaneous connections
 
-V1 budget: **one** active BLE HID host connection (`maxConn=1`). Multiple devices
-may be *known*; auto-reconnect tries the first `autoReconnect` entry. Additional
-simultaneous links are not claimed until measured on hardware.
+V1 budget: **two** active BLE HID host connections (`maxConn=2`), e.g. keyboard +
+gamepad at once. Auto-reconnect fills free slots from `autoReconnect` known
+devices. A composite keyboard+pad still uses **one** connection with multi-report
+routing.
 
 ## Local actions
 
 | Action | Meaning |
 | --- | --- |
 | `RESET_APPLE_II` | Existing Apple II reset (disks remain) |
-| `OPEN_SETTINGS` | V1: brief status hint + `#ACK SETTINGS OPEN` — **no** full OLED menu |
+| `OPEN_SETTINGS` | Opens on-device **Settings → Input devices** (BLE scan/pair/list) |
 
 Future physical 5-way control must trigger the same `OPEN_SETTINGS` action.
 `FUTURE_PHYSICAL_SETTINGS_CONTROL = CANDIDATE` — not implemented; no 3dprint/BOM change.
@@ -90,16 +120,37 @@ native form — not separate `ble:scan` tasks.
 ## Normalized input
 
 ```text
-BLE keyboard / gamepad  ─┐
-Windows CDC bridge      ─┼→ LocalControlEngine → Apple II latch / GameIo
-Future 5-way            ─┘
+BLE keyboard / gamepad / composite pad  ─┐
+Windows CDC bridge                      ─┼→ LocalControlEngine → Apple II latch / GameIo
+Future 5-way                            ─┘
 ```
+
+## On-device menu path
+
+```text
+Settings (Ctrl+Alt+S or Start+Select hold)
+  → Input devices
+      → Add BLE device   (bounded async scan, tap to pair)
+      → Devices          (known list, connect / disconnect / forget / info)
+```
+
+User-facing strings use **i18x** (`settings.*`, `ble.*`). BLE callbacks update
+state only; **esp2_settings_ui** owns drawing (display task).
 
 ## Physical tests (required before README claim)
 
+- [ ] On-device Add BLE device → pair → Devices list
 - [ ] USB + µGulp scan / pair BLE keyboard → Apple II keys
 - [ ] Power-cycle standalone reconnect keyboard
-- [ ] USB + µGulp scan / pair BLE gamepad → paddles/buttons
-- [ ] Power-cycle standalone reconnect gamepad
+- [ ] Integrated pad HID type measured (mouse rel / abs / gamepad / other)
+- [ ] Pad usable as joystick and/or paddle with physical Apple II verification
+- [ ] Power-cycle standalone reconnect composite device
 - [ ] Keyboard / gamepad reset & settings hotkeys consumed (not forwarded)
 - [ ] Optional: same device with `(BlueShift)` name uses identical path
+
+**2026-09-29 physical session notes:** ESP][ `apple2_text` BLE host ready on COM5.
+Nearby advertisements were only smart-home LE devices (Govee, …). Windows PnP
+lists **MX Dialpad** (`DB:EE:9E:2E:60:FC`, BTHLE) as a candidate keyboard/pad,
+but it did **not** appear in ESP][ scan and direct `#ESP2BLE PAIR` returned
+`#NAK BLE PAIR` while Windows still held the BLE HID association. Release the
+Windows bond / enter pairing mode, then re-run `ble-hid-physical-audit.mjs`.

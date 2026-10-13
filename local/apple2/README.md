@@ -12,6 +12,7 @@ local/apple2/
   cache/        # original downloaded source (apple2js JSON, etc.)
   manifests/    # local path/hash maps (ignored — may contain absolute paths)
   user/         # optional user-supplied originals (never deleted by default clean)
+  forensics/    # local soak/serial dumps (gitignored); tracked summaries live under docs/apple2/
 ```
 
 ## Policy

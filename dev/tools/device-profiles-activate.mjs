@@ -14,6 +14,7 @@ import {
 import { syncTitleMedia } from "./apple2-local/media-sync.mjs";
 import { prepareTitleMedia } from "./apple2-local/media-prepare.mjs";
 import { syncRedistributableRoms } from "./apple2-local/rom-sync.mjs";
+import { syncLittleBrickOut } from "./apple2-local/little-brick-out-sync.mjs";
 import { PROTECTED_PROFILE_IDS } from "./device-profiles-from-apple2js.mjs";
 import { writeFileSync } from "node:fs";
 
@@ -34,7 +35,8 @@ export function mediaTitleIdForProfile(root, profileId) {
   const metaBase = raw?.meta?.apple2jsBasename;
   if (metaBase) return String(metaBase);
   if (profileId === "galaxian-demo") return "galaxian";
-  if (profileId === "little-brick-out") return "littlebrickout";
+  // Not on apple2js website — Cowgod cassette DSK (see little-brick-out-sync.mjs).
+  if (profileId === "little-brick-out") return "little-brick-out";
   if (profileId === "star-blazer") return "starblazer";
   return profileId;
 }
@@ -147,41 +149,59 @@ export async function activateProfiles(root, profileIds, opts = {}) {
     const row = { id, titleId, ok: true, redistribution: redist };
 
     try {
-      if (download) {
-        log(`[PROFILES] media-sync title=${titleId} (profile=${id})…`);
-        const sync = await syncTitleMedia(titleId, {
-          ensureApple2jsSync: true,
-          log,
-        });
-        row.sync = {
-          provenance: sync.record?.provenance || sync.provenance,
-          sourceSha256: sync.record?.sourceSha256 || sync.sourceSha256,
-        };
-      }
-      if (prepare) {
-        log(`[PROFILES] media-prepare title=${titleId}…`);
-        try {
-          const prep = prepareTitleMedia(titleId, { log });
-          row.prepare = {
-            runtimePath: prep.runtimePath,
-            runtimeSha256: prep.runtimeSha256,
-            devicePath: prep.record?.devicePath,
+      if (id === "little-brick-out") {
+        // Cowgod source — not apple2js JSON / prepare pipeline.
+        if (download) {
+          log(`[PROFILES] cowgod-sync profile=${id}…`);
+          const sync = await syncLittleBrickOut({ log });
+          row.sync = {
+            provenance: "USER_SUPPLIED_ONLY",
+            source: "cowgod",
+            sourceSha256: sync.runtimeSha256,
           };
-          if (prep.record?.devicePath && !PROTECTED_PROFILE_IDS.includes(id)) {
-            const paths = profilePaths(root, id);
-            const raw = loadProfileSystemJson(root, id);
-            if (raw?.media) {
-              raw.media.drive1 = prep.record.devicePath;
-              writeFileSync(
-                paths.system,
-                `${JSON.stringify(raw, null, 2)}\n`,
-                "utf8",
-              );
+          row.prepare = {
+            runtimePath: sync.runtimePath,
+            runtimeSha256: sync.runtimeSha256,
+            devicePath: sync.devicePath,
+          };
+        }
+      } else {
+        if (download) {
+          log(`[PROFILES] media-sync title=${titleId} (profile=${id})…`);
+          const sync = await syncTitleMedia(titleId, {
+            ensureApple2jsSync: true,
+            log,
+          });
+          row.sync = {
+            provenance: sync.record?.provenance || sync.provenance,
+            sourceSha256: sync.record?.sourceSha256 || sync.sourceSha256,
+          };
+        }
+        if (prepare) {
+          log(`[PROFILES] media-prepare title=${titleId}…`);
+          try {
+            const prep = prepareTitleMedia(titleId, { log });
+            row.prepare = {
+              runtimePath: prep.runtimePath,
+              runtimeSha256: prep.runtimeSha256,
+              devicePath: prep.record?.devicePath,
+            };
+            if (prep.record?.devicePath && !PROTECTED_PROFILE_IDS.includes(id)) {
+              const paths = profilePaths(root, id);
+              const raw = loadProfileSystemJson(root, id);
+              if (raw?.media) {
+                raw.media.drive1 = prep.record.devicePath;
+                writeFileSync(
+                  paths.system,
+                  `${JSON.stringify(raw, null, 2)}\n`,
+                  "utf8",
+                );
+              }
             }
+          } catch (err) {
+            row.prepareError = String(err.message || err);
+            log(`[PROFILES] prepare deferred for ${id}: ${row.prepareError}`);
           }
-        } catch (err) {
-          row.prepareError = String(err.message || err);
-          log(`[PROFILES] prepare deferred for ${id}: ${row.prepareError}`);
         }
       }
     } catch (err) {

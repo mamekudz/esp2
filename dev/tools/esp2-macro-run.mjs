@@ -5,7 +5,11 @@ import { createLineReader } from "./esp2-serial-framing.mjs";
 
 const portPath = (() => {
   const i = process.argv.indexOf("--port");
-  return i >= 0 ? process.argv[i + 1] : process.env.ESP2_PORT || "COM5";
+  const p = i >= 0 ? process.argv[i + 1] : "";
+  if (!p) {
+    throw new Error("esp2-macro-run requires --port (no COM5 fallback)");
+  }
+  return p;
 })();
 const macro = (() => {
   const i = process.argv.indexOf("--macro");

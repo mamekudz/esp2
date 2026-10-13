@@ -84,9 +84,16 @@
     { "id": "device:config", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:macro:run", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:upload", "group": "Device", "i18x": true, "visible": true },
+    { "id": "device:sd:info", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:sd:computer", "group": "Device", "i18x": true, "visible": true },
     { "id": "device:sd:backup", "group": "Device", "i18x": true, "visible": true },
-    { "id": "device:sd:restore", "group": "Device", "i18x": true, "visible": true }
+    { "id": "device:sd:restore", "group": "Device", "i18x": true, "visible": true },
+
+    { "id": "diymore:docs", "group": "diymore Hardware", "i18x": true, "visible": true },
+    { "id": "diymore:identify", "group": "diymore Hardware", "i18x": true, "visible": true },
+    { "id": "diymore:display", "group": "diymore Hardware", "i18x": true, "visible": true },
+    { "id": "diymore:touch", "group": "diymore Hardware", "i18x": true, "visible": true },
+    { "id": "sources:build-filter", "group": "Tools", "i18x": true, "visible": true }
   ],
   "cliAliases": [
     { "id": "backup:nas", "aliasOf": "backup", "note": "CLI compatibility; not a separate dashboard entry" }

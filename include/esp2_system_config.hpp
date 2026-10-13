@@ -47,11 +47,27 @@ struct SystemConfig {
     /** 0 = screensaver disabled; >0 = idle seconds before panel screensaver. */
     uint32_t screensaverSeconds = 0;
     /**
+     * Backlight / OLED brightness percent 1–100 (0 = use firmware default).
+     * Mapped to panel 0–255 at apply time.
+     */
+    uint8_t brightnessPercent = 0;
+    /**
      * USB microSD exposure preference.
      * Normal (default): ESP][ keeps SD when a PC is connected.
      * Auto: enter MSC only when a real USB data host enumerates (never power-only).
      */
     bool usbStorageAuto = false;
+    /**
+     * System UI surface. Unspecified → firmware picks a board default
+     * (Waveshare 280×456: enclosure-visible candidate; else full panel).
+     */
+    enum class SystemUiSurface : uint8_t { Unspecified = 0, FullPanel = 1, EnclosureVisible = 2 };
+    SystemUiSurface systemUiSurface = SystemUiSurface::Unspecified;
+    bool uiViewportOverride = false;
+    int uiX = 0;
+    int uiY = 0;
+    int uiW = 0;
+    int uiH = 0;
     bool loaded = false;
     bool valid = false;
 

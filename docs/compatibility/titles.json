@@ -46,7 +46,7 @@
       "romDependency": "USER_APPLE_II_PLUS_ROM",
       "romDependencyReason": "ROM_DATA",
       "windowsBridgeInput": "PARTIAL",
-      "notes": "HOST playfield PASS; ESP32 physical playfield PASS (cracktro→CDC A→second load→HGR). Keyboard bridge PASS; 8BitDo NOT_TESTED; physical audio NOT_TESTED. Presentation: Classic+Sharp default; Artifact Color + optional Landscape exercised on CO5300. Not claimed fully playable."
+      "notes": "HOST playfield PASS; ESP32 physical playfield PASS (cracktro→CDC A→second load→HGR). Keyboard bridge PASS; 8BitDo NOT_TESTED; physical audio NOT_TESTED. Presentation: Classic+Sharp default; Artifact Color + optional Landscape exercised on CO5300. PHYSICALLY_VERIFIED: MICROS_WRAP_REGRESSION=PASS and GALAXIAN_2H_SOAK=PASS (cycles continued past former ~71.6 min micros() wrap; see docs/apple2/galaxian-2h-soak.json). Not claimed fully playable or 24h-stable."
     },
     {
       "id": "choplifter",

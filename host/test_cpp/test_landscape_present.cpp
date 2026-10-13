@@ -91,6 +91,13 @@ int main() {
     expect(outW == 280 && outH == 408, "geometry 280x408");
     expect(ox == 0 && oy == 24, "centering ox=0 oy=24");
 
+    {
+        int iw = 0, ih = 0, ix = 0, iy = 0;
+        LandscapePresent::computeOutSizeInteger(240, 320, &iw, &ih, &ix, &iy);
+        expect(iw == 192 && ih == 280, "integer geometry 192x280 on 240x320");
+        expect(ix == 24 && iy == 20, "integer centering");
+    }
+
     // Rotation edge mapping (unit square corners).
     {
         int sx, sy;

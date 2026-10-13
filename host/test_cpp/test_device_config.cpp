@@ -29,7 +29,16 @@ int main() {
   "media": { "drive1": "/esp2/disks/Galaxian.dsk", "drive2": null },
   "startup": { "bootFromDisk": true, "macro": "galaxian-start" },
   "presentation": { "orientation": "landscape", "color": "artifact" },
-  "display": { "screensaverSeconds": 300 }
+  "display": { "screensaverSeconds": 300 },
+  "input": {
+    "hostBridge": {
+      "gamepad": "auto",
+      "pdl0": "gamepadX",
+      "pdl1": "gamepadY",
+      "pb0": "gamepadA",
+      "dial": false
+    }
+  }
 })JSON";
     char err[64]{};
     auto cfg = esp2_config::parseSystemConfigJson(sys, std::strlen(sys), err, sizeof(err));
@@ -40,6 +49,17 @@ int main() {
     CHECK(cfg.effect == esp2_config::Effect::Clean);
     CHECK(cfg.color() == esp2_config::ColorMode::Artifact);
     CHECK(cfg.screensaverSeconds == 300);
+
+    const char *sysUi = R"JSON({
+  "schemaVersion": 1,
+  "display": { "systemUiSurface": "fullPanel", "uiViewportX": 0, "uiViewportY": 32, "uiViewportW": 280, "uiViewportH": 240 }
+})JSON";
+    auto cfgUi = esp2_config::parseSystemConfigJson(sysUi, std::strlen(sysUi), err, sizeof(err));
+    CHECK(cfgUi.valid);
+    CHECK(cfgUi.systemUiSurface == esp2_config::SystemConfig::SystemUiSurface::FullPanel);
+    CHECK(cfgUi.uiViewportOverride);
+    CHECK(cfgUi.uiY == 32);
+    CHECK(cfgUi.uiH == 240);
     CHECK(std::strcmp(cfg.startupMacro, "galaxian-start") == 0);
 
     const char *sysNew = R"JSON({

@@ -1,23 +1,27 @@
 #pragma once
 
 #include <Arduino.h>
-#include <SPI.h>
+#include <FS.h>
 #include <stdint.h>
 
-/**
- * microSD SPI bus helper for Waveshare ESP32-S3-Touch-AMOLED-1.64.
- *
- * CO5300 QSPI (Arduino_ESP32QSPI) owns SPI2_HOST. The Arduino default
- * SPIClass (FSPI) is also SPI2 — sharing it with the display breaks mid-run
- * FAT remounts (#NAK sd / mkdir_esp2). microSD therefore uses SPI3 (HSPI).
- */
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P) || defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+#include <SD_MMC.h>
+/** Active FAT filesystem object (SD_MMC on diymore/RLCD, SD SPI on Waveshare AMOLED). */
+#define ESP2_SD SD_MMC
+#else
+#include <SD.h>
+#include <SPI.h>
+#define ESP2_SD SD
 SPIClass &esp2SdSpi();
+#endif
 
-/** End FAT mount and release the SD SPI bus. */
+/** End FAT mount and release the SD bus (SPI or SDMMC). */
 void esp2SdBusEnd();
 
 /**
- * Begin SPI3 + mount FAT at /sd.
- * @param hz SPI clock (default 4 MHz — matches verified bring-up).
+ * Mount FAT.
+ * Waveshare AMOLED: SPI3 + CS from board_pins.h (default 4 MHz).
+ * diymore ES3C28P: SDMMC 4-bit (LCDWIKI pins); hz ignored by SD_MMC host.
+ * waveshare-rlcd42: SDMMC 1-bit CLK=38 CMD=21 D0=39 (must not touch ST7305 CS/RST).
  */
 bool esp2SdBusBegin(uint32_t hz = 4000000);

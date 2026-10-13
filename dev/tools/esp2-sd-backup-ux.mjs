@@ -31,7 +31,7 @@ export function buildSdBackupForm(opts) {
         required: false,
         label: 'ESP][ device / COM port<context="task parameter"/>',
         description:
-          'Leave empty to use ESP2_PORT or the normal port picker. The SD currently in this ESP][ is backed up via USB Storage.<context="task parameter"/>',
+          'Optional. Leave empty to auto-resolve the live ESP][ (USB + firmware identity). A typed COM is only a hint and is verified; stale COM5 is not reused.<context="task parameter"/>',
       },
       {
         id: "destRoot",
@@ -125,7 +125,7 @@ export function buildSdRestoreForm(opts) {
         required: false,
         label: 'ESP][ device / COM port<context="task parameter"/>',
         description:
-          'Leave empty to use ESP2_PORT or the normal port picker. The card currently in this ESP][ receives the restore via USB Storage.<context="task parameter"/>',
+          'Optional. Leave empty to auto-resolve the live ESP][ (USB + firmware identity). A typed COM is only a hint and is verified.<context="task parameter"/>',
       },
       {
         id: "accessMode",
@@ -240,8 +240,9 @@ export function registerFormI18x(form, register) {
  *   requestAmbiguousPick?: (candidates: object[]) => Promise<string|null>,
  *   enumerate?: () => object[],
  *   enterMsc?: (port: string) => void,
- *   leaveMsc?: (port: string) => void,
- *   timeoutMs?: number,
+   *   leaveMsc?: (port: string) => void,
+   *   resolveLeavePort?: (enterPort: string) => Promise<string>,
+   *   timeoutMs?: number,
  * }} opts
  */
 export async function resolveSdMountViaUx(opts) {
@@ -263,6 +264,7 @@ export async function resolveSdMountViaUx(opts) {
     enumerate: opts.enumerate,
     enterMsc: opts.enterMsc,
     leaveMsc: opts.leaveMsc,
+    resolveLeavePort: opts.resolveLeavePort,
     timeoutMs: opts.timeoutMs,
     openExplorer: false,
   });
@@ -284,7 +286,95 @@ export function resolveBackupDirFromForm(values, defaultRoot) {
 }
 
 /**
- * Form for “SD card on computer”.
+ * Form for “Mount on computer”.
+ * @param {{ defaultPort?: string }} opts
+ */
+export function buildSdMountForm(opts = {}) {
+  const defaultPort = String(opts.defaultPort || "").trim();
+  return {
+    title: 'Mount SD on computer<context="task parameter"/>',
+    submitLabel: 'Mount on computer<context="button text"/>',
+    fields: [
+      {
+        id: "port",
+        type: "text",
+        default: defaultPort,
+        remember: false,
+        required: false,
+        label: 'ESP][ device / COM port<context="task parameter"/>',
+        description:
+          'Optional. Leave empty to auto-resolve the live ESP][ (USB + firmware identity).<context="task parameter"/>',
+      },
+      {
+        id: "openExplorer",
+        type: "boolean",
+        default: true,
+        remember: false,
+        label: 'Open in Explorer / Finder after mounting<context="task parameter"/>',
+      },
+    ],
+  };
+}
+
+/**
+ * Form for “Unmount from computer”.
+ * @param {{ defaultPort?: string }} opts
+ */
+export function buildSdUnmountForm(opts = {}) {
+  const defaultPort = String(opts.defaultPort || "").trim();
+  return {
+    title: 'Unmount SD from computer<context="task parameter"/>',
+    submitLabel: 'Unmount from computer<context="button text"/>',
+    fields: [
+      {
+        id: "port",
+        type: "text",
+        default: defaultPort,
+        remember: false,
+        required: false,
+        label: 'ESP][ device / COM port<context="task parameter"/>',
+        description:
+          'Optional. Leave empty to auto-resolve the live ESP][. Eject the volume in Explorer/Finder first when prompted.<context="task parameter"/>',
+      },
+      {
+        id: "confirmEject",
+        type: "boolean",
+        default: false,
+        remember: false,
+        label: 'I ejected the SD in Explorer / Finder (or it was never open)<context="task parameter"/>',
+        description:
+          'Required safety step — do not seize the card while the host may still write.<context="task parameter"/>',
+      },
+    ],
+  };
+}
+
+/**
+ * Form for SD Information (read-only query).
+ * @param {{ defaultPort?: string }} opts
+ */
+export function buildSdInfoForm(opts = {}) {
+  const defaultPort = String(opts.defaultPort || "").trim();
+  return {
+    title: 'SD card information<context="task parameter"/>',
+    submitLabel: 'Show information<context="button text"/>',
+    fields: [
+      {
+        id: "port",
+        type: "text",
+        default: defaultPort,
+        remember: false,
+        required: false,
+        label: 'ESP][ device / COM port<context="task parameter"/>',
+        description:
+          'Optional. Leave empty to auto-resolve the live ESP][ (USB + firmware identity).<context="task parameter"/>',
+      },
+    ],
+  };
+}
+
+/**
+ * Legacy combined form (CLI / device:sd:computer). Prefer mount/unmount forms.
  * @param {{ defaultPort?: string }} opts
  */
 export function buildSdComputerForm(opts = {}) {
@@ -318,7 +408,7 @@ export function buildSdComputerForm(opts = {}) {
         required: false,
         label: 'ESP][ device / COM port<context="task parameter"/>',
         description:
-          'Leave empty to use ESP2_PORT or the normal port picker.<context="task parameter"/>',
+          'Optional. Leave empty to auto-resolve the live ESP][ (USB + firmware identity).<context="task parameter"/>',
       },
       {
         id: "openExplorer",

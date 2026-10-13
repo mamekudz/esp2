@@ -31,7 +31,24 @@ import {
   NotifyTasksChanged,
   GetLid,
   LogAccordion,
+  LogTable,
+  LogCallout,
+  LogKeyValue,
+  LogBadges,
 } from "gulp-mu-gulp-api";
+import {
+  PLATFORM_DIYMORE,
+  PLATFORM_RLCD42,
+  buildFilterPlatformOptions,
+  buildPlatformProjectControl,
+  defaultPioEnvForPlatform,
+  pioEnvsForPlatform,
+  platformMeta,
+  resolveActivePlatform,
+  visibleOnDiymore,
+  visibleOnRlcd42,
+  visibleOnWaveshare,
+} from "./dev/tools/esp2-platforms.mjs";
 import {
   ComposeReadme,
   README_SOURCE_RELATIVE,
@@ -64,6 +81,7 @@ import {
   MonitorArgs,
   Pio,
   PIO_ENV,
+  PIO_ENV_DEFAULT,
   PIO_ENVS,
   ResolvePioEnv,
   UploadArgs,
@@ -108,10 +126,10 @@ import {
 } from "./dev/tools/device-profiles-from-apple2js.mjs";
 import {
   activateProfiles,
-  listProfilesForActivation,
   resolveProfileSelection,
   DEMO_PROFILE_IDS,
 } from "./dev/tools/device-profiles-activate.mjs";
+import { writeProfileCatalogMarkdown } from "./dev/tools/device-profile-catalog-doc.mjs";
 import {
   buildGamepadSelectOptions,
   listXInputGamepads,
@@ -143,9 +161,17 @@ export const µGroups = {
     'Apple II/Emulator<context="µGroup"/>': "collapsed",
     'Apple II/Compatibility<context="µGroup"/>': "collapsed",
     'Apple II/Device<context="µGroup"/>': "collapsed",
+    // <platformLabel/> filled from Project Control Target (platform option label).
+    'Device (<platformLabel/>)<context="µGroup"/>': "collapsed",
+    'Device (<platformLabel/>)/SD Card<context="µGroup"/>': "collapsed",
     'Device<context="µGroup"/>': "collapsed",
+    'diymore Hardware<context="µGroup"/>': "collapsed",
+    'RLCD 4.2 Hardware<context="µGroup"/>': "collapsed",
   },
 };
+
+/** Project Control bar (Target radio). Same schema as microgulp.config.json. */
+export const µControls = [buildPlatformProjectControl()];
 
 const rootDir = dirname(fileURLToPath(import.meta.url));
 
@@ -153,6 +179,32 @@ const rootDir = dirname(fileURLToPath(import.meta.url));
  * @param {Function} _task
  * @param {object} _meta
  */
+/**
+ * Default task visibility from µGroup when µVisible is omitted.
+ * Waveshare production Device / Apple II Device → waveshare only.
+ * diymore Hardware → diymore only. Firmware/Tools/Docs/… stay common.
+ * @param {string} [_group]
+ */
+function _DefaultVisibleForGroup(_group) {
+  const g = String(_group ?? "");
+  if (g.startsWith("diymore Hardware")) return visibleOnDiymore;
+  if (g.startsWith("RLCD 4.2 Hardware")) return visibleOnRlcd42;
+  if (g.startsWith("Device") || g.startsWith("Apple II/Device")) {
+    return visibleOnWaveshare;
+  }
+  return undefined;
+}
+
+/** Device group — dynamic Target label from Project Control (`platform`). */
+function _DeviceGroup() {
+  return 'Device (<platformLabel/>)<context="µGroup"/>';
+}
+
+/** Nested SD Card subgroup under Device. */
+function _DeviceSdGroup() {
+  return 'Device (<platformLabel/>)/SD Card<context="µGroup"/>';
+}
+
 function _Tag(_task, _meta) {
   if (_meta.gulpName) _task.displayName = _meta.gulpName;
   if (typeof _meta.µDisplayName === "function") {
@@ -177,6 +229,15 @@ function _Tag(_task, _meta) {
     _task.µAttentionTooltip = _meta.µAttentionTooltip.i18xRegister();
   }
   if (_meta.µAttentionWatch) _task.µAttentionWatch = _meta.µAttentionWatch;
+  if (_meta.µEnabled != null) _task.µEnabled = _meta.µEnabled;
+  if (_meta.µDisabledTooltip) {
+    _task.µDisabledTooltip = _meta.µDisabledTooltip.i18xRegister();
+  }
+  const visible =
+    _meta.µVisible != null
+      ? _meta.µVisible
+      : _DefaultVisibleForGroup(_meta.µGroup);
+  if (visible != null) _task.µVisible = visible;
   return _task;
 }
 
@@ -222,96 +283,237 @@ function _RunReleaseMaintenancePipeline() {
 //================================================================
 
 function firmwareEnv() {
+  const platformId = resolveActivePlatform();
+  const meta = platformMeta(platformId);
+  const allowed = [...meta.pioEnvs];
   try {
     const p = GetParameter("env");
-    if (p) return ResolvePioEnv(String(p));
-  } catch {
-    /* parameter API may be unavailable outside µGulp */
+    if (p) {
+      return ResolvePioEnv(String(p), {
+        platformId,
+        allowedEnvs: allowed,
+        defaultEnv: meta.defaultPioEnv,
+      });
+    }
+  } catch (err) {
+    if (err && /Unknown (PlatformIO env|ESP2_PIO_ENV)/.test(String(err.message || err))) {
+      throw err;
+    }
   }
-  return ResolvePioEnv();
+  return ResolvePioEnv(undefined, {
+    platformId,
+    allowedEnvs: allowed,
+    defaultEnv: meta.defaultPioEnv,
+  });
+}
+
+function _FirmwareEnvParameters() {
+  const platformId = resolveActivePlatform();
+  const allowed = pioEnvsForPlatform(platformId);
+  const def = defaultPioEnvForPlatform(platformId);
+  const labelFor = (id) => {
+    if (id === "apple2_text") {
+      return 'apple2_text (production Apple II)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "bringup") {
+      return 'bringup (Waveshare HW diagnostics)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "core_smoke") {
+      return 'core_smoke (compile-only)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "diymore_bringup") {
+      return 'diymore_bringup (identity probe)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "diymore_display_probe") {
+      return 'diymore_display_probe (ILI9341 color bars)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "diymore_apple2") {
+      return 'diymore_apple2 (Apple II + ILI9341)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "rlcd42_bringup") {
+      return 'rlcd42_bringup (identity probe)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "rlcd42_display_probe") {
+      return 'rlcd42_display_probe (ST7305 marks)<context="task parameter"/>'.i18xRegister();
+    }
+    if (id === "rlcd42_apple2") {
+      return 'rlcd42_apple2 (Apple II + ST7305)<context="task parameter"/>'.i18xRegister();
+    }
+    return id;
+  };
+  return [
+    {
+      id: "env",
+      type: "select",
+      optional: true,
+      default: def,
+      remember: true,
+      label: 'PlatformIO environment<context="task parameter"/>'.i18xRegister(),
+      description:
+        'Env list follows Project Control Target (platform). Waveshare: apple2_text/bringup/core_smoke. diymore: diymore_bringup.<context="task parameter"/>'.i18xRegister(),
+      options: allowed.map((id) => ({
+        value: id,
+        label: labelFor(id),
+      })),
+    },
+  ];
+}
+
+function _FirmwareDisplayName(kind) {
+  // <platformLabel/> is filled by µGulp from Project Control id `platform`.
+  if (kind === "flash") {
+    return 'Build & Upload – <platformLabel/> V<version/><context="µDisplayName"/>'.i18xRegister();
+  }
+  if (kind === "upload") {
+    return 'Upload – <platformLabel/> V<version/><context="µDisplayName"/>'.i18xRegister();
+  }
+  if (kind === "monitor") {
+    return 'Serial Monitor – <platformLabel/> V<version/><context="µDisplayName"/>'.i18xRegister();
+  }
+  return 'Build – <platformLabel/> V<version/><context="µDisplayName"/>'.i18xRegister();
 }
 
 
 export async function build() {
   ReportProgress(0, "build");
-  Log('Building ESP][ firmware (env <env/>)…<context="task log"/>', {
-    env: firmwareEnv(),
+  const platformId = resolveActivePlatform();
+  const env = firmwareEnv();
+  Log('Building ESP][ (platform <platform/>, env <env/>)…<context="task log"/>', {
+    platform: platformId,
+    env,
   });
-  await Pio(rootDir, ["run", "-e", firmwareEnv()], "pio build");
+  await Pio(rootDir, ["run", "-e", env], "pio build");
   ReportProgress(1, "build");
   Log('Build OK.<context="task log"/>');
   PlaySignal("success");
 }
 _Tag(build, {
   gulpName: "build",
-  µDisplayName: 'Build Firmware V<version/><context="µDisplayName"/>',
+  µDisplayName: _FirmwareDisplayName("build"),
   µDescription:
-    'Compiles ESP][ with PlatformIO. Default env from platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).<context="µDescription"/>',
+    'Compiles ESP][ with PlatformIO. Env follows Project Control Target (waveshare → apple2_text; diymore → diymore_bringup).<context="µDescription"/>',
   µIcon: "\u2692",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 10,
   µExecutionConcurrency: false,
+  µParameters: _FirmwareEnvParameters,
 });
 
 export async function flash() {
   ReportProgress(0, "flash-build");
-  const port = await AskPort(rootDir, "Flash port (build + upload)");
-  Log('Build + upload → <port/><context="task log"/>…', {
-    port: port ?? "auto/ini",
+  const platformId = resolveActivePlatform();
+  const env = firmwareEnv();
+  const device = await resolveEsp2DeviceForTask("Flash — select ESP][ device", {
+    operation: "flash",
+    allowUnidentifiedPick: true,
   });
-  await Pio(rootDir, ["run", "-e", firmwareEnv()], "pio build");
+  const port = device.port;
+  const { assertFlashSdSafe } = await import("./dev/tools/esp2-sd-flash-guard.mjs");
+  const { runUsbStorageCommand } = await import("./dev/tools/esp2-sd-ownership-session.mjs");
+  assertFlashSdSafe(rootDir, port, {
+    log: (msg) => Log(`${msg}<context="task log"/>`),
+    tryReturn: (p) => {
+      try {
+        runUsbStorageCommand(rootDir, p, "leave");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  });
+  Log(
+    'Build + upload platform=<platform/> env=<env/> → <port/><context="task log"/>…',
+    {
+      platform: platformId,
+      env,
+      port,
+    },
+  );
+  await Pio(rootDir, ["run", "-e", env], "pio build");
   ReportProgress(0.5, "flash-upload");
-  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload", {
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
     onProgress: ({ fraction }) => {
       // Build already done — map esptool 0..1 into the second half of the bar.
       ReportProgress(0.5 + 0.5 * fraction, "flash-upload");
     },
   });
   ReportProgress(1, "flash-upload");
-  Log('Flash finished.<context="task log"/>');
+  Log('Flash finished (platform <platform/>, env <env/>).<context="task log"/>', {
+    platform: platformId,
+    env,
+  });
   PlaySignal("success");
 }
 _Tag(flash, {
   gulpName: "flash",
-  µDisplayName: 'Build & Upload Firmware V<version/><context="µDisplayName"/>',
+  µDisplayName: _FirmwareDisplayName("flash"),
   µDescription:
-    'Rebuilds firmware and flashes it to the ESP][ (asks for COM port). Overwrites device firmware.<context="µDescription"/>',
+    'Rebuilds firmware and flashes the currently connected ESP][ for the Project Control Target. COM is resolved live (USB + identity), not remembered.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
+    'Target (Waveshare/diymore) selects which board to find. COM numbers are not device identity.<context="µTooltip"/>',
   µIcon: "\u26A1",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 40,
   µExecutionConcurrency: false,
   µExecutionRestrictions: { deny: ["upload", "build", "backup"] },
+  µParameters: _FirmwareEnvParameters,
 });
 
 export async function upload() {
   ReportProgress(0, "upload");
-  const port = await AskPort(rootDir, "Upload port");
-  Log('Uploading → <port/><context="task log"/>…', {
-    port: port ?? "auto/ini",
+  const platformId = resolveActivePlatform();
+  const env = firmwareEnv();
+  const device = await resolveEsp2DeviceForTask("Upload — select ESP][ device", {
+    operation: "flash",
+    allowUnidentifiedPick: true,
   });
-  await Pio(rootDir, UploadArgs(port, firmwareEnv()), "pio upload", {
+  const port = device.port;
+  const { assertFlashSdSafe } = await import("./dev/tools/esp2-sd-flash-guard.mjs");
+  const { runUsbStorageCommand } = await import("./dev/tools/esp2-sd-ownership-session.mjs");
+  assertFlashSdSafe(rootDir, port, {
+    log: (msg) => Log(`${msg}<context="task log"/>`),
+    tryReturn: (p) => {
+      try {
+        runUsbStorageCommand(rootDir, p, "leave");
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  });
+  Log(
+    'Uploading platform=<platform/> env=<env/> → <port/><context="task log"/>…',
+    {
+      platform: platformId,
+      env,
+      port,
+    },
+  );
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
     onProgress: ({ fraction }) => {
       ReportProgress(fraction, "upload");
     },
   });
   ReportProgress(1, "upload");
-  Log('Upload finished.<context="task log"/>');
+  Log('Upload finished (platform <platform/>, env <env/>).<context="task log"/>', {
+    platform: platformId,
+    env,
+  });
   PlaySignal("success");
 }
 _Tag(upload, {
   gulpName: "upload",
-  µDisplayName: 'Upload Firmware V<version/><context="µDisplayName"/>',
+  µDisplayName: _FirmwareDisplayName("upload"),
   µDescription:
-    'Flashes the last build. Asks for the COM port.<context="µDescription"/>',
+    'Flashes the last build for the PlatformIO env of the selected Target onto the live ESP][ device.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
+    'Resolves the physical ESP][ via USB + firmware identity. COM is runtime state only.<context="µTooltip"/>',
   µIcon: "\u2191",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 30,
   µExecutionConcurrency: false,
   µExecutionRestrictions: { deny: ["flash", "monitor", "backup"] },
+  µParameters: _FirmwareEnvParameters,
 });
 
 export async function size() {
@@ -321,9 +523,9 @@ export async function size() {
 }
 _Tag(size, {
   gulpName: "size",
-  µDisplayName: 'Firmware Memory Usage V<version/><context="µDisplayName"/>',
+  µDisplayName: 'Firmware Memory Usage – <platformLabel/> V<version/><context="µDisplayName"/>',
   µDescription:
-    'Shows RAM / Flash usage of the last firmware build.<context="µDescription"/>',
+    'Shows RAM / Flash usage of the last firmware build for the selected Target.<context="µDescription"/>',
   µIcon: "\u25A6",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 50,
@@ -332,15 +534,21 @@ _Tag(size, {
 
 export async function clean() {
   ReportProgress(0, "clean");
-  await Pio(rootDir, ["run", "-e", firmwareEnv(), "-t", "clean"], "pio clean");
+  const platformId = resolveActivePlatform();
+  const env = firmwareEnv();
+  Log('Cleaning platform=<platform/> env=<env/>…<context="task log"/>', {
+    platform: platformId,
+    env,
+  });
+  await Pio(rootDir, ["run", "-e", env, "-t", "clean"], "pio clean");
   ReportProgress(1, "clean");
   Log('Build artefacts removed.<context="task log"/>');
 }
 _Tag(clean, {
   gulpName: "clean",
-  µDisplayName: 'Clean Firmware Build Files V<version/><context="µDisplayName"/>',
+  µDisplayName: 'Clean – <platformLabel/> V<version/><context="µDisplayName"/>',
   µDescription:
-    'Removes .pio/build artefacts for the active PlatformIO env (ESP2_PIO_ENV / default bringup).<context="µDescription"/>',
+    'Removes .pio/build artefacts for the PlatformIO env of the selected Target.<context="µDescription"/>',
   µIcon: "\u239A",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 60,
@@ -350,8 +558,8 @@ _Tag(clean, {
 export const rebuild = gulp.series(clean, build);
 _Tag(rebuild, {
   gulpName: "rebuild",
-  µDisplayName: 'Rebuild Firmware V<version/><context="µDisplayName"/>',
-  µDescription: 'clean → build for the active PlatformIO env.<context="µDescription"/>',
+  µDisplayName: 'Rebuild – <platformLabel/> V<version/><context="µDisplayName"/>',
+  µDescription: 'clean → build for the PlatformIO env of the selected Target.<context="µDescription"/>',
   µIcon: "\u21BB",
   µGroup: 'Firmware<context="µGroup"/>',
   µOrder: 20,
@@ -388,17 +596,25 @@ _Tag(devices, {
 });
 
 export async function monitor() {
-  const port = await AskPort(rootDir, "Serial monitor port");
-  Log('Opening serial monitor (Ctrl+C to stop)…<context="task log"/>');
+  const platformId = resolveActivePlatform();
+  const device = await resolveEsp2DeviceForTask("Serial monitor — select ESP][ device", {
+    operation: "monitor",
+    allowUnidentifiedPick: true,
+  });
+  const port = device.port;
+  Log(
+    'Opening serial monitor (platform <platform/>)… Ctrl+C to stop.<context="task log"/>',
+    { platform: platformId },
+  );
   await Pio(rootDir, MonitorArgs(port), "pio monitor");
 }
 _Tag(monitor, {
   gulpName: "monitor",
-  µDisplayName: 'Serial Monitor V<version/><context="µDisplayName"/>',
+  µDisplayName: _FirmwareDisplayName("monitor"),
   µDescription:
-    'Opens the PlatformIO serial monitor at 115200 baud.<context="µDescription"/>',
+    'Opens the PlatformIO serial monitor at 115200 baud for the selected Target’s live ESP][.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog. Use device:port:release if Access denied.<context="µTooltip"/>',
+    'Device is resolved live. Use device:port:release if Access denied.<context="µTooltip"/>',
   µIcon: "\u2399",
   µGroup: 'Tools<context="µGroup"/>',
   µOrder: 20,
@@ -622,6 +838,15 @@ export async function docs() {
     'Composing bilingual README.md from <path/> + de-DE.src.md (microCSS style)<context="task log"/>',
     { path: README_SOURCE_RELATIVE },
   );
+  try {
+    const catalog = writeProfileCatalogMarkdown({ root: rootDir });
+    Log(
+      'Refreshed profile catalog (<count format="int"/> profiles) → docs/device/generated/profile-catalog.md<context="task log"/>',
+      { count: catalog.count },
+    );
+  } catch (e) {
+    Warn(`profile catalog refresh skipped: ${e?.message || e}`);
+  }
   const result = ComposeReadme({ root: rootDir });
   for (const r of result.results) {
     const name = README_SOURCES[r.locale].baselineRel;
@@ -1024,21 +1249,32 @@ gulp.task("backup:nas", backup);
 
 export async function firmwareEnvTask() {
   ReportProgress(0, "firmware-env");
+  const platformId = resolveActivePlatform();
+  const meta = platformMeta(platformId);
   const env = firmwareEnv();
+  Log('Active platform: <platform/> (<label/>)<context="task log"/>', {
+    platform: platformId,
+    label: meta.label,
+  });
   Log('Active PlatformIO env: <env/><context="task log"/>', { env });
-  Log('Available envs: <list/><context="task log"/>', {
+  Log('Envs for this Target: <list/><context="task log"/>', {
+    list: meta.pioEnvs.join(", "),
+  });
+  Log('All known envs: <list/><context="task log"/>', {
     list: PIO_ENVS.join(", "),
   });
-  Log('Override via ESP2_PIO_ENV or µGulp parameter env.<context="task log"/>');
+  Log(
+    'Override via Project Control Target, ESP2_PIO_ENV, or µGulp parameter env.<context="task log"/>',
+  );
   ReportProgress(1, "firmware-env");
   PlaySignal("success");
-  return { env, available: [...PIO_ENVS] };
+  return { platform: platformId, env, available: [...meta.pioEnvs] };
 }
 _Tag(firmwareEnvTask, {
   gulpName: "firmware:env",
-  µDisplayName: 'Show Active Firmware Env V<version/><context="µDisplayName"/>',
+  µDisplayName: 'Show Active Firmware Env – <platformLabel/> V<version/><context="µDisplayName"/>',
   µDescription:
-    'Read-only: prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>',
+    'Read-only: prints the Project Control Target, active PlatformIO environment, and envs allowed for that Target.<context="µDescription"/>',
   µGroup: 'Tools<context="µGroup"/>',
   µIcon: "\u2398",
   µOrder: 5,
@@ -1344,14 +1580,82 @@ _Tag(apple2jsSync, {
 
 export async function apple2jsCatalog() {
   ReportProgress(0, "apple2js-catalog");
-  runNodeCli("dev/tools/apple2js/cli.mjs", ["catalog"], "apple2js:catalog");
+  const { loadGitCatalog, loadWebCatalog, mergeCatalogs } = await import(
+    "./dev/tools/apple2js/catalog.mjs"
+  );
+  const { auditCatalog, summarizeAudit } = await import(
+    "./dev/tools/apple2js/audit.mjs"
+  );
+  const { catalogTableRows } = await import("./dev/tools/apple2js/catalog-view.mjs");
+
+  let gitEntries = [];
+  let webEntries = [];
+  try {
+    gitEntries = loadGitCatalog().entries;
+  } catch (e) {
+    Warn(String(e.message || e));
+  }
+  try {
+    webEntries = loadWebCatalog().entries;
+  } catch (e) {
+    Warn(String(e.message || e));
+  }
+  if (!gitEntries.length && !webEntries.length) {
+    throw new Error(
+      "No apple2js catalog cache. Run: gulp apple2js:sync",
+    );
+  }
+  const merged = mergeCatalogs(gitEntries, webEntries);
+  const audited = auditCatalog(merged);
+  const summary = summarizeAudit(audited);
+  const rows = catalogTableRows(audited);
+
+  LogCallout({
+    variant: "info",
+    title: "Apple ][js online catalog",
+    message:
+      "Cached git + website index (offline). Path metadata only — disk images are not shown and are not redistributed by ESP][. Activate media with setup:profiles (LOCAL_TEST_ONLY).",
+  });
+  LogKeyValue({
+    title: "Counts",
+    items: [
+      { key: "merged entries", value: String(merged.length) },
+      { key: "git", value: String(gitEntries.length) },
+      { key: "website", value: String(webEntries.length) },
+      { key: "REDISTRIBUTABLE", value: String(summary.REDISTRIBUTABLE || 0) },
+      { key: "USER_SUPPLIED_ONLY", value: String(summary.USER_SUPPLIED_ONLY || 0) },
+      { key: "UNKNOWN", value: String(summary.UNKNOWN || 0) },
+      { key: "DO_NOT_DISTRIBUTE", value: String(summary.DO_NOT_DISTRIBUTE || 0) },
+    ],
+  });
+  LogBadges({
+    title: "Rights mix",
+    items: [
+      { label: `USER_SUPPLIED_ONLY ${summary.USER_SUPPLIED_ONLY || 0}`, variant: "warning" },
+      { label: `UNKNOWN ${summary.UNKNOWN || 0}`, variant: "neutral" },
+      { label: `DO_NOT_DISTRIBUTE ${summary.DO_NOT_DISTRIBUTE || 0}`, variant: "error" },
+      { label: `REDISTRIBUTABLE ${summary.REDISTRIBUTABLE || 0}`, variant: "success" },
+    ],
+  });
+  LogTable({
+    columns: [
+      { id: "Title", label: "Title" },
+      { id: "Category", label: "Category" },
+      { id: "Id", label: "Profile / id" },
+      { id: "Source", label: "Source" },
+      { id: "Rights", label: "Rights" },
+    ],
+    rows,
+    hyphenate: false,
+  });
   ReportProgress(1, "apple2js-catalog");
+  PlaySignal("success");
 }
 _Tag(apple2jsCatalog, {
   gulpName: "apple2js:catalog",
   µDisplayName: 'Show Online Catalog V<version/><context="µDisplayName"/>',
   µDescription:
-    'Summarize cached apple2js git+website catalog (offline if cache present).<context="µDescription"/>',
+    'Shows the cached apple2js git+website catalog as a readable dashboard table (title, category, id, source, rights). Offline if cache present — not a raw JSON dump. Use apple2js:sync first when empty.<context="µDescription"/>',
   µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 61,
   µExecutionConcurrency: false,
@@ -1359,15 +1663,154 @@ _Tag(apple2jsCatalog, {
 
 export async function apple2jsAudit() {
   ReportProgress(0, "apple2js-audit");
-  runNodeCli("dev/tools/apple2js/cli.mjs", ["audit"], "apple2js:audit");
+  const { loadGitCatalog, loadWebCatalog, mergeCatalogs } = await import(
+    "./dev/tools/apple2js/catalog.mjs"
+  );
+  const { auditCatalog, summarizeAudit } = await import(
+    "./dev/tools/apple2js/audit.mjs"
+  );
+  const { catalogTableRows } = await import("./dev/tools/apple2js/catalog-view.mjs");
+  const { normalizeToGameMetadata } = await import(
+    "./dev/tools/apple2js/normalize.mjs"
+  );
+  const { existsSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const paths = await import("./dev/tools/apple2js/paths.mjs");
+
+  let gitEntries = [];
+  let webEntries = [];
+  let pin = null;
+  try {
+    const g = loadGitCatalog();
+    gitEntries = g.entries;
+    pin = g.pin;
+  } catch (e) {
+    Warn(String(e.message || e));
+  }
+  try {
+    webEntries = loadWebCatalog().entries;
+  } catch (e) {
+    Warn(String(e.message || e));
+  }
+  if (!gitEntries.length && !webEntries.length) {
+    throw new Error(
+      "No apple2js catalog cache. Run: gulp apple2js:sync",
+    );
+  }
+
+  const merged = mergeCatalogs(gitEntries, webEntries);
+  const audited = auditCatalog(merged);
+  const summary = summarizeAudit(audited);
+
+  const outDir = join(rootDir, "docs", "media", "generated");
+  paths.ensureDir(outDir);
+  const auditPath = join(outDir, "apple2js-catalog-audit.json");
+  const prevPath = join(outDir, "apple2js-catalog-audit.prev.json");
+  let previous = null;
+  if (existsSync(auditPath)) {
+    previous = paths.readJson(auditPath);
+    paths.writeJson(prevPath, previous);
+  }
+  const nextAudit = {
+    schemaVersion: 1,
+    generatedAt: new Date().toISOString(),
+    upstreamPin: pin || (existsSync(paths.PIN_FILE) ? paths.readJson(paths.PIN_FILE) : null),
+    webIndexCachePresent: existsSync(paths.WEB_INDEX_CACHE),
+    gitEntryCount: gitEntries.length,
+    webEntryCount: webEntries.length,
+    mergedEntryCount: merged.length,
+    summary,
+    entries: audited,
+  };
+  paths.writeJson(auditPath, nextAudit);
+
+  let diff = null;
+  if (previous) {
+    const { diffApple2jsAudits } = await import("./dev/tools/apple2js/sync_diff.mjs");
+    diff = diffApple2jsAudits(previous, nextAudit);
+    paths.writeJson(join(outDir, "apple2js-catalog-diff.json"), {
+      generatedAt: new Date().toISOString(),
+      ...diff,
+    });
+  }
+
+  const stubDir = join(rootDir, "library", "metadata");
+  paths.ensureDir(stubDir);
+  const interesting = audited.filter((a) =>
+    ["choplifter", "nightmission", "audit"].includes(a.basename),
+  );
+  for (const a of interesting) {
+    const meta = normalizeToGameMetadata(a, { upstreamCommit: pin?.commit });
+    paths.writeJson(join(stubDir, `${meta.id}.game.json`), meta);
+  }
+
+  LogCallout({
+    variant: "info",
+    title: "Apple ][js catalog audit",
+    message:
+      "Provenance classification for the cached online catalog. Website listing is not a redistribution grant. Machine audit JSON is written under docs/media/generated/ for tooling — this view is the human summary.",
+  });
+  LogKeyValue({
+    title: "Audit summary",
+    items: [
+      { key: "merged entries", value: String(merged.length) },
+      { key: "wrote", value: "docs/media/generated/apple2js-catalog-audit.json" },
+      { key: "stubs", value: interesting.map((a) => a.id || a.basename).join(", ") || "(none)" },
+      {
+        key: "diff (added/removed/changed)",
+        value: diff?.counts
+          ? `${diff.counts.added ?? 0}/${diff.counts.removed ?? 0}/${diff.counts.changed ?? 0}`
+          : "(first run / no previous)",
+      },
+      {
+        key: "provenance blocked",
+        value: String((diff?.provenanceBlocked || []).length),
+      },
+    ],
+  });
+  LogBadges({
+    title: "Redistribution status counts",
+    items: [
+      { label: `USER_SUPPLIED_ONLY ${summary.USER_SUPPLIED_ONLY || 0}`, variant: "warning" },
+      { label: `UNKNOWN ${summary.UNKNOWN || 0}`, variant: "neutral" },
+      { label: `DO_NOT_DISTRIBUTE ${summary.DO_NOT_DISTRIBUTE || 0}`, variant: "error" },
+      { label: `REDISTRIBUTABLE ${summary.REDISTRIBUTABLE || 0}`, variant: "success" },
+    ],
+  });
+
+  // Compact rights-focused table (same columns as catalog show).
+  LogTable({
+    columns: [
+      { id: "Title", label: "Title" },
+      { id: "Category", label: "Category" },
+      { id: "Id", label: "Id" },
+      { id: "Source", label: "Source" },
+      { id: "Rights", label: "Rights" },
+    ],
+    rows: catalogTableRows(audited),
+    hyphenate: false,
+  });
+
+  if ((diff?.provenanceBlocked || []).length) {
+    LogCallout({
+      variant: "warning",
+      title: "Provenance blocked",
+      message: (diff.provenanceBlocked || [])
+        .slice(0, 20)
+        .map((x) => (typeof x === "string" ? x : JSON.stringify(x)))
+        .join("\n"),
+    });
+    PlaySignal("warning");
+  } else {
+    PlaySignal("success");
+  }
   ReportProgress(1, "apple2js-audit");
-  PlaySignal("success");
 }
 _Tag(apple2jsAudit, {
   gulpName: "apple2js:audit",
   µDisplayName: 'Audit Online Catalog V<version/><context="µDisplayName"/>',
   µDescription:
-    'Provenance audit + metadata stubs (offline if cache present).<context="µDescription"/>',
+    'Human-readable provenance audit of the cached apple2js catalog (table + summary). Also writes docs/media/generated audit JSON for tooling — not shown as raw JSON in the dashboard.<context="µDescription"/>',
   µGroup: 'Media / Catalog<context="µGroup"/>',
   µOrder: 62,
   µExecutionConcurrency: false,
@@ -1663,9 +2106,13 @@ _Tag(apple2MediaClean, {
 export async function apple2DeviceSync() {
   ReportProgress(0, "apple2-device-sync");
   const title = cliArg("title") || "";
-  const port = cliArg("port") || process.env.ESP2_PORT || "";
   if (!title) throw new Error("apple2:device:sync requires --title <id>");
-  if (!port) throw new Error("apple2:device:sync requires --port COMx");
+  const hinted = String(cliArg("port") || "").trim();
+  const device = await resolveEsp2DeviceForTask("Sync game — ESP][ device", {
+    formPort: hinted,
+    operation: "media",
+  });
+  const port = device.port;
   const args = ["device-sync", "--title", title, "--port", port];
   const romId = cliArg("romId") || cliArg("rom-id");
   if (romId) args.push("--rom-id", romId);
@@ -1965,6 +2412,7 @@ _Tag(setupFirstRun, {
   µIcon: "\u26A1",
   µOrder: 1,
   µExecutionConcurrency: false,
+  µVisible: visibleOnWaveshare,
   µAttention: () => _FirstRunNeedsAttention(),
   µAttentionTooltip:
     'Fresh clone / missing local media — run first-run setup.<context="µAttentionTooltip"/>',
@@ -1999,11 +2447,13 @@ export async function deviceProfilesGenerate() {
     'Generating device profiles from apple2js audit (path-only; no media download)…<context="task log"/>',
   );
   const result = generateProfilesFromApple2jsAudit({ force, categories });
+  const catalog = writeProfileCatalogMarkdown();
   Log(
-    'Wrote <count/> profiles (skipped protected: <protected/>).<context="task log"/>',
+    'Wrote <count/> profiles (skipped protected: <protected/>). Catalog → <catalog/>.<context="task log"/>',
     {
       count: String(result.written.length),
       protected: result.skippedProtected.join(",") || "(none)",
+      catalog: catalog.outPath,
     },
   );
   ReportProgress(1, "device-profiles-generate");
@@ -2018,6 +2468,7 @@ _Tag(deviceProfilesGenerate, {
   µIcon: "\uD83D\uDCCB",
   µOrder: 2,
   µExecutionConcurrency: false,
+  µVisible: visibleOnWaveshare,
   µParameters: [
     {
       id: "category",
@@ -2035,45 +2486,10 @@ _Tag(deviceProfilesGenerate, {
 });
 gulp.task("device:profiles:generate", deviceProfilesGenerate);
 
-function _SetupProfilesForm() {
-  const profiles = listProfilesForActivation(rootDir);
-  const options = [
-    {
-      value: "demos",
-      label: 'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>'.i18xRegister(),
-    },
-    {
-      value: "category:Game",
-      label: 'All Game profiles (many downloads)<context="task parameter"/>'.i18xRegister(),
-    },
-    {
-      value: "category:Demo",
-      label: 'All Demo profiles<context="task parameter"/>'.i18xRegister(),
-    },
-    {
-      value: "all-safe",
-      label: 'All profiles except DO_NOT_DISTRIBUTE (large)<context="task parameter"/>'.i18xRegister(),
-    },
-    ...profiles.map((p) => ({
-      value: p.id,
-      label: p.category
-        ? `${p.title} [${p.category}] (${p.id})`
-        : `${p.title} (${p.id})`,
-    })),
-  ];
-  const seedOptions = [
-    { value: "", label: 'Do not seed local config<context="task parameter"/>'.i18xRegister() },
-    ...DEMO_PROFILE_IDS.filter((id) => listProfileIds(rootDir).includes(id)).map(
-      (id) => ({ value: id, label: id }),
-    ),
-    ...profiles
-      .filter((p) => !DEMO_PROFILE_IDS.includes(p.id))
-      .slice(0, 40)
-      .map((p) => ({ value: p.id, label: p.id })),
-  ];
+function _SetupProfilesGroupForm() {
   return {
-    title: 'Activate device profiles (download + prepare)<context="task parameter"/>'.i18xRegister(),
-    submitLabel: 'Activate selection<context="button text"/>'.i18xRegister(),
+    title: 'Activate device profiles — choose group<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
     fields: [
       {
         id: "selection",
@@ -2082,16 +2498,25 @@ function _SetupProfilesForm() {
         remember: false,
         label: 'Which profiles?<context="task parameter"/>'.i18xRegister(),
         description:
-          'Downloads LOCAL_TEST_ONLY apple2js media into gitignored local/apple2/ and prepares runtime disks. Commercial titles remain USER_SUPPLIED_ONLY — website availability is not redistribution permission.<context="task parameter"/>'.i18xRegister(),
-        options,
-      },
-      {
-        id: "seedProfile",
-        type: "select",
-        default: "star-blazer",
-        remember: false,
-        label: 'Seed local/device/config from<context="task parameter"/>'.i18xRegister(),
-        options: seedOptions,
+          'Downloads LOCAL_TEST_ONLY apple2js media into gitignored local/apple2/. Pick curated demos, a whole category, or continue to pick one title.<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "demos",
+            label: 'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "__pick__",
+            label: 'Pick one profile (next step)<context="task parameter"/>'.i18xRegister(),
+          },
+          ...DEVICE_CONFIG_CATEGORY_OPTIONS.map((o) => ({
+            value: o.value,
+            label: `${o.label} (all in category)`,
+          })),
+          {
+            value: "all-safe",
+            label: 'All profiles except DO_NOT_DISTRIBUTE (large)<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
       },
       {
         id: "syncRoms",
@@ -2115,6 +2540,102 @@ function _SetupProfilesForm() {
 }
 
 /**
+ * Step for "__pick__": choose a browse group (keeps selects under ~200 options).
+ */
+function _SetupProfilesPickGroupForm() {
+  return {
+    title: 'Activate device profiles — pick category<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "group",
+        type: "select",
+        default: "demos",
+        remember: false,
+        label: 'Browse group<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "demos",
+            label: 'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>'.i18xRegister(),
+          },
+          ...DEVICE_CONFIG_CATEGORY_OPTIONS,
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * @param {string} group demos | category:Game | …
+ */
+function _SetupProfilesPickForm(group) {
+  const ids = _profileIdsInGroup(group);
+  const options = ids.map((id) => ({ value: id, label: _profilePresetLabel(id) }));
+  const defaultId = options.some((o) => o.value === "star-blazer")
+    ? "star-blazer"
+    : options[0]?.value || "galaxian-demo";
+  return {
+    title: 'Activate device profiles — pick title<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Activate selection<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "profile",
+        type: "select",
+        default: defaultId,
+        remember: false,
+        label: 'Profile<context="task parameter"/>'.i18xRegister(),
+        options,
+      },
+      {
+        id: "seedLocal",
+        type: "select",
+        default: "yes",
+        remember: false,
+        label: 'Seed local/device/config from this profile?<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "yes",
+            label: 'Yes — seed local config<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "no",
+            label: 'No — download/prepare only<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function _SetupProfilesSeedForm(selection) {
+  const all = listProfileIds(rootDir);
+  const seedOptions = [
+    { value: "", label: 'Do not seed local config<context="task parameter"/>'.i18xRegister() },
+    ...DEMO_PROFILE_IDS.filter((id) => all.includes(id)).map((id) => ({
+      value: id,
+      label: _profilePresetLabel(id),
+    })),
+  ];
+  let defaultSeed = "";
+  if (selection === "demos" || selection === "star-blazer") defaultSeed = "star-blazer";
+  else if (DEMO_PROFILE_IDS.includes(selection)) defaultSeed = selection;
+  return {
+    title: 'Activate device profiles — seed config?<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Start download<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "seedProfile",
+        type: "select",
+        default: defaultSeed,
+        remember: false,
+        label: 'Seed local/device/config from<context="task parameter"/>'.i18xRegister(),
+        options: seedOptions,
+      },
+    ],
+  };
+}
+
+/**
  * Fresh-clone helper: selectively download/prepare media for device profiles.
  */
 export async function setupProfiles() {
@@ -2128,10 +2649,29 @@ export async function setupProfiles() {
   let syncRoms = true;
 
   if (!selection) {
-    const values = (await RequestForm(_SetupProfilesForm())) || {};
-    selection = String(values.selection || "demos").trim();
-    seedProfile = String(values.seedProfile || "").trim();
-    syncRoms = String(values.syncRoms || "yes").toLowerCase() !== "no";
+    // Selects only — no µParameters text fields (µGulp would show those instead).
+    const step1 = (await RequestForm(_SetupProfilesGroupForm())) || {};
+    selection = String(step1.selection || "demos").trim();
+    syncRoms = String(step1.syncRoms || "yes").toLowerCase() !== "no";
+
+    if (selection === "__pick__") {
+      const pickGroup =
+        String(((await RequestForm(_SetupProfilesPickGroupForm())) || {}).group || "demos").trim() ||
+        "demos";
+      const stepPick = (await RequestForm(_SetupProfilesPickForm(pickGroup))) || {};
+      selection = String(stepPick.profile || "").trim();
+      if (!selection) {
+        throw new Error("setup:profiles: no profile selected.");
+      }
+      if (String(stepPick.seedLocal || "yes").toLowerCase() !== "no") {
+        seedProfile = selection;
+      } else {
+        seedProfile = "";
+      }
+    } else {
+      const stepSeed = (await RequestForm(_SetupProfilesSeedForm(selection))) || {};
+      seedProfile = String(stepSeed.seedProfile || "").trim();
+    }
   } else {
     if (process.argv.includes("--no-roms")) syncRoms = false;
     else if (cliFlag("roms") || cliFlag("sync-roms")) syncRoms = true;
@@ -2170,7 +2710,10 @@ export async function setupProfiles() {
   );
   if (failed.length) {
     Warn(
-      'Some profiles failed (see log). Media is LOCAL_TEST_ONLY / user-supplied.<context="task warning"/>',
+      'Some profiles failed: <ids/>. Media is LOCAL_TEST_ONLY / user-supplied.<context="task warning"/>',
+      {
+        ids: failed.map((r) => `${r.id}${r.error ? ` (${r.error})` : ""}`).join("; "),
+      },
     );
   }
   ReportProgress(1, "setup-profiles");
@@ -2187,20 +2730,7 @@ _Tag(setupProfiles, {
   µIcon: "\u2B07",
   µOrder: 1.5,
   µExecutionConcurrency: false,
-  µParameters: [
-    {
-      id: "profile",
-      type: "text",
-      optional: true,
-      label: 'Selection (profile id, demos, category:Game, all-safe)<context="task parameter"/>'.i18xRegister(),
-    },
-    {
-      id: "seed",
-      type: "text",
-      optional: true,
-      label: 'Optional profile id to seed into local/device/config<context="task parameter"/>'.i18xRegister(),
-    },
-  ],
+  µVisible: visibleOnWaveshare,
 });
 gulp.task("setup:profiles", setupProfiles);
 
@@ -2225,7 +2755,8 @@ if (IsMicroGulp()) {
       }
       RevealTask(emphasizeId, {
         expand: true,
-        scroll: true,
+        // Do not steal scroll when the user starts another task (gulpfile may reload).
+        scroll: false,
         highlight: "attention",
       });
       SetTaskEmphasis(emphasizeId, "attention");
@@ -2252,15 +2783,126 @@ function _DeviceConfigDisplayName() {
 }
 
 /**
- * Step 1 — pick a preset. µGulp cannot live-update other fields when a select
- * changes, so the edit form is rebuilt after this step with preset defaults.
+ * Static category options for device:config (avoid scanning ~250 JSONs on every open).
+ * Counts are approximate; regenerate profiles if the catalog changes a lot.
  */
-function _DeviceConfigPresetParameters() {
+const DEVICE_CONFIG_CATEGORY_OPTIONS = Object.freeze([
+  { value: "category:Game", label: "Game" },
+  { value: "category:Interactive Fiction", label: "Interactive Fiction" },
+  { value: "category:Demo", label: "Demo" },
+  { value: "category:Educational", label: "Educational" },
+  { value: "category:Utility", label: "Utility" },
+  { value: "category:Programming", label: "Programming" },
+  { value: "category:Productivity", label: "Productivity" },
+  { value: "category:Graphics", label: "Graphics" },
+  { value: "category:Diagnostics", label: "Diagnostics" },
+  { value: "category:System", label: "System" },
+  { value: "category:13 Sector", label: "13 Sector" },
+  { value: "category:Personal", label: "Personal" },
+  { value: "category:Music Video", label: "Music Video" },
+]);
+
+/** Cached category → profile ids (filled lazily). */
+let _profileCategoryIndex = null;
+
+function _getProfileCategoryIndex() {
+  if (_profileCategoryIndex) return _profileCategoryIndex;
+  const all = listProfileIds(rootDir);
+  const byCat = new Map();
+  for (const id of all) {
+    const raw = loadProfileSystemJson(rootDir, id);
+    const c = String(raw?.meta?.category || "").trim();
+    if (!c) continue;
+    if (!byCat.has(c)) byCat.set(c, []);
+    byCat.get(c).push(id);
+  }
+  _profileCategoryIndex = byCat;
+  return byCat;
+}
+
+/**
+ * Human-readable label for a device profile select option.
+ * @param {string} id
+ */
+function _profilePresetLabel(id) {
+  const known = {
+    "galaxian-demo": "Galaxian (galaxian-demo)",
+    "little-brick-out": "Little Brick Out (little-brick-out)",
+    "star-blazer": "Star Blazer (star-blazer)",
+  };
+  if (known[id]) return known[id];
+  const raw = loadProfileSystemJson(rootDir, id);
+  const title = String(raw?.meta?.title || "").trim();
+  if (title && title.toLowerCase() !== id.toLowerCase()) {
+    return `${title} (${id})`;
+  }
+  return id;
+}
+
+/**
+ * Profile ids in a browse group. Groups stay under µGulp's ~200 select-option cap.
+ * @param {string} group
+ */
+function _profileIdsInGroup(group) {
+  const all = listProfileIds(rootDir);
+  const g = String(group || "demos").trim();
+  if (g === "custom") return [];
+  if (g === "demos") {
+    return DEMO_PROFILE_IDS.filter((id) => all.includes(id));
+  }
+  if (g.startsWith("category:")) {
+    const cat = g.slice("category:".length);
+    const indexed = _getProfileCategoryIndex().get(cat);
+    if (indexed) return indexed.slice();
+    return all.filter((id) => {
+      const raw = loadProfileSystemJson(rootDir, id);
+      return String(raw?.meta?.category || "") === cat;
+    });
+  }
+  return all;
+}
+
+/**
+ * Step 1a — pick a profile group (µGulp select options are capped ~200).
+ */
+function _DeviceConfigGroupParameters() {
+  return {
+    title: 'ESP][ device configuration — choose profile group<context="task parameter"/>'.i18xRegister(),
+    submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
+    fields: [
+      {
+        id: "group",
+        type: "select",
+        default: "demos",
+        remember: false,
+        label: 'Profile group<context="task parameter"/>'.i18xRegister(),
+        description:
+          'Start with curated demos (fast). Catalog categories list path-only profiles — media stays LOCAL_TEST_ONLY via setup:profiles.<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "custom",
+            label: 'Custom (blank / local fields)<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "demos",
+            label: 'Curated demos (Galaxian, Little Brick Out, Star Blazer)<context="task parameter"/>'.i18xRegister(),
+          },
+          ...DEVICE_CONFIG_CATEGORY_OPTIONS,
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * Step 1b — pick a preset within the chosen group.
+ * @param {string} group
+ */
+function _DeviceConfigPresetParameters(group) {
   const d = formDefaultsFromConfig(rootDir);
-  const presets = [
-    { value: "custom", label: 'Custom (blank / local fields)<context="task parameter"/>'.i18xRegister() },
-    ...listProfileIds(rootDir).map((id) => ({ value: id, label: id })),
-  ];
+  const ids = _profileIdsInGroup(group);
+  const defaultPreset =
+    ids.includes(d.preset) ? d.preset : ids.includes("star-blazer") ? "star-blazer" : ids[0] || "custom";
   return {
     title: 'ESP][ device configuration — choose profile<context="task parameter"/>'.i18xRegister(),
     submitLabel: 'Load profile into form<context="button text"/>'.i18xRegister(),
@@ -2268,28 +2910,23 @@ function _DeviceConfigPresetParameters() {
       {
         id: "preset",
         type: "select",
-        default: d.preset,
+        default: defaultPreset,
         remember: false,
         label: 'Preset profile<context="task parameter"/>'.i18xRegister(),
         description:
-          'Selecting a named preset (e.g. galaxian-demo) fills the next form from that profile. Nothing is uploaded yet.<context="task parameter"/>'.i18xRegister(),
-        options: presets,
+          'Selecting a preset fills the next form — nothing is uploaded yet.<context="task parameter"/>'.i18xRegister(),
+        options: ids.map((id) => ({ value: id, label: _profilePresetLabel(id) })),
       },
     ],
   };
 }
 
 /**
- * Step 2 — editable values (defaults already taken from the chosen preset).
+ * Shared gamepad option list for host-bridge step.
  * @param {ReturnType<typeof formDefaultsFromPreset>} d
- * @param {{ gamepadOptions?: { value: string, label: string }[] }} [extra]
+ * @param {{ gamepadOptions?: { value: string, label: string }[], preferPress?: boolean }} [extra]
  */
-function _DeviceConfigEditForm(d, extra = {}) {
-  const macros = (d.macros || ["none"]).map((id) =>
-    id === "none"
-      ? { value: "none", label: 'none<context="task parameter"/>'.i18xRegister() }
-      : { value: id, label: id },
-  );
+function _deviceConfigGamepadDefaults(d, extra = {}) {
   const gamepadOptions = (extra.gamepadOptions || []).map((o) => ({
     value: o.value,
     label:
@@ -2318,11 +2955,27 @@ function _DeviceConfigEditForm(d, extra = {}) {
       { value: "3", label: 'XInput #3<context="task parameter"/>'.i18xRegister() },
     );
   }
-  // Prefer press-to-identify when profile only says auto and pads are ambiguous.
   const gamepadDefault =
     d.gamepad === "press" || (d.gamepad === "auto" && extra.preferPress)
       ? "press"
       : d.gamepad ?? "none";
+  return { gamepadOptions, gamepadDefault };
+}
+
+/**
+ * Editable device config values (single RequestForm).
+ * µGulp panels must always scroll — field count is unknown; do not split
+ * forms merely because the host viewport is short.
+ * @param {ReturnType<typeof formDefaultsFromPreset>} d
+ * @param {{ gamepadOptions?: { value: string, label: string }[], preferPress?: boolean }} [extra]
+ */
+function _DeviceConfigEditForm(d, extra = {}) {
+  const macros = (d.macros || ["none"]).map((id) =>
+    id === "none"
+      ? { value: "none", label: 'none<context="task parameter"/>'.i18xRegister() }
+      : { value: id, label: id },
+  );
+  const { gamepadOptions, gamepadDefault } = _deviceConfigGamepadDefaults(d, extra);
   return {
     title: 'ESP][ device configuration — edit values<context="task parameter"/>'.i18xRegister(),
     submitLabel: 'Continue<context="button text"/>'.i18xRegister(),
@@ -2333,8 +2986,105 @@ function _DeviceConfigEditForm(d, extra = {}) {
         default: d.profileName,
         remember: false,
         label: 'Profile name (local save)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Saved under local/device/config/ and optionally config/device/profiles/<name>/.<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "rom",
+        type: "text",
+        default: d.rom,
+        required: true,
+        remember: false,
+        label: 'System ROM (device path)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "drive1",
+        type: "text",
+        default: d.drive1,
+        remember: false,
+        label: 'Drive 1 image (device path)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "drive2",
+        type: "text",
+        default: d.drive2,
+        remember: false,
+        label: 'Drive 2 image (optional)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "bootFromDisk",
+        type: "boolean",
+        default: d.bootFromDisk,
+        remember: false,
+        label: 'Boot from disk (Autostart)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "startupMacro",
+        type: "select",
+        default: d.startupMacro,
+        remember: false,
+        label: 'Startup macro<context="task parameter"/>'.i18xRegister(),
+        options: macros,
+      },
+      {
+        id: "orientation",
+        type: "select",
+        default: d.orientation,
+        remember: false,
+        label: 'Screen orientation<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "classic", label: 'Classic<context="task parameter"/>'.i18xRegister() },
+          { value: "landscape", label: 'Landscape<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "monitor",
+        type: "select",
+        default: d.monitor ?? d.color ?? "white",
+        remember: false,
+        label: 'Monitor appearance<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "white", label: 'White / Monochrome<context="task parameter"/>'.i18xRegister() },
+          { value: "green", label: 'Green phosphor<context="task parameter"/>'.i18xRegister() },
+          { value: "amber", label: 'Amber phosphor<context="task parameter"/>'.i18xRegister() },
+          { value: "artifact", label: 'Artifact Color<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "effect",
+        type: "select",
+        default: d.effect ?? "clean",
+        remember: false,
+        label: 'Display effect<context="task parameter"/>'.i18xRegister(),
+        options: [
+          { value: "clean", label: 'Clean<context="task parameter"/>'.i18xRegister() },
+          { value: "crt", label: 'CRT / TV<context="task parameter"/>'.i18xRegister() },
+        ],
+      },
+      {
+        id: "screensaverSeconds",
+        type: "number",
+        default: d.screensaverSeconds,
+        min: 0,
+        max: 86400,
+        step: 1,
+        remember: false,
+        label: 'Screensaver timeout (seconds, 0 = disabled)<context="task parameter"/>'.i18xRegister(),
+      },
+      {
+        id: "usbStorageMode",
+        type: "select",
+        default: d.usbStorageMode ?? "normal",
+        remember: false,
+        label: 'USB connection behavior<context="task parameter"/>'.i18xRegister(),
+        options: [
+          {
+            value: "normal",
+            label: 'Normal — ESP][ keeps SD<context="task parameter"/>'.i18xRegister(),
+          },
+          {
+            value: "auto",
+            label: 'Auto-mount SD on computer<context="task parameter"/>'.i18xRegister(),
+          },
+        ],
       },
       {
         id: "gamepad",
@@ -2342,8 +3092,6 @@ function _DeviceConfigEditForm(d, extra = {}) {
         default: gamepadDefault,
         remember: false,
         label: 'Host gamepad (Windows bridge)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Choose a connected pad, or “Press any button…” after Continue. 8BitDo must be in X-input mode. Dial has no press for identify. Asleep slots stay selectable.<context="task parameter"/>'.i18xRegister(),
         options: gamepadOptions,
       },
       {
@@ -2382,9 +3130,7 @@ function _DeviceConfigEditForm(d, extra = {}) {
         type: "select",
         default: d.pb0 ?? "auto",
         remember: false,
-        label: 'PB0 button mapping (not pad identity)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Which button becomes Apple II PB0. MX Dial has no physical press switch — use gamepad A (or keyboard).<context="task parameter"/>'.i18xRegister(),
+        label: 'PB0 button mapping<context="task parameter"/>'.i18xRegister(),
         options: [
           { value: "auto", label: 'Auto<context="task parameter"/>'.i18xRegister() },
           { value: "gamepadA", label: 'A / Cross button<context="task parameter"/>'.i18xRegister() },
@@ -2397,120 +3143,6 @@ function _DeviceConfigEditForm(d, extra = {}) {
         default: Boolean(d.dial),
         remember: false,
         label: 'Enable Logitech MX Dial (host bridge)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Rotation only → absolute PDL0 (no press switch on MX Dial). Options+ must not steal the wheel path.<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "rom",
-        type: "text",
-        default: d.rom,
-        required: true,
-        remember: false,
-        label: 'System ROM (device path)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Absolute path on the ESP][ SD, e.g. /esp2/roms/system.rom — not a host file upload.<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "drive1",
-        type: "text",
-        default: d.drive1,
-        remember: false,
-        label: 'Drive 1 image (device path)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'e.g. /esp2/disks/Galaxian.dsk — path only; disk bytes are not uploaded by this form.<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "drive2",
-        type: "text",
-        default: d.drive2,
-        remember: false,
-        label: 'Drive 2 image (optional)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Leave empty when unused. Path under /esp2/ only.<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "bootFromDisk",
-        type: "boolean",
-        default: d.bootFromDisk,
-        remember: false,
-        label: 'Boot from disk (Autostart)<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "startupMacro",
-        type: "select",
-        default: d.startupMacro,
-        remember: false,
-        label: 'Startup macro<context="task parameter"/>'.i18xRegister(),
-        options: macros,
-      },
-      {
-        id: "orientation",
-        type: "select",
-        default: d.orientation,
-        remember: false,
-        label: 'Screen orientation<context="task parameter"/>'.i18xRegister(),
-        options: [
-          { value: "classic", label: 'Classic<context="task parameter"/>'.i18xRegister() },
-          { value: "landscape", label: 'Landscape<context="task parameter"/>'.i18xRegister() },
-        ],
-      },
-      {
-        id: "monitor",
-        type: "select",
-        default: d.monitor ?? d.color ?? "white",
-        remember: false,
-        label: 'Monitor appearance<context="task parameter"/>'.i18xRegister(),
-        options: [
-          { value: "white", label: 'White / Monochrome<context="task parameter"/>'.i18xRegister() },
-          { value: "green", label: 'Green phosphor<context="task parameter"/>'.i18xRegister() },
-          { value: "amber", label: 'Amber phosphor<context="task parameter"/>'.i18xRegister() },
-          {
-            value: "artifact",
-            label: 'Artifact Color<context="task parameter"/>'.i18xRegister(),
-          },
-        ],
-      },
-      {
-        id: "effect",
-        type: "select",
-        default: d.effect ?? "clean",
-        remember: false,
-        label: 'Display effect<context="task parameter"/>'.i18xRegister(),
-        options: [
-          { value: "clean", label: 'Clean<context="task parameter"/>'.i18xRegister() },
-          { value: "crt", label: 'CRT / TV<context="task parameter"/>'.i18xRegister() },
-        ],
-      },
-      {
-        id: "screensaverSeconds",
-        type: "number",
-        default: d.screensaverSeconds,
-        min: 0,
-        max: 86400,
-        step: 1,
-        remember: false,
-        label: 'Screensaver timeout (seconds, 0 = disabled)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Idle seconds before AMOLED screensaver. 0 disables. Unit: seconds.<context="task parameter"/>'.i18xRegister(),
-      },
-      {
-        id: "usbStorageMode",
-        type: "select",
-        default: d.usbStorageMode ?? "normal",
-        remember: false,
-        label: 'USB connection behavior<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Normal keeps the SD on ESP][ when a PC is connected. Auto-mount exposes the SD via USB Storage only when a real USB data host enumerates — never on power-only adapters.<context="task parameter"/>'.i18xRegister(),
-        options: [
-          {
-            value: "normal",
-            label: 'Normal — ESP][ keeps SD<context="task parameter"/>'.i18xRegister(),
-          },
-          {
-            value: "auto",
-            label: 'Auto-mount SD on computer<context="task parameter"/>'.i18xRegister(),
-          },
-        ],
       },
       {
         id: "action",
@@ -2518,8 +3150,6 @@ function _DeviceConfigEditForm(d, extra = {}) {
         default: "save_local",
         remember: false,
         label: 'Action<context="task parameter"/>'.i18xRegister(),
-        description:
-          'Save locally writes JSON on the PC only. Apply to device uploads system.json + macros.json (paths only) — never ROM/disk media.<context="task parameter"/>'.i18xRegister(),
         options: [
           {
             value: "save_local",
@@ -2537,8 +3167,6 @@ function _DeviceConfigEditForm(d, extra = {}) {
         default: d.port,
         remember: false,
         label: 'Serial port for Apply (optional)<context="task parameter"/>'.i18xRegister(),
-        description:
-          'e.g. COM5. Empty → AskPort dialog. Used only when Action is Apply to device.<context="task parameter"/>'.i18xRegister(),
         visibleWhen: { action: "apply_device" },
       },
     ],
@@ -2546,30 +3174,125 @@ function _DeviceConfigEditForm(d, extra = {}) {
 }
 
 /**
- * Resolve a concrete COMx for device serial tools (upload/macros).
- * Order: task parameter → ESP2_PORT → AskPort dialog (same as flash/upload).
+ * Canonical physical ESP][ resolution for µGulp device operations.
+ * COM is logged as runtime state only — never used as identity.
  */
-async function resolveDeviceSerialPort(_title) {
-  const fromParam = String(GetParameter("port") || "").trim();
-  if (fromParam) {
-    return fromParam;
+async function resolveEsp2DeviceForTask(_title, extra = {}) {
+  const {
+    resolveEsp2Device,
+    formatDeviceStatus,
+    hintPortFromEnvAndForm,
+  } = await import("./dev/tools/esp2-device-resolver.mjs");
+  let formPort = extra.formPort;
+  if (formPort === undefined) {
+    try {
+      formPort = GetParameter("port");
+    } catch {
+      formPort = "";
+    }
   }
-  const asked = await AskPort(rootDir, _title);
-  if (asked) {
-    return asked;
-  }
-  throw new Error(
-    'No serial port — set ESP2_PORT=COMx, fill the port field, or pick a port in the dialog.<context="task error"/>',
+  const hint = hintPortFromEnvAndForm({
+    formPort,
+    envPort: extra.useEnvHint === false ? "" : process.env.ESP2_PORT,
+  });
+  const requestPick = async (candidates) => {
+    const values = await RequestForm({
+      title: String(_title).i18xRegister(),
+      submitLabel: 'Use this device<context="button text"/>'.i18xRegister(),
+      fields: [
+        {
+          id: "port",
+          type: "select",
+          label: 'ESP][ device<context="task parameter"/>'.i18xRegister(),
+          description:
+            'COM is current USB address, not board identity.<context="task parameter"/>'.i18xRegister(),
+          options: candidates.map((c) => ({
+            value: c.port,
+            label: c.label || c.port,
+          })),
+        },
+      ],
+    });
+    return String(values?.port || "").trim();
+  };
+  const device = await resolveEsp2Device({
+    expectedPlatform: extra.expectedPlatform ?? resolveActivePlatform(),
+    hintPort: hint,
+    requireIdent: extra.requireIdent !== false,
+    allowUnidentifiedPick: extra.allowUnidentifiedPick === true,
+    operation: extra.operation || "generic",
+    requestPick,
+  });
+  const st = formatDeviceStatus(device);
+  Log('Gerät: <device/>  Port: <port/><context="task log"/>', {
+    device: st.device,
+    port: st.port,
+  });
+  return device;
+}
+
+async function reResolveEsp2AfterTransition(previous, _title) {
+  const { reResolveEsp2DeviceAfterTransition, formatDeviceStatus } = await import(
+    "./dev/tools/esp2-device-resolver.mjs"
   );
+  const device = await reResolveEsp2DeviceAfterTransition({
+    previous,
+    expectedPlatform: resolveActivePlatform(),
+    requireIdent: true,
+    requestPick: async (candidates) => {
+      const values = await RequestForm({
+        title: String(_title).i18xRegister(),
+        submitLabel: 'Use this device<context="button text"/>'.i18xRegister(),
+        fields: [
+          {
+            id: "port",
+            type: "select",
+            label: 'ESP][ device after USB change<context="task parameter"/>'.i18xRegister(),
+            options: candidates.map((c) => ({
+              value: c.port,
+              label: c.label || c.port,
+            })),
+          },
+        ],
+      });
+      return String(values?.port || "").trim();
+    },
+  });
+  const st = formatDeviceStatus(device);
+  Log('Gerät: <device/>  Port: <port/> (nach USB-Wechsel)<context="task log"/>', {
+    device: st.device,
+    port: st.port,
+  });
+  return device;
+}
+
+/**
+ * Resolve a concrete COMx for device serial tools.
+ * Live USB enumeration + `#ESP2IDENT` — not a cached COM number.
+ */
+async function resolveDeviceSerialPort(_title, extra = {}) {
+  const device = await resolveEsp2DeviceForTask(_title, extra);
+  return device.port;
 }
 
 export async function deviceConfig() {
   ReportProgress(0, "device-config");
-  // Step 1: preset (µParameters in µGulp, or RequestForm on CLI).
-  let preset = String(GetParameter("preset") || "").trim();
+  // Always browse via selects: group → profile (µGulp ~200 option cap).
+  // Optional CLI/env shortcut: --preset <id> or GetParameter("preset").
+  let preset = String(GetParameter("preset") || cliArg("preset") || "").trim();
   if (!preset) {
-    const step1 = (await RequestForm(_DeviceConfigPresetParameters())) || {};
-    preset = String(step1.preset || "custom");
+    const stepGroup = (await RequestForm(_DeviceConfigGroupParameters())) || {};
+    const group = String(stepGroup.group || "demos").trim();
+    if (group === "custom") {
+      preset = "custom";
+    } else {
+      const ids = _profileIdsInGroup(group);
+      if (!ids.length) {
+        throw new Error(`No profiles in group=${group}`);
+      }
+      const stepPreset = (await RequestForm(_DeviceConfigPresetParameters(group))) || {};
+      preset = String(stepPreset.preset || ids[0]).trim();
+    }
   }
   const defaults = formDefaultsFromPreset(rootDir, preset);
   Log('Loaded profile defaults from <preset/><context="task log"/>', {
@@ -2578,7 +3301,8 @@ export async function deviceConfig() {
 
   let pads = [];
   try {
-    pads = await listXInputGamepads({ enrichNames: true });
+    // enrichNames unused; keep list fast (host already returns product names).
+    pads = await listXInputGamepads();
   } catch (e) {
     Warn(`Gamepad enumerate failed: ${e?.message || e}`);
   }
@@ -2605,6 +3329,8 @@ export async function deviceConfig() {
   }
 
   const editGamepadOptions = buildGamepadSelectOptions(pads, { includePress: true });
+  // Only nudge toward press-to-identify when several pads are awake (ambiguous).
+  const preferPress = connectedCount >= 2;
   let values;
   if (process.env.ESP2_DEVICE_CONFIG_JSON) {
     values = JSON.parse(process.env.ESP2_DEVICE_CONFIG_JSON);
@@ -2613,7 +3339,7 @@ export async function deviceConfig() {
       (await RequestForm(
         _DeviceConfigEditForm(defaults, {
           gamepadOptions: editGamepadOptions,
-          preferPress: true,
+          preferPress,
         }),
       )) || {};
   }
@@ -2630,7 +3356,7 @@ export async function deviceConfig() {
       );
     }
     try {
-      pads = await listXInputGamepads({ enrichNames: true });
+      pads = await listXInputGamepads();
     } catch {
       /* keep prior list */
     }
@@ -2700,7 +3426,6 @@ _Tag(deviceConfig, {
     'Host gamepad is in the edit form. “Press any button…” rumble-identifies the controller after Continue.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 60,
-  µParameters: _DeviceConfigPresetParameters(),
 });
 
 /**
@@ -2837,7 +3562,7 @@ _Tag(deviceInputBridge, {
   µDescription:
     'Opens a Windows console for the CDC input bridge (keyboard + XInput gamepad + optional Dial). Reads input.hostBridge from the chosen profile or local/device/config.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx. Pad must be in X-input mode. Default profile galaxian-demo.<context="µTooltip"/>',
+    'Set ESP2_PORT only as a session hint (must still match a live ESP][). Pad must be in X-input mode. Default profile galaxian-demo.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 62,
   µParameters: [
@@ -2866,12 +3591,12 @@ export async function devicePortRelease() {
   ReportProgress(0, "device-port-release");
   const dry =
     GetParameter("dryRun") === true || GetParameter("dryRun") === "true";
-  let port = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
+  let port = String(GetParameter("port") || "").trim();
   if (!port && !dry) {
     try {
       port = (await AskPort(rootDir, "Release serial port — which COM?")) || "";
     } catch {
-      port = process.env.ESP2_PORT || "";
+      port = "";
     }
   }
   const { releaseComPort } = await import("./dev/tools/esp2-release-com.mjs");
@@ -2909,9 +3634,10 @@ _Tag(devicePortRelease, {
   µDescription:
     'Stops ESP][ host processes that lock the USB CDC port (input bridge, PlatformIO monitor, upload helpers) and probes that the port opens again.<context="µDescription"/>',
   µTooltip:
-    'Use when flash/monitor/input-bridge says Access denied. Set ESP2_PORT=COMx or pick the port.<context="µTooltip"/>',
-  µGroup: 'Device<context="µGroup"/>',
-  µOrder: 61,
+    'Use when flash/monitor/input-bridge says Access denied. Pick the current COM of the stuck session — numbers change after replug.<context="µTooltip"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µOrder: 25,
+  µVisible: () => true,
   µParameters: [
     {
       name: "port",
@@ -2920,7 +3646,7 @@ _Tag(devicePortRelease, {
       default: "",
       µDisplayName: 'Serial port (optional)<context="task parameter"/>',
       µDescription:
-        'e.g. COM5. Empty → ESP2_PORT or AskPort. Probe verifies this port is free after kill.<context="task parameter"/>',
+        'e.g. COM5 if you already know the stuck session. Empty → pick from currently enumerated ports.<context="task parameter"/>',
     },
     {
       name: "dryRun",
@@ -2948,9 +3674,9 @@ _Tag(deviceMacroRun, {
   gulpName: "device:macro:run",
   µDisplayName: 'Run Macro V<version/><context="µDisplayName"/>',
   µDescription:
-    'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Asks for COM port like flash/upload.<context="µDescription"/>',
+    'Execute a named input macro on a live ESP][ (#ESP2MACRO RUN). Device is resolved via USB + identity.<context="µDescription"/>',
   µTooltip:
-    'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
+    'Requires a connected ESP][ that answers #ESP2IDENT. COM is not stored as identity.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 65,
   µParameters: [
@@ -2973,22 +3699,14 @@ export async function deviceBle() {
   let discovered = [];
   let known = [];
   const control = defaultControlBindings();
-  let defaultsPort = String(process.env.ESP2_PORT || "").trim();
+  const resolved = await resolveEsp2DeviceForTask("ESP][ BLE setup — device", {
+    operation: "ble",
+  });
+  let defaultsPort = resolved.port;
 
   // First form may be scan-only; after scan we re-open with discovered list.
   for (let round = 0; round < 4; ++round) {
-    const ports = await ListPorts(rootDir);
-    if (!ports.length && !defaultsPort) {
-      throw new Error(
-        'No serial ports found — connect ESP][ via USB or set ESP2_PORT=COMx.<context="task error"/>'.i18xRegister(),
-      );
-    }
-    const portOptions = ports.length
-      ? ports
-      : [{ value: defaultsPort, label: `${defaultsPort} (ESP2_PORT)` }];
-    if (defaultsPort && !portOptions.some((p) => p.value === defaultsPort)) {
-      portOptions.unshift({ value: defaultsPort, label: `${defaultsPort} (ESP2_PORT)` });
-    }
+    const portOptions = [{ value: defaultsPort, label: `ESP][ · ${defaultsPort}` }];
 
     const form = buildBleSetupForm({
       port: defaultsPort,
@@ -3128,9 +3846,9 @@ _Tag(deviceBle, {
   gulpName: "device:ble",
   µDisplayName: () => _DeviceBleDisplayName(),
   µDescription:
-    'USB µGulp workflow: BLE scan / pair / reconnect / forget + hotkey labels. Initial setup needs USB; later reconnect is standalone.<context="µDescription"/>',
+    'USB µGulp workflow: BLE scan / pair / reconnect / forget + hotkey labels. Uses the live ESP][ (identity handshake), not a remembered COM port.<context="µDescription"/>',
   µTooltip:
-    'Do not enter USB Storage during BLE setup. Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>',
+    'Do not enter USB Storage during BLE setup. Device is resolved from Target + USB + #ESP2IDENT.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 62,
 });
@@ -3138,13 +3856,15 @@ gulp.task("device:ble", deviceBle);
 
 export async function deviceUpload() {
   ReportProgress(0, "device-upload");
-  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const hinted = String(GetParameter("port") || "").trim();
+  const device = await resolveEsp2DeviceForTask("Transfer file — ESP][ device", {
+    formPort: hinted,
+    operation: "media",
+  });
+  const port = device.port;
   const file = GetParameter("file") || "";
   const target = GetParameter("target") || "";
   const verify = GetParameter("verify") || "";
-  if (!port) {
-    throw new Error("device:upload requires --port COMx (no arbitrary auto-pick)");
-  }
   const args = ["--port", port];
   if (verify) {
     args.push("--verify", verify);
@@ -3169,7 +3889,7 @@ _Tag(deviceUpload, {
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 70,
   µParameters: [
-    { name: "port", type: "string", optional: false },
+    { name: "port", type: "string", optional: true },
     { name: "file", type: "string", optional: true },
     { name: "target", type: "string", optional: true },
     { name: "verify", type: "string", optional: true },
@@ -3179,11 +3899,13 @@ _Tag(deviceUpload, {
 /** CLI-only (not dashboard): prefer device:sd:computer. Kept for scripts. */
 async function deviceUsbStorage() {
   ReportProgress(0, "device-usb-storage");
-  const port = GetParameter("port") || process.env.ESP2_PORT || "";
+  const hinted = String(GetParameter("port") || "").trim();
+  const device = await resolveEsp2DeviceForTask("USB storage — ESP][ device", {
+    formPort: hinted,
+    operation: "sd-ownership",
+  });
+  const port = device.port;
   const leave = GetParameter("leave") === true || GetParameter("leave") === "true";
-  if (!port) {
-    throw new Error("device:usb-storage requires --port COMx");
-  }
   const args = leave
     ? ["--port", port, "--leave-usb-storage"]
     : ["--port", port, "--enter-usb-storage"];
@@ -3198,27 +3920,31 @@ export async function deviceSdComputer() {
   const { openHostSdSession, runUsbStorageCommand } = await import(
     "./dev/tools/esp2-sd-ownership-session.mjs"
   );
-  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
   const values =
     (await RequestForm(
-      registerFormI18x(buildSdComputerForm({ defaultPort }), (s) => s.i18xRegister()),
+      registerFormI18x(buildSdComputerForm({ defaultPort: "" }), (s) => s.i18xRegister()),
     )) || {};
   const action = String(values.action || "make_available").trim();
-  let port = String(values.port || "").trim();
-  if (!port) {
-    port = await resolveDeviceSerialPort("ESP][ SD card on computer — serial port");
-  }
+  const device = await resolveEsp2DeviceForTask("ESP][ SD card — device", {
+    formPort: values.port,
+    operation: "sd-ownership",
+  });
+  const port = device.port;
   const openExplorer =
     values.openExplorer === true ||
     values.openExplorer === "true" ||
     values.openExplorer === undefined;
 
   if (action === "return_esp") {
-    Log('Returning SD to ESP][ on <port/>…<context="task log"/>', { port });
+    Log('Returning SD to ESP][…<context="task log"/>');
     Log(
       'If the SD is still visible in Explorer/Finder, eject it first.<context="task log"/>',
     );
-    runUsbStorageCommand(rootDir, port, "leave");
+    const next = await reResolveEsp2AfterTransition(
+      device,
+      "ESP][ after USB Storage — return SD",
+    );
+    runUsbStorageCommand(rootDir, next.port, "leave");
     Log('SD returned to ESP][.<context="task log"/>');
     ReportProgress(1, "device-sd-computer");
     return;
@@ -3229,6 +3955,8 @@ export async function deviceSdComputer() {
     port,
     projectRoot: rootDir,
     openExplorer: Boolean(openExplorer),
+    resolveLeavePort: async () =>
+      (await reResolveEsp2AfterTransition(device, "ESP][ after USB Storage")).port,
     log: (msg, vars) => Log(msg, vars),
     requestAmbiguousPick: async (candidates) => {
       const pick = await RequestForm({
@@ -3267,9 +3995,64 @@ _Tag(deviceSdComputer, {
   µDescription:
     'Make the ESP][ microSD available to Windows/macOS (USB Storage), or return it to ESP][. While on the computer, Apple II Disk II cannot use the SD.<context="µDescription"/>',
   µTooltip:
-    'Uses the same USB Storage ownership path as SD backup/restore. Requires TinyUSB MSC on device (USB_MODE=0).<context="µTooltip"/>',
+    'Uses the same USB Storage ownership path as SD backup/restore. Requires TinyUSB MSC on device (USB_MODE=0). Resolves ESP][ by USB + #ESP2IDENT, never a stale COM.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 71,
+});
+
+export async function deviceSdInfo() {
+  ReportProgress(0, "device-sd-info");
+  const { buildSdInfoForm, registerFormI18x } = await loadSdUx();
+  const { parseSdInfoAck } = await import("./dev/tools/esp2-device-resolver.mjs");
+  const values =
+    (await RequestForm(
+      registerFormI18x(buildSdInfoForm({ defaultPort: "" }), (s) => s.i18xRegister()),
+    )) || {};
+  const device = await resolveEsp2DeviceForTask("ESP][ SD information — device", {
+    formPort: values.port,
+    operation: "sd-info",
+  });
+  const r = spawnSync(
+    resolveNodeExecutable(),
+    [
+      join(rootDir, "dev/tools/esp2-upload.mjs"),
+      "--port",
+      device.port,
+      "--sd-info",
+    ],
+    { encoding: "utf8", windowsHide: true, cwd: rootDir },
+  );
+  const out = `${r.stdout || ""}\n${r.stderr || ""}`;
+  if (r.status !== 0) {
+    throw new Error(out.trim() || "SDINFO failed");
+  }
+  let info = null;
+  for (const line of out.split(/\r?\n/)) {
+    info = parseSdInfoAck(line);
+    if (info) break;
+  }
+  if (!info) {
+    throw new Error("No #ACK SDINFO from device");
+  }
+  const present =
+    info.present === "1" ? "Present" : info.present === "0" ? "Missing" : "Unknown";
+  const fs =
+    info.fs === "fat" ? "FAT" : info.fs === "none" ? "None" : info.fs || "Unknown";
+  const structure = info.esp2 === "1" ? "Present" : "Missing";
+  Log('Card: <v/><context="task log"/>', { v: present });
+  Log('Capacity: <v/> MB<context="task log"/>', { v: info.sizeMb || "unknown" });
+  Log('Filesystem: <v/><context="task log"/>', { v: fs });
+  Log('ESP][ structure (/esp2): <v/><context="task log"/>', { v: structure });
+  Log('Owner: <v/><context="task log"/>', { v: info.owner || "?" });
+  ReportProgress(1, "device-sd-info");
+}
+_Tag(deviceSdInfo, {
+  gulpName: "device:sd:info",
+  µDisplayName: 'SD card information V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Read-only query of the SD in the live ESP][ (presence, capacity if mounted, FAT, /esp2). Does not format or enter USB Storage.<context="µDescription"/>',
+  µGroup: 'Device<context="µGroup"/>',
+  µOrder: 70,
 });
 
 /** Lazy import cache for SD backup/restore UX helpers. */
@@ -3290,20 +4073,24 @@ export async function deviceSdBackup() {
     SD_UX_ACCESS_DEVICE,
   } = await loadSdUx();
   const defaultRoot = join(rootDir, "local/sd-backups");
-  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
   const values =
     (await RequestForm(
       registerFormI18x(
-        buildSdBackupForm({ defaultBackupRoot: defaultRoot, defaultPort }),
+        buildSdBackupForm({ defaultBackupRoot: defaultRoot, defaultPort: "" }),
         (s) => s.i18xRegister(),
       ),
     )) || {};
   // Opening the form must not enter MSC — device work starts only here.
   const destRoot = String(values.destRoot || defaultRoot).trim();
   const accessMode = String(values.accessMode || SD_UX_ACCESS_DEVICE).trim();
-  let port = String(values.port || "").trim();
-  if (accessMode === SD_UX_ACCESS_DEVICE && !port) {
-    port = await resolveDeviceSerialPort("ESP][ SD backup — serial port");
+  let port = "";
+  let device = null;
+  if (accessMode === SD_UX_ACCESS_DEVICE) {
+    device = await resolveEsp2DeviceForTask("ESP][ SD backup — device", {
+      formPort: values.port,
+      operation: "sd-ownership",
+    });
+    port = device.port;
   }
 
   const session = await resolveSdMountViaUx({
@@ -3312,6 +4099,10 @@ export async function deviceSdBackup() {
     advancedPath: String(values.advancedSource || "").trim(),
     port,
     projectRoot: rootDir,
+    resolveLeavePort: device
+      ? async () =>
+          (await reResolveEsp2AfterTransition(device, "ESP][ after USB Storage")).port
+      : undefined,
     log: (msg, vars) => Log(msg, vars),
     requestAmbiguousPick: async (candidates) => {
       const pick = await RequestForm({
@@ -3381,7 +4172,7 @@ _Tag(deviceSdBackup, {
   µDescription:
     'Read-only logical backup of the SD currently in the connected ESP][ (USB Storage → hash-verified copy under local/sd-backups). Not a raw card image.<context="µDescription"/>',
   µTooltip:
-    'Select ESP][ COM port if needed. Destination defaults to local/sd-backups/. Advanced card-reader path available if MSC auto-detect fails.<context="µTooltip"/>',
+    'Select the live ESP][ (not a remembered COM). Destination defaults to local/sd-backups/. Advanced card-reader path available if MSC auto-detect fails.<context="µTooltip"/>',
   µGroup: 'Device<context="µGroup"/>',
   µOrder: 72,
 });
@@ -3407,13 +4198,12 @@ export async function deviceSdRestore() {
 
   const defaultRoot = defaultSdBackupRoot(rootDir);
   const backups = listSdBackups(defaultRoot);
-  const defaultPort = String(GetParameter("port") || process.env.ESP2_PORT || "").trim();
   const values =
     (await RequestForm(
       registerFormI18x(
         buildSdRestoreForm({
           defaultBackupRoot: defaultRoot,
-          defaultPort,
+          defaultPort: "",
           backups,
         }),
         (s) => s.i18xRegister(),
@@ -3428,9 +4218,14 @@ export async function deviceSdRestore() {
   }
   const { manifest } = loadAndValidateManifest(backupDir);
 
-  let port = String(values.port || "").trim();
-  if (accessMode === SD_UX_ACCESS_DEVICE && !port) {
-    port = await resolveDeviceSerialPort("ESP][ SD restore — serial port");
+  let port = "";
+  let device = null;
+  if (accessMode === SD_UX_ACCESS_DEVICE) {
+    device = await resolveEsp2DeviceForTask("ESP][ SD restore — device", {
+      formPort: values.port,
+      operation: "sd-ownership",
+    });
+    port = device.port;
   }
 
   const session = await resolveSdMountViaUx({
@@ -3439,6 +4234,10 @@ export async function deviceSdRestore() {
     advancedPath: String(values.advancedDest || "").trim(),
     port,
     projectRoot: rootDir,
+    resolveLeavePort: device
+      ? async () =>
+          (await reResolveEsp2AfterTransition(device, "ESP][ after USB Storage")).port
+      : undefined,
     log: (msg, vars) => Log(msg, vars),
     requestAmbiguousPick: async (candidates) => {
       const pick = await RequestForm({
@@ -3563,5 +4362,310 @@ gulp.task("device:input-bridge", deviceInputBridge);
 gulp.task("device:macro:run", deviceMacroRun);
 gulp.task("device:upload", deviceUpload);
 gulp.task("device:sd:computer", deviceSdComputer);
+gulp.task("device:sd:info", deviceSdInfo);
 gulp.task("device:sd:backup", deviceSdBackup);
 gulp.task("device:sd:restore", deviceSdRestore);
+
+//================================================================
+// diymore Hardware — bring-up only (platform: diymore-es3c28p)
+//================================================================
+
+export async function diymoreIdentify() {
+  ReportProgress(0, "diymore-identify");
+  const platformId = resolveActivePlatform();
+  if (platformId !== PLATFORM_DIYMORE) {
+    throw new Error(
+      `diymore identify requires Project Control Target = diymore-es3c28p (got ${platformId})`,
+    );
+  }
+  const env = firmwareEnv();
+  const device = await resolveEsp2DeviceForTask("diymore flash — device", {
+    expectedPlatform: PLATFORM_DIYMORE,
+    operation: "flash",
+    allowUnidentifiedPick: true,
+  });
+  const port = device.port;
+  Log(
+    'diymore identity: build+upload env=<env/> → <port/><context="task log"/>…',
+    { env, port },
+  );
+  await Pio(rootDir, ["run", "-e", env], "pio build");
+  ReportProgress(0.45, "diymore-identify-upload");
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
+    onProgress: ({ fraction }) => {
+      ReportProgress(0.45 + 0.5 * fraction, "diymore-identify-upload");
+    },
+  });
+  ReportProgress(0.95, "diymore-identify");
+  Log(
+    'Flash done. Open Serial Monitor – look for [CHIP]/[FLASH]/[PSRAM]/[SELFTEST]. Next: Display Probe.<context="task log"/>',
+  );
+  ReportProgress(1, "diymore-identify");
+  PlaySignal("success");
+}
+_Tag(diymoreIdentify, {
+  gulpName: "diymore:identify",
+  µDisplayName:
+    'Identify Chip / Flash / PSRAM V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Build and flash diymore_bringup identity probe. Reports chip/flash/PSRAM over serial. No display/touch init.<context="µDescription"/>',
+  µTooltip:
+    'diymore ES3C28P · AM03-FBBA0125-AAA — first bring-up step.<context="µTooltip"/>',
+  µIcon: "\u26A1",
+  µGroup: 'diymore Hardware<context="µGroup"/>',
+  µOrder: 10,
+  µExecutionConcurrency: false,
+  µExecutionRestrictions: { deny: ["flash", "upload", "build"] },
+});
+gulp.task("diymore:identify", diymoreIdentify);
+
+export async function diymoreDocs() {
+  ReportProgress(0, "diymore-docs");
+  Log('Platform ID: diymore-es3c28p<context="task log"/>');
+  Log('Part number: AM03-FBBA0125-AAA (metadata only)<context="task log"/>');
+  Log('Docs: docs/hardware/diymore-es3c28p.md + docs/hardware/targets.md<context="task log"/>');
+  Log(
+    'UNKNOWN until probed: display IC, touch IC, pins, flash size, PSRAM, SD, audio.<context="task log"/>',
+  );
+  ReportProgress(1, "diymore-docs");
+  PlaySignal("success");
+}
+_Tag(diymoreDocs, {
+  gulpName: "diymore:docs",
+  µDisplayName: 'diymore Board Notes V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Prints known vs unknown hardware facts for the diymore ES3C28P board. No flash.<context="µDescription"/>',
+  µGroup: 'diymore Hardware<context="µGroup"/>',
+  µOrder: 5,
+  µExecutionConcurrency: true,
+});
+gulp.task("diymore:docs", diymoreDocs);
+
+/** LCD color-bar probe using LCDWIKI ES3C28P pin map (needs visual confirm). */
+export async function diymoreDisplayProbe() {
+  ReportProgress(0, "diymore-display");
+  const platformId = resolveActivePlatform();
+  if (platformId !== PLATFORM_DIYMORE) {
+    throw new Error(
+      `diymore display probe requires Project Control Target = diymore-es3c28p (got ${platformId})`,
+    );
+  }
+  const env = "diymore_display_probe";
+  const device = await resolveEsp2DeviceForTask("diymore display probe — device", {
+    expectedPlatform: PLATFORM_DIYMORE,
+    operation: "flash",
+    allowUnidentifiedPick: true,
+  });
+  const port = device.port;
+  Log(
+    'diymore display probe: build+upload env=<env/> → <port/><context="task log"/>…',
+    { env, port },
+  );
+  Log(
+    'Pins from LCDWIKI ES3C28P (ILI9341V SPI). Confirm color bars / TOP BOTTOM LEFT RIGHT on the panel.<context="task log"/>',
+  );
+  await Pio(rootDir, ["run", "-e", env], "pio build");
+  ReportProgress(0.45, "diymore-display-upload");
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
+    onProgress: ({ fraction }) => {
+      ReportProgress(0.45 + 0.5 * fraction, "diymore-display-upload");
+    },
+  });
+  ReportProgress(0.95, "diymore-display");
+  Log(
+    'Flash done. Serial: [DISPLAY] / [SELFTEST]. Visual PASS only if you see labeled color bars.<context="task log"/>',
+  );
+  ReportProgress(1, "diymore-display");
+  PlaySignal("success");
+}
+_Tag(diymoreDisplayProbe, {
+  gulpName: "diymore:display",
+  µDisplayName: 'Display Probe (ILI9341 color bars) V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Build/flash diymore_display_probe: ILI9341V SPI color bars from LCDWIKI ES3C28P pin map. Requires your visual confirmation — begin() OK is not enough.<context="µDescription"/>',
+  µTooltip:
+    'Vendor pins: CS10 DC46 SCK12 MOSI11 MISO13 BL45. Not Apple II / Galaxian.<context="µTooltip"/>',
+  µIcon: "\u25A3",
+  µGroup: 'diymore Hardware<context="µGroup"/>',
+  µOrder: 20,
+  µExecutionConcurrency: false,
+  µExecutionRestrictions: { deny: ["flash", "upload", "build", "diymore:identify"] },
+});
+gulp.task("diymore:display", diymoreDisplayProbe);
+
+/** Placeholder until touch IC + pins are verified — stays disabled. */
+export async function diymoreTouchTodo() {
+  throw new Error(
+    "diymore touch test is not implemented — touch controller/pins UNKNOWN",
+  );
+}
+_Tag(diymoreTouchTodo, {
+  gulpName: "diymore:touch",
+  µDisplayName: 'Touch Test (TODO) V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Reserved. Enable only after the touch controller and pins are verified.<context="µDescription"/>',
+  µGroup: 'diymore Hardware<context="µGroup"/>',
+  µOrder: 30,
+  µEnabled: false,
+  µDisabledTooltip:
+    'Blocked: touch controller and pins UNKNOWN — see docs/hardware/diymore-es3c28p.md.<context="µDisabledTooltip"/>',
+});
+gulp.task("diymore:touch", diymoreTouchTodo);
+
+/**
+ * Demonstrates gulp-mu-build-filter platform against board header stubs.
+ * Does not rewrite the working tree — dry log of filtered include/boards/*.h.
+ */
+export async function sourcesBuildFilterDemo() {
+  ReportProgress(0, "build-filter");
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  let muBuildFilter;
+  try {
+    muBuildFilter = require("gulp-mu-build-filter");
+  } catch {
+    throw new Error(
+      "gulp-mu-build-filter is not installed — run npm install gulp-mu-build-filter",
+    );
+  }
+  const { readFileSync: readText } = await import("node:fs");
+  const platformId = resolveActivePlatform();
+  const opts = buildFilterPlatformOptions(platformId);
+  Log(
+    'gulp-mu-build-filter platform=<platform/> mode=<mode/><context="task log"/>',
+    { platform: opts.platform, mode: opts.mode },
+  );
+  for (const rel of [
+    "include/boards/waveshare_amoled_s3.h",
+    "include/boards/diymore_es3c28p.h",
+  ]) {
+    const raw = readText(join(rootDir, rel), "utf8");
+    const out = muBuildFilter({ text: raw, ...opts });
+    const keptWaveshare = /ESP2_PLATFORM_TAG_WAVESHARE/.test(out);
+    const keptDiymore = /ESP2_PLATFORM_TAG_DIYMORE/.test(out);
+    Log(
+      '<file/> waveshareTag=<w/> diymoreTag=<d/><context="task log"/>',
+      {
+        file: rel,
+        w: String(keptWaveshare),
+        d: String(keptDiymore),
+      },
+    );
+  }
+  ReportProgress(1, "build-filter");
+  PlaySignal("success");
+}
+_Tag(sourcesBuildFilterDemo, {
+  gulpName: "sources:build-filter",
+  µDisplayName:
+    'Build-Filter Demo – <platformLabel/> V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Runs gulp-mu-build-filter with the active Project Control platform against board header stubs (read-only demo).<context="µDescription"/>',
+  µGroup: 'Tools<context="µGroup"/>',
+  µOrder: 90,
+  µExecutionConcurrency: true,
+});
+gulp.task("sources:build-filter", sourcesBuildFilterDemo);
+
+
+//================================================================
+// RLCD 4.2 Hardware — bring-up (platform: waveshare-rlcd42)
+//================================================================
+
+export async function rlcd42Identify() {
+  ReportProgress(0, "rlcd42-identify");
+  const platformId = resolveActivePlatform();
+  if (platformId !== PLATFORM_RLCD42) {
+    throw new Error(
+      `rlcd42 identify requires Project Control Target = waveshare-rlcd42 (got ${platformId})`,
+    );
+  }
+  const env = "rlcd42_bringup";
+  const device = await resolveEsp2DeviceForTask("rlcd42 flash — device", {
+    expectedPlatform: PLATFORM_RLCD42,
+    operation: "flash",
+    allowUnidentifiedPick: true,
+  });
+  const port = device.port;
+  Log(
+    'rlcd42 identity: build+upload env=<env/> → <port/><context="task log"/>…',
+    { env, port },
+  );
+  await Pio(rootDir, ["run", "-e", env], "pio build");
+  ReportProgress(0.45, "rlcd42-identify-upload");
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
+    onProgress: ({ fraction }) => {
+      ReportProgress(0.45 + 0.5 * fraction, "rlcd42-identify-upload");
+    },
+  });
+  ReportProgress(0.95, "rlcd42-identify");
+  Log('rlcd42_bringup uploaded — open serial 115200 for [BOOT]/[FLASH]/[PSRAM]/[BTN]<context="task log"/>');
+  ReportProgress(1, "rlcd42-identify");
+}
+_Tag(rlcd42Identify, {
+  gulpName: "rlcd42:identify",
+  µDisplayName: 'Identify Chip / Flash / PSRAM (RLCD)<context="µDisplayName"/>',
+  µDescription:
+    'Build and flash rlcd42_bringup identity probe. Reports chip/flash/PSRAM/buttons over serial. No display/SD init.<context="µDescription"/>',
+  µTooltip: 'ESP32-S3-RLCD-4.2 — first bring-up step.<context="µTooltip"/>',
+  µGroup: 'RLCD 4.2 Hardware<context="µGroup"/>',
+  µVisible: visibleOnRlcd42,
+});
+gulp.task("rlcd42:identify", rlcd42Identify);
+
+export async function rlcd42Docs() {
+  ReportProgress(0, "rlcd42-docs");
+  Log('Platform ID: waveshare-rlcd42<context="task log"/>');
+  Log('Docs: docs/hardware/waveshare-rlcd42.md + docs/hardware/targets.md<context="task log"/>');
+  ReportProgress(1, "rlcd42-docs");
+}
+_Tag(rlcd42Docs, {
+  gulpName: "rlcd42:docs",
+  µDisplayName: 'RLCD 4.2 Board Notes V<version/><context="µDisplayName"/>',
+  µDescription:
+    'Prints known vs unknown hardware facts for the RLCD 4.2 board. No flash.<context="µDescription"/>',
+  µGroup: 'RLCD 4.2 Hardware<context="µGroup"/>',
+  µVisible: visibleOnRlcd42,
+});
+gulp.task("rlcd42:docs", rlcd42Docs);
+
+export async function rlcd42DisplayProbe() {
+  ReportProgress(0, "rlcd42-display");
+  const platformId = resolveActivePlatform();
+  if (platformId !== PLATFORM_RLCD42) {
+    throw new Error(
+      `rlcd42 display probe requires Project Control Target = waveshare-rlcd42 (got ${platformId})`,
+    );
+  }
+  const env = "rlcd42_display_probe";
+  const device = await resolveEsp2DeviceForTask("rlcd42 display probe — device", {
+    expectedPlatform: PLATFORM_RLCD42,
+    operation: "flash",
+    allowUnidentifiedPick: true,
+  });
+  const port = device.port;
+  Log(
+    'rlcd42 display probe: build+upload env=<env/> → <port/><context="task log"/>…',
+    { env, port },
+  );
+  await Pio(rootDir, ["run", "-e", env], "pio build");
+  ReportProgress(0.45, "rlcd42-display-upload");
+  await Pio(rootDir, UploadArgs(port, env), "pio upload", {
+    onProgress: ({ fraction }) => {
+      ReportProgress(0.45 + 0.5 * fraction, "rlcd42-display-upload");
+    },
+  });
+  ReportProgress(0.95, "rlcd42-display");
+  Log('ST7305 probe uploaded — confirm TOP/BOTTOM/L/R in ambient light<context="task log"/>');
+  ReportProgress(1, "rlcd42-display");
+}
+_Tag(rlcd42DisplayProbe, {
+  gulpName: "rlcd42:display",
+  µDisplayName: 'Display Probe (ST7305 marks)<context="µDisplayName"/>',
+  µDescription:
+    'Build/flash rlcd42_display_probe: ST7305 orientation + greyscale bars. Requires visual confirmation.<context="µDescription"/>',
+  µGroup: 'RLCD 4.2 Hardware<context="µGroup"/>',
+  µVisible: visibleOnRlcd42,
+  µExecutionRestrictions: { deny: ["flash", "upload", "build", "rlcd42:identify"] },
+});
+gulp.task("rlcd42:display", rlcd42DisplayProbe);

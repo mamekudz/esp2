@@ -28,31 +28,42 @@ const de = {
   'Apple II/Compatibility<context="µGroup"/>': "Apple II/Kompatibilität",
   'Apple II/Device<context="µGroup"/>': "Apple II/Gerät",
   'Device<context="µGroup"/>': "Gerät",
+  'diymore Hardware<context="µGroup"/>': "diymore Hardware",
   'Apple II Host<context="µGroup"/>': "Apple II Host",
   'Media / local apple2<context="µGroup"/>': "Medien / lokal apple2",
 
   // Firmware
   'Build Firmware V<version/><context="µDisplayName"/>': "Firmware bauen V<version/>",
-  'Compiles ESP][ with PlatformIO (env: bringup). Does not change board config.<context="µDescription"/>':
-    "Kompiliert ESP][ mit PlatformIO (Umgebung: bringup). Ändert die Board-Konfiguration nicht.",
-  'Compiles ESP][ with PlatformIO. Default env from platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).<context="µDescription"/>':
-    "Kompiliert ESP][ mit PlatformIO. Standard-Umgebung aus platformio.ini / ESP2_PIO_ENV (bringup|core_smoke|apple2_text).",
-  'Show Active Firmware Env V<version/><context="µDisplayName"/>': "Aktive Firmware-Umgebung anzeigen V<version/>",
-  'Prints the active PlatformIO environment and known envs from platformio.ini.<context="µDescription"/>':
-    "Zeigt die aktive PlatformIO-Umgebung und bekannte Envs aus platformio.ini.",
-  'Build & Upload Firmware V<version/><context="µDisplayName"/>': "Firmware bauen & hochladen V<version/>",
-  'Rebuilds and flashes ESP][ firmware in one step.<context="µDescription"/>':
-    "Baut die ESP][-Firmware neu und flasht sie in einem Schritt.",
-  'Set ESP2_PORT=COMx to skip the port dialog.<context="µTooltip"/>':
-    "ESP2_PORT=COMx setzen, um den Port-Dialog zu überspringen.",
-  'Upload Firmware V<version/><context="µDisplayName"/>': "Firmware hochladen V<version/>",
-  'Firmware Memory Usage V<version/><context="µDisplayName"/>': "Firmware-Speicherbelegung V<version/>",
-  'Clean Firmware Build Files V<version/><context="µDisplayName"/>': "Firmware-Build-Dateien bereinigen V<version/>",
-  'Removes .pio/build artefacts for the active PlatformIO env (ESP2_PIO_ENV / default bringup).<context="µDescription"/>':
-    "Entfernt .pio/build-Artefakte der aktiven PlatformIO-Umgebung (ESP2_PIO_ENV / Standard bringup).",
-  'Rebuild Firmware V<version/><context="µDisplayName"/>': "Firmware neu bauen V<version/>",
-  'clean → build for the active PlatformIO env.<context="µDescription"/>':
-    "clean → build für die aktive PlatformIO-Umgebung.",
+  'Build – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Bauen – <platformLabel/> V<version/>",
+  'Build & Upload – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Bauen & Hochladen – <platformLabel/> V<version/>",
+  'Upload – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Hochladen – <platformLabel/> V<version/>",
+  'Serial Monitor – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Seriellmonitor – <platformLabel/> V<version/>",
+  'Clean – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Bereinigen – <platformLabel/> V<version/>",
+  'Rebuild – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Neu bauen – <platformLabel/> V<version/>",
+  'Firmware Memory Usage – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Firmware-Speicherbelegung – <platformLabel/> V<version/>",
+  'Show Active Firmware Env – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Aktive Firmware-Umgebung – <platformLabel/> V<version/>",
+  'Build-Filter Demo – <platformLabel/> V<version/><context="µDisplayName"/>':
+    "Build-Filter-Demo – <platformLabel/> V<version/>",
+  'Identify Chip / Flash / PSRAM V<version/><context="µDisplayName"/>':
+    "Chip / Flash / PSRAM identifizieren V<version/>",
+  'diymore Board Notes V<version/><context="µDisplayName"/>':
+    "diymore Board-Notizen V<version/>",
+  'Display Probe (ILI9341 color bars) V<version/><context="µDisplayName"/>':
+    "Display-Probe (ILI9341 Farbbalken) V<version/>",
+  'Display Test (TODO) V<version/><context="µDisplayName"/>':
+    "Display-Test (TODO) V<version/>",
+  'Touch Test (TODO) V<version/><context="µDisplayName"/>':
+    "Touch-Test (TODO) V<version/>",
+  'Compiles ESP][ with PlatformIO. Env follows Project Control Target (waveshare → apple2_text; diymore → diymore_bringup).<context="µDescription"/>':
+    "Kompiliert ESP][ mit PlatformIO. Env folgt dem Project-Control-Target (waveshare → apple2_text; diymore → diymore_bringup).",
 
   // Tools
   'First-run setup (download + config) V<version/><context="µDisplayName"/>':
@@ -109,13 +120,41 @@ const de = {
     "Lädt weiterverbreitbare ROMs und diesen LOCAL_TEST_ONLY-Titel aus dem Netz, bereitet eine Laufzeitdiskette vor und setzt local/device/config aus dem passenden Profil, falls vorhanden.",
   'ESP][ device configuration — choose profile<context="task parameter"/>':
     "ESP][-Gerätekonfiguration — Profil wählen",
+  'ESP][ device configuration — choose profile group<context="task parameter"/>':
+    "ESP][-Gerätekonfiguration — Profilgruppe wählen",
+  'Profile group<context="task parameter"/>': "Profilgruppe",
+  'Optional profile id (skip group picker)<context="task parameter"/>':
+    "Optionale Profil-ID (Gruppenauswahl überspringen)",
+  'Leave empty to browse demos or any Apple ][js category (Game, Demo, …). Or type an id directly, e.g. star-blazer / choplifter / galaxian-demo.<context="task parameter"/>':
+    "Leer lassen, um Demos oder eine Apple-][js-Kategorie (Game, Demo, …) zu browsen. Oder direkt eine ID tippen, z. B. star-blazer / choplifter / galaxian-demo.",
+  'Start with curated demos (fast). Catalog categories list path-only profiles — media stays LOCAL_TEST_ONLY via setup:profiles.<context="task parameter"/>':
+    "Mit kuratierten Demos starten (schnell). Katalogkategorien listen pfad-only Profile — Medien bleiben LOCAL_TEST_ONLY über setup:profiles.",
+  'µGulp select lists are capped (~200 options), so titles are grouped. Pick demos/category, or Single + type an id (e.g. star-blazer). LOCAL_TEST_ONLY — website availability is not redistribution permission.<context="task parameter"/>':
+    "µGulp-Select-Listen sind auf ca. 200 Optionen begrenzt — Titel sind gruppiert. Demos/Kategorie wählen, oder Einzel + ID tippen (z. B. star-blazer). LOCAL_TEST_ONLY — Website-Verfügbarkeit ist keine Weiterverbreitungs-Erlaubnis.",
+  'Single profile id (when selection = Single)<context="task parameter"/>':
+    "Einzelne Profil-ID (wenn Auswahl = Einzel)",
+  'Single profile id (next field)<context="task parameter"/>':
+    "Einzelne Profil-ID (nächstes Feld)",
+  'e.g. star-blazer, choplifter, galaxian-demo.<context="task parameter"/>':
+    "z. B. star-blazer, choplifter, galaxian-demo.",
+  'Selecting a preset fills the next form — nothing is uploaded yet.<context="task parameter"/>':
+    "Ein Preset füllt das nächste Formular — noch nichts wird hochgeladen.",
   'ESP][ device configuration — edit values<context="task parameter"/>':
     "ESP][-Gerätekonfiguration — Werte bearbeiten",
+  'ESP][ config — media & boot (1/3)<context="task parameter"/>':
+    "ESP][-Config — Medien & Boot (1/3)",
+  'ESP][ config — display (2/3)<context="task parameter"/>':
+    "ESP][-Config — Display (2/3)",
+  'ESP][ config — input & save (3/3)<context="task parameter"/>':
+    "ESP][-Config — Input & Speichern (3/3)",
+  'PB0 button mapping<context="task parameter"/>': "PB0-Tastenmapping",
   'Load profile into form<context="button text"/>': "Profil in Formular laden",
   'Custom (blank / local fields)<context="task parameter"/>':
     "Benutzerdefiniert (leer / lokale Felder)",
   'Selecting a named preset (e.g. galaxian-demo) fills the next form from that profile. Nothing is uploaded yet.<context="task parameter"/>':
     "Ein benanntes Preset (z. B. galaxian-demo) füllt das nächste Formular aus diesem Profil. Noch nichts wird hochgeladen.",
+  'Curated demos (Galaxian, Little Brick Out, Star Blazer) are listed first. Folder ids use hyphens (e.g. star-blazer). Selecting a preset fills the next form — nothing is uploaded yet.<context="task parameter"/>':
+    "Kuratierte Demos (Galaxian, Little Brick Out, Star Blazer) stehen oben. Ordner-IDs nutzen Bindestriche (z. B. star-blazer). Ein Preset füllt das nächste Formular — noch nichts wird hochgeladen.",
   'Two-step form: choose a preset (fills fields), then edit/save locally or Apply to device. Opening the form uploads nothing; media bytes are never uploaded here.<context="µDescription"/>':
     "Zweistufiges Formular: Preset wählen (füllt Felder), dann bearbeiten/lokal speichern oder auf Gerät anwenden. Formular öffnen lädt nichts hoch; Media-Bytes nie hier.",
   'Pick galaxian-demo (or another preset) first — the next form shows those values. Apply is explicit.<context="µTooltip"/>':
@@ -447,6 +486,14 @@ const de = {
   // apple2js / media helpers
   'Sync Online Catalog V<version/><context="µDisplayName"/>': "Online-Katalog synchronisieren V<version/>",
   'Show Online Catalog V<version/><context="µDisplayName"/>': "Online-Katalog anzeigen V<version/>",
+  'Shows the cached apple2js git+website catalog as a readable table/accordion (title, category, id, source, rights). Offline if cache present — not a raw JSON dump. Use apple2js:sync first when empty.<context="µDescription"/>':
+    "Zeigt den gecachten apple2js-Git+Website-Katalog als lesbare Tabelle/Accordion (Titel, Kategorie, ID, Quelle, Rechte). Offline, wenn Cache vorhanden — kein rohes JSON. Bei leerem Cache zuerst apple2js:sync.",
+  'Shows the cached apple2js git+website catalog as a readable dashboard table (title, category, id, source, rights). Offline if cache present — not a raw JSON dump. Use apple2js:sync first when empty.<context="µDescription"/>':
+    "Zeigt den gecachten apple2js-Git+Website-Katalog als lesbare Dashboard-Tabelle (Titel, Kategorie, ID, Quelle, Rechte). Offline, wenn Cache vorhanden — kein rohes JSON. Bei leerem Cache zuerst apple2js:sync.",
+  'Provenance audit + metadata stubs (offline if cache present).<context="µDescription"/>':
+    "Provenance-Audit + Metadaten-Stubs (offline, wenn Cache vorhanden).",
+  'Human-readable provenance audit of the cached apple2js catalog (table + summary). Also writes docs/media/generated audit JSON for tooling — not shown as raw JSON in the dashboard.<context="µDescription"/>':
+    "Lesbares Provenance-Audit des gecachten apple2js-Katalogs (Tabelle + Zusammenfassung). Schreibt zusätzlich Audit-JSON unter docs/media/generated für Tooling — im Dashboard kein rohes JSON.",
   'Audit Online Catalog V<version/><context="µDisplayName"/>': "Online-Katalog prüfen V<version/>",
   'Identify Media File V<version/><context="µDisplayName"/>': "Mediendatei identifizieren V<version/>",
   'Import Local Media V<version/><context="µDisplayName"/>': "Lokale Medien importieren V<version/>",

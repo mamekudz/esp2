@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-09-25T19:53:48.358Z",
+  "generatedAt": "2026-09-28T20:25:49.755Z",
   "upstreamPin": {
     "repository": "https://github.com/whscullin/apple2js",
     "commit": "ee0aed25f73c69d0245e86a2a5fccb3324c3056c",
     "short": "ee0aed2",
     "subject": "Bump postcss from 8.5.14 to 8.5.26 (#305)",
-    "syncedAt": "2026-09-25T19:53:48.163Z",
+    "syncedAt": "2026-09-28T16:49:22.327Z",
     "note": "Local cache only (.cache/apple2js). Not part of ESP][ commits."
   },
   "webIndexCachePresent": true,
@@ -1251,7 +1251,8 @@
       "catalogSource": "website",
       "redistribution": {
         "status": "USER_SUPPLIED_ONLY",
-        "evidence": "Commercial/entertainment category on public website catalog without a clear redistribution grant. User must supply legally obtained media."
+        "evidence": "Commercial/entertainment title on apple2js website catalog. Website availability is not redistribution permission. LOCAL_TEST_ONLY for compatibility testing.",
+        "publisherHint": "Namco / Apple II port (historical)"
       }
     },
     {

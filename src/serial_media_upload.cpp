@@ -1,12 +1,10 @@
 #include "serial_media_upload.hpp"
 
-#include "board_pins.h"
 #include "esp2_sd_bus.hpp"
 #include "esp32_sd_storage.hpp"
 #include "esp_bracket/sha256.hpp"
 
 #include <Arduino.h>
-#include <SD.h>
 #include <cstdio>
 #include <cstring>
 
@@ -40,10 +38,10 @@ bool ensureParentDirs(const char *absPath) {
     while (*slash) {
         if (*slash == '/') {
             *slash = 0;
-            if (!SD.exists(tmp)) {
-                (void)SD.mkdir(tmp);
+            if (!ESP2_SD.exists(tmp)) {
+                (void)ESP2_SD.mkdir(tmp);
                 delay(5);
-                if (!SD.exists(tmp)) {
+                if (!ESP2_SD.exists(tmp)) {
                     Serial.print("#NAK mkdir_path=");
                     Serial.println(tmp);
                     Serial.flush();
@@ -109,7 +107,7 @@ void nak(const char *msg) {
 }
 
 bool hashFile(const char *path, uint8_t digest[32], uint64_t *outSize) {
-    File f = SD.open(path, FILE_READ);
+    File f = ESP2_SD.open(path, FILE_READ);
     if (!f) {
         return false;
     }
@@ -149,7 +147,7 @@ bool handleVerify() {
         nak("verify_path_unsafe");
         return false;
     }
-    if (!SD.exists(path)) {
+    if (!ESP2_SD.exists(path)) {
         nak("verify_missing");
         return false;
     }
@@ -228,11 +226,11 @@ bool handleBeginSession() {
         nak("mkdir");
         return false;
     }
-    if (SD.exists(staging)) {
-        SD.remove(staging);
+    if (ESP2_SD.exists(staging)) {
+        ESP2_SD.remove(staging);
     }
 
-    File out = SD.open(staging, FILE_WRITE);
+    File out = ESP2_SD.open(staging, FILE_WRITE);
     if (!out) {
         nak("open_staging");
         return false;
@@ -257,7 +255,7 @@ bool handleBeginSession() {
     uint8_t *buf = static_cast<uint8_t *>(malloc(chunk));
     if (!buf) {
         out.close();
-        SD.remove(staging);
+        ESP2_SD.remove(staging);
         nak("oom");
         return false;
     }
@@ -297,13 +295,13 @@ bool handleBeginSession() {
             out.close();
             free(buf);
             buf = nullptr;
-            if (SD.exists(finalPath)) {
-                SD.remove(finalPath);
+            if (ESP2_SD.exists(finalPath)) {
+                ESP2_SD.remove(finalPath);
             }
-            if (!SD.rename(staging, finalPath)) {
+            if (!ESP2_SD.rename(staging, finalPath)) {
                 // Fallback: copy then remove staging
-                File src = SD.open(staging, FILE_READ);
-                File dst = SD.open(finalPath, FILE_WRITE);
+                File src = ESP2_SD.open(staging, FILE_READ);
+                File dst = ESP2_SD.open(finalPath, FILE_WRITE);
                 if (!src || !dst) {
                     if (src) {
                         src.close();
@@ -324,7 +322,7 @@ bool handleBeginSession() {
                 }
                 src.close();
                 dst.close();
-                SD.remove(staging);
+                ESP2_SD.remove(staging);
             }
             char hexGot[65];
             Sha256::toHex(got, hexGot);
@@ -389,7 +387,7 @@ bool handleBeginSession() {
 
     free(buf);
     out.close();
-    SD.remove(staging);
+    ESP2_SD.remove(staging);
     return ok;
 }
 
@@ -556,19 +554,19 @@ bool pollAndRunSession(uint32_t listenMs) {
                         return any;
                     }
                     // Boot-window upload runs before prepareEsp2Tree — seed roots.
-                    if (!SD.exists("/esp2")) {
-                        (void)SD.mkdir("/esp2");
+                    if (!ESP2_SD.exists("/esp2")) {
+                        (void)ESP2_SD.mkdir("/esp2");
                     }
-                    if (!SD.exists("/esp2/roms")) {
-                        (void)SD.mkdir("/esp2/roms");
+                    if (!ESP2_SD.exists("/esp2/roms")) {
+                        (void)ESP2_SD.mkdir("/esp2/roms");
                     }
-                    if (!SD.exists("/esp2/disks")) {
-                        (void)SD.mkdir("/esp2/disks");
+                    if (!ESP2_SD.exists("/esp2/disks")) {
+                        (void)ESP2_SD.mkdir("/esp2/disks");
                     }
-                    if (!SD.exists("/esp2/tmp")) {
-                        (void)SD.mkdir("/esp2/tmp");
+                    if (!ESP2_SD.exists("/esp2/tmp")) {
+                        (void)ESP2_SD.mkdir("/esp2/tmp");
                     }
-                    if (!SD.exists("/esp2")) {
+                    if (!ESP2_SD.exists("/esp2")) {
                         nak("mkdir_esp2");
                         return any;
                     }

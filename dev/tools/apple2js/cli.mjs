@@ -19,6 +19,11 @@ import {
 import { auditCatalog, summarizeAudit } from "./audit.mjs";
 import { normalizeToGameMetadata } from "./normalize.mjs";
 import {
+  catalogTableRows,
+  printCatalogTable,
+  buildCatalogAccordion,
+} from "./catalog-view.mjs";
+import {
   ESP2_ROOT,
   PIN_FILE,
   WEB_INDEX_CACHE,
@@ -107,19 +112,37 @@ async function main() {
     }
 
     if (cmd === "catalog") {
+      const wantJson = process.argv.includes("--json");
+      if (wantJson) {
+        console.log(
+          JSON.stringify(
+            {
+              gitEntryCount: gitEntries.length,
+              webEntryCount: webEntries.length,
+              mergedEntryCount: merged.length,
+              summary,
+              diff: diff?.counts || null,
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
       console.log(
-        JSON.stringify(
-          {
-            gitEntryCount: gitEntries.length,
-            webEntryCount: webEntries.length,
-            mergedEntryCount: merged.length,
-            summary,
-            diff: diff?.counts || null,
-          },
-          null,
-          2,
-        ),
+        `[CATALOG] merged=${merged.length} git=${gitEntries.length} website=${webEntries.length}`,
       );
+      console.log(
+        `[CATALOG] rights REDISTRIBUTABLE=${summary.REDISTRIBUTABLE || 0} USER_SUPPLIED_ONLY=${summary.USER_SUPPLIED_ONLY || 0} UNKNOWN=${summary.UNKNOWN || 0} DO_NOT_DISTRIBUTE=${summary.DO_NOT_DISTRIBUTE || 0}`,
+      );
+      printCatalogTable(catalogTableRows(audited));
+      // Machine-readable accordion hint for µGulp gulpfile (optional parse).
+      if (process.argv.includes("--accordion-json")) {
+        console.log(
+          "\n__ACCORDION__" +
+            JSON.stringify(buildCatalogAccordion(audited, { summary })),
+        );
+      }
       return;
     }
 
@@ -156,7 +179,8 @@ async function main() {
 
   console.log(`Usage:
   node dev/tools/apple2js/cli.mjs sync     # network: clone/fetch + web index
-  node dev/tools/apple2js/cli.mjs catalog  # offline if cache present
+  node dev/tools/apple2js/cli.mjs catalog  # table view (offline if cache present)
+  node dev/tools/apple2js/cli.mjs catalog --json
   node dev/tools/apple2js/cli.mjs audit    # offline if cache present
 `);
 }

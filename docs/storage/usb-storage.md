@@ -30,8 +30,26 @@ CLI helper `device:usb-storage` remains for scripts (not a dashboard task).
 Default firmware stays MODE=1 for development (keyboard bridge, Dial, flash).
 MSC-backed Explorer/Finder access and auto-mount require a TinyUSB build.
 
-Power-only USB adapters must **not** trigger HOST ownership. Auto mode uses
-TinyUSB `tud_mounted()` (data host), never VBUS alone.
+On MODE=1, `#ESP2USBMSC` **immediately** replies `#ESP2USBMSC ERROR UNSUPPORTED`.
+The host must treat ERROR as failure — not wait for READY.
+
+Empty / unformatted cards: MSC must **not** require `/esp2` or a mounted FAT volume.
+Missing cards → `ERROR NO_SD`. ESP][ never auto-formats.
+
+## Protocol
+
+| Line | Meaning |
+| --- | --- |
+| `#ESP2USBMSC` | Request HOST ownership |
+| `#ESP2USBMSC READY` | MSC active |
+| `#ESP2USBMSC ERROR CODE` | Immediate failure (`UNSUPPORTED`, `NO_SD`, `SD_INIT`, `BUSY`, `MSC_INIT`, `FAILED`) |
+| `#ESP2USBMSC LEAVE` | Return to DEVICE |
+| `#ESP2USBMSC LEFT` | FAT/device ownership restored (or already on device) |
+| `#ESP2IDENT` / `#ACK IDENT …` | Product handshake (`product=ESP][`) |
+| `#ESP2SDINFO` / `#ACK SDINFO …` | Card present/fs/esp2/owner (read-only) |
+
+Physical device resolution: `docs/architecture/device-resolver.md`.
+
 
 ## Config: `usb.storageMode`
 

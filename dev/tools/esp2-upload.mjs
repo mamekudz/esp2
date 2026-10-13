@@ -16,6 +16,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { resolve } from "node:path";
 import { SerialPort } from "serialport";
 import { createLineReader } from "./esp2-serial-framing.mjs";
+import { parseUsbMscLine, usbMscHostMessage } from "./esp2-usb-msc-protocol.mjs";
+import { parseIdentAck, parseSdInfoAck } from "./esp2-device-resolver.mjs";
 
 export const PROTOCOL_VERSION = 1;
 export const MAGIC = 0x55505345; // 'ESPU' LE
@@ -88,6 +90,9 @@ function parseArgs(argv) {
     chunk: DEFAULT_CHUNK,
     enterUsb: false,
     leaveUsb: false,
+    sdOwner: false,
+    ident: false,
+    sdInfo: false,
     reset: false, // mid-run preferred; --boot-window uses firmware 12s WAIT
     bootWindow: false,
     listenMs: 15000,
@@ -102,6 +107,9 @@ function parseArgs(argv) {
     else if (a === "--chunk") out.chunk = Number(next());
     else if (a === "--enter-usb-storage") out.enterUsb = true;
     else if (a === "--leave-usb-storage") out.leaveUsb = true;
+    else if (a === "--sd-owner") out.sdOwner = true;
+    else if (a === "--ident") out.ident = true;
+    else if (a === "--sd-info") out.sdInfo = true;
     else if (a === "--no-reset") out.reset = false;
     else if (a === "--reset") out.reset = true;
     else if (a === "--boot-window") out.bootWindow = true;
@@ -162,15 +170,23 @@ async function waitReady(reader, port, listenMs, enterLine, readyNeedle) {
         (l) =>
           l.includes(readyNeedle) ||
           l.includes("#ESP2UPLOAD READY") ||
-          l.includes("#ESP2UPLOAD ENTER"),
+          l.includes("#ESP2UPLOAD ENTER") ||
+          l.includes("#ESP2USBMSC ERROR"),
         Math.min(450, deadline - Date.now()),
       );
+      const msc = parseUsbMscLine(line);
+      if (msc && msc.ok === false) {
+        throw new Error(`USBMSC ${msc.code}: ${usbMscHostMessage(msc.code)}`);
+      }
       if (line.includes("#ESP2UPLOAD ENTER") && !line.includes("READY")) {
         // Mid-run ack — keep waiting for READY.
         continue;
       }
       return line;
-    } catch {
+    } catch (e) {
+      if (String(e?.message || e).startsWith("USBMSC ")) {
+        throw e;
+      }
       if (Date.now() - lastPing > 400) {
         lastPing = Date.now();
         port.write(`${enterLine}\n`);
@@ -334,7 +350,10 @@ async function main() {
   node dev/tools/esp2-upload.mjs --port COM5 --file <local> --target /esp2/...
   node dev/tools/esp2-upload.mjs --port COM5 --verify /esp2/...
   node dev/tools/esp2-upload.mjs --port COM5 --enter-usb-storage
-  node dev/tools/esp2-upload.mjs --port COM5 --leave-usb-storage`);
+  node dev/tools/esp2-upload.mjs --port COM5 --leave-usb-storage
+  node dev/tools/esp2-upload.mjs --port COM5 --sd-owner
+  node dev/tools/esp2-upload.mjs --port COM5 --ident
+  node dev/tools/esp2-upload.mjs --port COM5 --sd-info`);
     process.exit(0);
   }
   if (!args.port) {
@@ -351,6 +370,45 @@ async function main() {
       await new Promise((r) => setTimeout(r, 600));
     }
 
+    if (args.ident) {
+      const line = await waitReady(
+        reader,
+        port,
+        Math.min(args.listenMs, 4000),
+        "#ESP2IDENT",
+        "#ACK IDENT",
+      );
+      if (!parseIdentAck(line) || parseIdentAck(line).product !== "ESP][") {
+        throw new Error(`not an ESP][ device: ${line}`);
+      }
+      console.log(line);
+      return;
+    }
+    if (args.sdInfo) {
+      const line = await waitReady(
+        reader,
+        port,
+        Math.min(args.listenMs, 4000),
+        "#ESP2SDINFO",
+        "#ACK SDINFO",
+      );
+      if (!parseSdInfoAck(line)) {
+        throw new Error(`invalid SDINFO: ${line}`);
+      }
+      console.log(line);
+      return;
+    }
+    if (args.sdOwner) {
+      const line = await waitReady(
+        reader,
+        port,
+        args.listenMs,
+        "#ESP2SDOWNER",
+        "#ACK SDOWNER",
+      );
+      console.log(line);
+      return;
+    }
     if (args.enterUsb) {
       await waitReady(reader, port, args.listenMs, "#ESP2USBMSC", "#ESP2USBMSC READY");
       console.log("USB storage mode requested");

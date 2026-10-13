@@ -245,8 +245,57 @@ SystemConfig parseSystemConfigJson(const char *json, size_t len, char *err, size
             }
         }
     }
+    if (const char *p = findKey(json, len, "systemUiSurface")) {
+        char s[32]{};
+        if (parseStringAfter(p, end, s, sizeof(s))) {
+            if (strcmp(s, "fullPanel") == 0 || strcmp(s, "full") == 0) {
+                cfg.systemUiSurface = SystemConfig::SystemUiSurface::FullPanel;
+            } else if (strcmp(s, "enclosureVisible") == 0 || strcmp(s, "enclosure") == 0) {
+                cfg.systemUiSurface = SystemConfig::SystemUiSurface::EnclosureVisible;
+            }
+        }
+    }
+    if (const char *p = findKey(json, len, "uiViewportX")) {
+        int v = 0;
+        if (parseIntAfter(p, end, &v)) {
+            cfg.uiX = v;
+            cfg.uiViewportOverride = true;
+        }
+    }
+    if (const char *p = findKey(json, len, "uiViewportY")) {
+        int v = 0;
+        if (parseIntAfter(p, end, &v)) {
+            cfg.uiY = v;
+            cfg.uiViewportOverride = true;
+        }
+    }
+    if (const char *p = findKey(json, len, "uiViewportW")) {
+        int v = 0;
+        if (parseIntAfter(p, end, &v)) {
+            cfg.uiW = v;
+            cfg.uiViewportOverride = true;
+        }
+    }
+    if (const char *p = findKey(json, len, "uiViewportH")) {
+        int v = 0;
+        if (parseIntAfter(p, end, &v)) {
+            cfg.uiH = v;
+            cfg.uiViewportOverride = true;
+        }
+    }
     if (const char *p = findKey(json, len, "screensaverSeconds")) {
         parseUIntAfter(p, end, &cfg.screensaverSeconds);
+    }
+    if (const char *p = findKey(json, len, "brightness")) {
+        uint32_t br = 0;
+        if (parseUIntAfter(p, end, &br)) {
+            if (br > 100u) {
+                setErr(err, errLen, "brightness");
+                cfg.valid = false;
+                return cfg;
+            }
+            cfg.brightnessPercent = static_cast<uint8_t>(br);
+        }
     }
     // usb.storageMode: "normal" | "auto" (also accept top-level usbStorageMode)
     if (const char *p = findKey(json, len, "storageMode")) {

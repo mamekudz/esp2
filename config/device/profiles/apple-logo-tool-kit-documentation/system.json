@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "rom": "/esp2/roms/system.rom"
+  },
+  "media": {
+    "drive1": "/esp2/disks/AppleLOGOToolKitDocumentation.dsk",
+    "drive2": null
+  },
+  "startup": {
+    "bootFromDisk": true,
+    "macro": ""
+  },
+  "presentation": {
+    "orientation": "classic",
+    "monitor": "white",
+    "effect": "clean",
+    "color": "sharp"
+  },
+  "display": {
+    "screensaverSeconds": 300
+  },
+  "usb": {
+    "storageMode": "normal"
+  },
+  "input": {
+    "hostBridge": {
+      "gamepad": "auto",
+      "gamepadId": "",
+      "pdl0": "gamepadX",
+      "pdl1": "gamepadY",
+      "pb0": "gamepadA",
+      "dial": false,
+      "keyboard": true,
+      "deadzone": 0.08
+    }
+  },
+  "meta": {
+    "title": "Apple LOGO Tool Kit Documentation",
+    "category": "Programming",
+    "apple2jsBasename": "logo_toolkit_docs",
+    "apple2jsFilename": "json/disks/logo_toolkit_docs.json",
+    "redistribution": "UNKNOWN",
+    "source": "apple2js-catalog"
+  }
+}

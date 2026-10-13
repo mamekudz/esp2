@@ -45,6 +45,12 @@ class TextDecoder {
 
     /** Glyph row bitmask (5 LSBits), project-owned — NOT Apple char ROM. */
     static uint8_t glyphRow(uint8_t ascii7, int row);
+
+    /**
+     * Map one Apple II text-page byte to a glyph ASCII and style.
+     * flashPhase: 0/1 for flashing cells (blank when phase odd).
+     */
+    static void mapAppleTextByte(uint8_t ramByte, int flashPhase, uint8_t *ascii7, bool *inverse);
 };
 
 } // namespace esp_bracket

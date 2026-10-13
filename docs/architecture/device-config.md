@@ -48,6 +48,8 @@ Tracked examples (host repo, not auto-copied):
 | `presentation.effect` | `clean` \| `crt` |
 | `presentation.color` | Legacy alias (`sharp`/`artifact`/…) — prefer `monitor` |
 | `display.screensaverSeconds` | `0` = off; else idle seconds before AMOLED screensaver |
+| `display.systemUiSurface` | `fullPanel` \| `enclosureVisible` — Control Center usable area. Omitted → board default (Waveshare 280×456 enclosure-visible candidate; diymore full panel). |
+| `display.uiViewportX/Y/W/H` | Optional panel-pixel override for the system UI rectangle (PROVISIONAL until enclosure cutout is verified) |
 | `usb.storageMode` | `normal` (default) \| `auto` — auto enters USB MSC only on a real USB **data** host when TinyUSB MSC is available; never on power-only |
 | `input.hostBridge.*` | **Host-only** Windows CDC bridge (firmware ignores) |
 

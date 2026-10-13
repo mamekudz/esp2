@@ -235,16 +235,31 @@ dimensions.
 
 ### CONTROL_SCREEN
 
-Touch-enabled emulator control interface.
+On-device touch Control Center (generic Waveshare + diymore).
 
-Opening the Control Screen should not require stopping the Apple II
-emulation.
+**Default:** while Apple II video is shown and the Control Center is closed,
+any valid screen touch-down opens the Control Center immediately (no swipe,
+corner, long-press, or hidden gesture). `systemTouchMode` defaults to Menu.
 
-The Apple II may continue running in the background.
+The opening contact is consumed until finger release so it cannot activate
+the control that appears under the finger.
 
-A small live preview may eventually be displayed.
+Opening pauses Apple II execution via the existing `g_emuHold` path, clears
+transient keyboard/gamepad state, and does **not** reset the 6502, reload
+disks, or restart ESP][. Closing Resume calls `resyncEmuWallClock()` so the
+throttle does not catch up wall time spent in the menu.
 
-Planned controls:
+The Control Center is a **frontend** over existing presentation, Disk II/media,
+BLE HID, and SD-ownership services. Do not duplicate MSC/BLE/disk/display
+business logic in the UI.
+
+Default touch ownership is ESP][ system UI, not the emulated Apple II.
+A future optional emulated-touch mode may route pointer/joystick to the
+machine but must keep a reliable Control Center escape path.
+
+Documentation: `docs/architecture/control-center.md`.
+
+Planned / additional controls still include:
 
 - game/library selection
 - Drive 1
@@ -257,6 +272,13 @@ Planned controls:
 - Bluetooth audio
 - local audio
 - volume
+- video mode
+- display effect
+- display orientation
+- reset Apple II
+- restart ESP32
+- pause/resume
+- settings
 - video mode
 - display effect
 - display orientation
@@ -1425,6 +1447,12 @@ The 6502 cycle counter is the authoritative Apple II timeline for speaker,
 paddles, Disk II, and related devices. FreeRTOS / wall-clock time is only for
 real-time throttling and UI — not emulated machine time.
 
+**Permanent throttle rule:** Long-running Apple II throttle timing must use a
+monotonic timebase that does not wrap on normal operating timescales (firmware:
+`esp_timer_get_time()` / `int64_t`; do not use `micros()` as the absolute
+throttle clock). Short-duration `micros()` intervals (e.g. render/xfer timing)
+remain legitimate. Details: `docs/architecture/apple2-throttle.md`.
+
 
 ## Video memory and dirty tracking
 
@@ -1474,6 +1502,45 @@ Macro keys use the normal Apple II keyboard latch path. Screensaver idle uses
 **user** activity only (keys/pads/touch), not VRAM/disk/CPU.
 
 Details: `docs/architecture/device-config.md`.
+
+
+## Touch Control Center (permanent)
+
+- During normal emulation, **any** valid screen touch opens the ESP][ Control Center.
+- The opening touch is consumed until release (WaitRelease → Interactive).
+- The Control Center is a frontend over existing services. Do **not** duplicate
+  SD ownership, USB MSC, BLE HID pairing, Disk II mount/eject, or presentation
+  apply logic inside the UI.
+- Default touch belongs to ESP][, not the emulated Apple II
+  (`SystemTouchMode::Menu`).
+- Future emulated-touch modes must preserve a system-menu escape path.
+- Pause uses `g_emuHold`; Resume must `resyncEmuWallClock()` (no throttle catch-up).
+- **System UI uses the active visible viewport**, not blindly the physical panel size.
+- **Current display/presentation mode is part of UI layout context** (recomputed when Classic/Landscape changes; no reboot).
+- **Rendering and touch use the same transform** (panel pixels → visible UI local coordinates).
+- **Required controls (rows, Back, Resume, dialogs) must never be placed in enclosure-hidden panel areas.**
+- **Bluetooth touch UI is a frontend** over canonical `esp2_ble` HID services (no second scanner/bond store).
+- Details: `docs/architecture/control-center.md`.
+
+
+## Physical device resolution (permanent)
+
+Canonical resolver: `dev/tools/esp2-device-resolver.mjs`.
+
+COM ports are ephemeral host state. Do **not** persist `COM5` / `COM10` as device
+identity. Resolve from:
+
+- Project Control Target (`platform`)
+- current USB evidence (VID/PID, serial, descriptors)
+- firmware `#ESP2IDENT` (`product=ESP][`)
+
+Zero matches → fail clearly. One match → auto. Two or more → do not guess.
+Re-resolve after flash, reset, and CDC/MSC USB transitions.
+
+BlueShift must never receive ESP][ SD-ownership or flash commands merely because
+it was the last COM number.
+
+Details: `docs/architecture/device-resolver.md`.
 
 
 ## RELEASES.json (permanent)

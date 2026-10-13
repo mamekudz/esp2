@@ -26,7 +26,7 @@ must not care which provider supplied the state.
 | Provider | Status | Transport |
 | --- | --- | --- |
 | Windows CDC input bridge | **DEV** | USB CDC text lines `#ESP2INPUT …` |
-| BLE HID keyboard / gamepad | **IMPLEMENTED** (physical verify pending) | NimBLE host; setup via µGulp `device:ble` |
+| BLE HID keyboard / gamepad | **IMPLEMENTED** (composite report routing ready; physical verify pending) | NimBLE host; setup via µGulp `device:ble` |
 | Serial media upload | **DEV** | USB CDC binary ESPU (exclusive MEDIA session) |
 | Logitech Dial (relative) | **DEV** | Windows Raw Input mouse-wheel channel → virtual absolute PDL0 |
 

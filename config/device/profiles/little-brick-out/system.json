@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "machine": {
+    "rom": "/esp2/roms/system.rom"
+  },
+  "media": {
+    "drive1": "/esp2/disks/LittleBrickOut.dsk",
+    "drive2": null
+  },
+  "startup": {
+    "bootFromDisk": true,
+    "macro": "little-brick-out-start"
+  },
+  "presentation": {
+    "orientation": "landscape",
+    "monitor": "white",
+    "effect": "clean",
+    "color": "white"
+  },
+  "display": {
+    "screensaverSeconds": 300
+  },
+  "input": {
+    "hostBridge": {
+      "gamepad": "auto",
+      "gamepadId": "",
+      "pdl0": "gamepadX",
+      "pdl1": "none",
+      "pb0": "gamepadA",
+      "dial": false,
+      "keyboard": true,
+      "deadzone": 0.08
+    }
+  }
+}

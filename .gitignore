@@ -6,6 +6,9 @@ compile_commands.json
 # Node / µGulp
 node_modules/
 .microgulp/
+# µGulp Project Control persistence (Target / platform). Covered by .microgulp/
+# above; listed explicitly so agents never stage it.
+.microgulp/project-controls.json
 npm-debug.log*
 package-lock.json.bak
 

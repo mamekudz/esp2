@@ -1,7 +1,7 @@
 #include "esp32_sd_storage.hpp"
 
 #include <Arduino.h>
-#include <SD.h>
+#include "esp2_sd_bus.hpp"
 #include <cstdio>
 #include <cstring>
 
@@ -11,31 +11,31 @@ bool Esp32SdStorageBackend::ensureDiskRoot() {
     if (!mounted_) {
         return false;
     }
-    if (SD.exists(kDiskRoot)) {
+    if (ESP2_SD.exists(kDiskRoot)) {
         return true;
     }
-    return SD.mkdir("/esp2") && SD.mkdir(kDiskRoot);
+    return ESP2_SD.mkdir("/esp2") && ESP2_SD.mkdir(kDiskRoot);
 }
 
 bool Esp32SdStorageBackend::ensureRomRoot() {
     if (!mounted_) {
         return false;
     }
-    if (SD.exists(kRomRoot)) {
+    if (ESP2_SD.exists(kRomRoot)) {
         return true;
     }
-    return SD.mkdir("/esp2") && SD.mkdir(kRomRoot);
+    return ESP2_SD.mkdir("/esp2") && ESP2_SD.mkdir(kRomRoot);
 }
 
 bool Esp32SdStorageBackend::exists(const char *path) const {
-    return mounted_ && path && SD.exists(path);
+    return mounted_ && path && ESP2_SD.exists(path);
 }
 
 size_t Esp32SdStorageBackend::fileSize(const char *path) const {
     if (!exists(path)) {
         return 0;
     }
-    File f = SD.open(path, FILE_READ);
+    File f = ESP2_SD.open(path, FILE_READ);
     if (!f) {
         return 0;
     }
@@ -55,7 +55,7 @@ bool Esp32SdStorageBackend::readAll(const char *path, uint8_t *dst, size_t dstSi
         return false;
     }
     const uint32_t t0 = micros();
-    File f = SD.open(path, FILE_READ);
+    File f = ESP2_SD.open(path, FILE_READ);
     if (!f) {
         lastReadUs_ = micros() - t0;
         ++readErrors_;
@@ -106,18 +106,18 @@ bool Esp32SdStorageBackend::writeAll(const char *path, const uint8_t *src, size_
         for (char *p = tmp + 6; *p; ++p) {
             if (*p == '/') {
                 *p = 0;
-                if (!SD.exists(tmp)) {
-                    SD.mkdir(tmp);
+                if (!ESP2_SD.exists(tmp)) {
+                    ESP2_SD.mkdir(tmp);
                 }
                 *p = '/';
             }
         }
     }
     const uint32_t t0 = micros();
-    if (SD.exists(path)) {
-        SD.remove(path);
+    if (ESP2_SD.exists(path)) {
+        ESP2_SD.remove(path);
     }
-    File f = SD.open(path, FILE_WRITE);
+    File f = ESP2_SD.open(path, FILE_WRITE);
     if (!f) {
         lastWriteUs_ = micros() - t0;
         return false;

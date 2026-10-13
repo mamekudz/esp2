@@ -21,6 +21,7 @@ import {
   hasEsp2Tree,
   waitForMscVolume,
 } from "./esp2-sd-msc-volume.mjs";
+import { parseUsbMscLine, usbMscHostMessage } from "./esp2-usb-msc-protocol.mjs";
 
 export { hasEsp2Tree, formatVolumeSummary };
 
@@ -42,6 +43,13 @@ export function runUsbStorageCommand(projectRoot, port, action, opts = {}) {
     { encoding: "utf8", windowsHide: true, cwd: projectRoot },
   );
   if (r.status !== 0) {
+    const combined = `${r.stderr || ""}\n${r.stdout || ""}`;
+    for (const line of combined.split(/\r?\n/)) {
+      const parsed = parseUsbMscLine(line);
+      if (parsed && parsed.ok === false) {
+        throw new Error(usbMscHostMessage(parsed.code));
+      }
+    }
     const err =
       String(r.stderr || r.stdout || "").trim() || `usb-storage ${action} failed`;
     throw new Error(err);
@@ -61,6 +69,7 @@ export function runUsbStorageCommand(projectRoot, port, action, opts = {}) {
  *   enumerate?: () => object[],
  *   enterMsc?: (port: string) => void,
  *   leaveMsc?: (port: string) => void,
+ *   resolveLeavePort?: (enterPort: string) => Promise<string>,
  *   timeoutMs?: number,
  *   openExplorer?: boolean,
  * }} opts
@@ -88,6 +97,8 @@ export async function openHostSdSession(opts) {
     ((p) => {
       runUsbStorageCommand(opts.projectRoot, p, "leave");
     });
+  const resolveLeavePort =
+    opts.resolveLeavePort || (async (p) => String(p || port));
 
   const selectMode = opts.mode === "browse" ? "restore" : opts.mode;
 
@@ -112,7 +123,8 @@ export async function openHostSdSession(opts) {
     if (skipLeave) return;
     try {
       log('Returning SD to ESP][…<context="task log"/>');
-      leaveMsc(port);
+      const leavePort = await resolveLeavePort(port);
+      leaveMsc(leavePort);
       log('SD returned to ESP][.<context="task log"/>');
     } catch (e) {
       log(

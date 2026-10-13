@@ -118,6 +118,8 @@ export function createLineReader(port) {
 export const DevCommand = {
   UploadEnter: "#ESP2UPLOAD",
   UsbMsc: "#ESP2USBMSC",
+  Ident: "#ESP2IDENT",
+  SdInfo: "#ESP2SDINFO",
   InputLive: "#ESP2INPUT LIVE",
   InputIdle: "#ESP2INPUT IDLE",
   InputKey: "#ESP2INPUT KEY",

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "macros": [
+    {
+      "id": "little-brick-out-start",
+      "actions": [
+        { "op": "wait", "ms": 30000 },
+        { "op": "key", "code": "SPACE" },
+        { "op": "wait", "ms": 10000 },
+        { "op": "key", "code": "A" },
+        { "op": "wait", "ms": 150 },
+        { "op": "key", "code": "RETURN" }
+      ]
+    }
+  ]
+}

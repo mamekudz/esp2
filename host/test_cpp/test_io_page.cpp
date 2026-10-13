@@ -38,6 +38,13 @@ static void testKeyboardMirrors() {
     // write to data range must not clear strobe
     bus.write(0xC005, 0x00);
     expect(bus.keyboard().strobePending(), "kbd write no clear");
+    {
+        Apple2Bus bus2;
+        bus2.keyboard().keyDown('1');
+        const uint8_t strobeRead = bus2.read(0xC010);
+        expect(strobeRead == static_cast<uint8_t>('1' | 0x80), "C010 read returns strobe");
+        expect(!bus2.keyboard().strobePending(), "C010 read clears strobe");
+    }
     bus.read(0xC01A);
     expect(!bus.keyboard().strobePending(), "strobe clear mid-mirror");
     expect((bus.keyboard().ascii7()) == 'A', "strobe clear keeps ascii");

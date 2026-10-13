@@ -199,6 +199,8 @@ test('generated README is bilingual on one page (microCSS style)', () => {
 	assert.match(readme, /## µGulp-ready/);
 	assert.match(readme, /docs generation/i);
 	assert.match(readme, /GALAXIAN_ESP32\s*=\s*PASS/);
+	assert.match(readme, /MICROS_WRAP_REGRESSION\s*=\s*PASS/);
+	assert.match(readme, /GALAXIAN_2H_SOAK\s*=\s*PASS/);
 	assert.match(readme, new RegExp(MICROGULP_READY_ASSET.replace(/\./g, '\\.')));
 
 	assert.match(enBase, /\*English \(below\) · \[Deutsch\]\(#deutsch\)\*/);

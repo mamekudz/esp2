@@ -79,6 +79,45 @@ struct LandscapePresent {
             h = panelH;
             w = (rotW * panelH) / rotH;
         }
+        if (w < 1) {
+            w = 1;
+        }
+        if (h < 1) {
+            h = 1;
+        }
+        // Even RGB565 widths avoid SPI word-alignment color fringing on ILI9341-class panels.
+        if ((w & 1) && w > 1) {
+            --w;
+        }
+        if ((h & 1) && h > 1) {
+            --h;
+        }
+        *outW = w;
+        *outH = h;
+        *ox = (panelW - w) / 2;
+        *oy = (panelH - h) / 2;
+    }
+
+    /**
+     * Largest integer scale of 192×280 that fits the panel (1×, 2×, …).
+     * Prefer this on small IPS panels — fractional NN destroys Apple II text glyphs.
+     */
+    static constexpr void computeOutSizeInteger(int panelW, int panelH, int *outW, int *outH,
+                                                int *ox, int *oy) {
+        const int rotW = kSrcH;
+        const int rotH = kSrcW;
+        int s = 1;
+        while (rotW * (s + 1) <= panelW && rotH * (s + 1) <= panelH) {
+            ++s;
+        }
+        int w = rotW * s;
+        int h = rotH * s;
+        if ((w & 1) && w > 1) {
+            --w;
+        }
+        if ((h & 1) && h > 1) {
+            --h;
+        }
         *outW = w;
         *outH = h;
         *ox = (panelW - w) / 2;

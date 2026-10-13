@@ -1,0 +1,86 @@
+{
+  "schemaVersion": 1,
+  "id": "galaxian-2h-soak",
+  "title": "Galaxian",
+  "kind": "PHYSICAL_SOAK",
+  "environment": "apple2_text",
+  "port": "COM5",
+  "presentation": {
+    "orient": "LANDSCAPE",
+    "monitor": "ARTIFACT",
+    "effect": "CLEAN"
+  },
+  "firmwareIdentity": {
+    "throttleTimebase": "esp_timer_get_time",
+    "throttleWidth": "int64_t",
+    "sleepGuardUs": 2000000
+  },
+  "results": {
+    "MICROS_WRAP_REGRESSION": "PASS",
+    "GALAXIAN_2H_SOAK": "PASS"
+  },
+  "claims": {
+    "MICROS_WRAP_REGRESSION": "Former ~71.6-minute micros()-wrap throttle stall no longer reproduced on physical firmware.",
+    "GALAXIAN_2H_SOAK": "Galaxian completed a >=2 hour physical soak with continuing 6502 cycles and ~1.023 MHz cps. Does not claim 24h or all-title stability."
+  },
+  "hostComplement": {
+    "test": "dev/tools/throttle-wrap.test.mjs",
+    "label": "HOST_VERIFIED simulated uint32 wrap boundary"
+  },
+  "documentation": "docs/architecture/apple2-throttle.md",
+  "startedAt": "2026-09-29T14:38:13.642Z",
+  "finishedAt": "2026-09-29T16:38:40.283Z",
+  "durationMin": 120.16,
+  "representativeSnapshots": [
+    {
+      "label": "startup",
+      "uptimeMin": 0.08,
+      "pc": "B78C",
+      "cycles": "5194475",
+      "cps": "1022909",
+      "video": "HGR",
+      "frames": "4333",
+      "heap": "109024"
+    },
+    {
+      "label": "t_60m",
+      "uptimeMin": 60.1,
+      "pc": "94BC",
+      "cycles": "3688407271",
+      "cyclesDelta": "3678033418",
+      "cps": "1023000",
+      "video": "HGR",
+      "frames": "9006",
+      "heap": "109024"
+    },
+    {
+      "label": "t_75m",
+      "uptimeMin": 75.09,
+      "pc": "94CB",
+      "cycles": "4609208783",
+      "cyclesDelta": "920801512",
+      "cps": "1023000",
+      "video": "HGR",
+      "wrapBoundaryOk": true,
+      "note": "Beyond former ~71.6 min micros() wrap; cycles still advancing"
+    },
+    {
+      "label": "final",
+      "uptimeMin": 120.16,
+      "pc": "A0D9",
+      "cycles": "7371604070",
+      "cyclesDelta": "1841585311",
+      "cps": "1023000",
+      "video": "HGR",
+      "frames": "18043",
+      "heap": "109024",
+      "wrapBoundaryOk": true
+    }
+  ],
+  "notes": [
+    "PHYSICAL evidence only — not a host result.",
+    "PC at $94BC during attract is normal; freeze diagnosis requires cycles unchanged.",
+    "frames= alone is not definitive display-liveness evidence.",
+    "Full ndjson remains local/gitignored under local/apple2/forensics/ when present."
+  ]
+}

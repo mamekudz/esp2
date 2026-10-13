@@ -5,28 +5,36 @@
  * Slot 6 default NONE. No PC shortcuts. No ROM bytes in the repository.
  */
 #include <Arduino.h>
-#include <SD.h>
+#include "esp2_sd_bus.hpp"
 #include <SPI.h>
 #include <Wire.h>
 #include <esp_heap_caps.h>
+#include <esp_timer.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <new>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <Arduino_GFX_Library.h>
 
-#include "board_pins.h"
+#include "esp2_board.h"
+#include "esp2_display_hal.h"
 #include "display_power.h"
 #include "esp2_macro_engine.hpp"
 #include "esp2_ble_hid.hpp"
-#include "esp2_sd_bus.hpp"
+#include "esp2_settings_ui.hpp"
+#include "esp2_control_center.hpp"
+#include "esp_bracket/control_center.hpp"
 #include "esp2_system_config.hpp"
+#include "esp2_touch.hpp"
 #include "esp32_sd_storage.hpp"
 #include "i18x_fw.hpp"
+#if !defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
 #include "qmi8658_min.h"
+#endif
 #include "sd_ownership.hpp"
 #include "serial_media_upload.hpp"
 #include "usb_storage_mode.hpp"
@@ -42,6 +50,7 @@
 
 #include "esp_bracket/apple2_bus.hpp"
 #include "esp_bracket/artifact_renderer.hpp"
+#include "esp_bracket/classic_present.hpp"
 #include "esp_bracket/cpu6502.hpp"
 #include "esp_bracket/disk_ii_cleanroom.hpp"
 #include "esp_bracket/disk_ii_controller.hpp"
@@ -66,13 +75,21 @@ using namespace esp_bracket;
 static constexpr char kBuildId[] = "apple2_standalone_v1";
 static constexpr uint32_t kAppleIiHz = 1023000;
 static constexpr uint32_t kExecQuantum = 2000;
-static constexpr int kViewX = 0;
-static constexpr int kViewY = 48;
+/** Logical Apple II viewport (HGR) — never changes with panel size. */
 static constexpr int kViewW = 280;
 static constexpr int kViewH = 192;
 static constexpr int kTextCellW = 7;
-static constexpr int kPanelW = LCD_WIDTH;  // 280
-static constexpr int kPanelH = LCD_HEIGHT; // 456
+static constexpr int kPanelW = ESP2_PANEL_WIDTH;
+static constexpr int kPanelH = ESP2_PANEL_HEIGHT;
+#if ESP2_PANEL_NEEDS_CLASSIC_SCALE
+static constexpr bool kClassicScaled = true;
+static constexpr int kViewX = 0; // unused for 1:1 blit path
+static constexpr int kViewY = 0;
+#else
+static constexpr bool kClassicScaled = false;
+static constexpr int kViewX = 0;
+static constexpr int kViewY = ESP2_CLASSIC_LETTERBOX_Y;
+#endif
 static constexpr uint32_t kQspiHz = 40000000;
 static constexpr uint32_t kStabilityMs = 90000;
 static constexpr int kFullUpdateThreshold = 96;
@@ -87,9 +104,10 @@ enum class PresentEffect : uint8_t { Clean = 0, Crt };
 enum class PresentOrientation : uint8_t { Classic = 0, Landscape };
 
 static Arduino_DataBus *g_bus = nullptr;
-static Arduino_CO5300 *g_gfx = nullptr;
+static Arduino_GFX *g_gfx = nullptr;
 static DisplayPowerManager g_display_power;
-static constexpr uint8_t kDisplayBrightness = 180;
+static constexpr uint8_t kDisplayBrightnessDefault = 180;
+static uint8_t g_displayBrightness = kDisplayBrightnessDefault;
 
 static Apple2Bus g_a2bus;
 static Cpu6502 g_cpu;
@@ -112,6 +130,7 @@ static bool g_display_ok = false;
 static bool g_touch_ok = false;
 static bool g_sd_ok = false;
 static bool g_imu_ok = false;
+static bool g_audio_ok = false;
 static bool g_rom_ok = false;
 static bool g_interactive_ok = false;
 static bool g_basic_ok = false;
@@ -134,19 +153,24 @@ static esp2_macro::Runner g_macroRunner{};
 static bool g_startupConfigApplied = false;
 
 static uint16_t *g_viewportFb = nullptr;
-/** Landscape: rotated+scaled RGB565 (panel-sized or fitted region). */
+/** Present FB: landscape rotate+scale and/or classic scale-to-fit (diymore). */
 static uint16_t *g_presentFb = nullptr;
 static int g_landOutW = 0;
 static int g_landOutH = 0;
 static int g_landOx = 0;
 static int g_landOy = 0;
+static int g_classicOutW = 0;
+static int g_classicOutH = 0;
+static int g_classicOx = 0;
+static int g_classicOy = 0;
 static uint8_t *g_hgrBits = nullptr;
 static uint8_t *g_hgrHigh = nullptr;
 static volatile bool g_schedulerGo = false;
 static volatile bool g_emuHold = false; // pause a2emu during SD/boot mutations
 static TaskHandle_t g_dispTaskHandle = nullptr;
 static volatile uint64_t g_emuCyclesAtBoot = 0;
-static volatile uint32_t g_wallStartUs = 0;
+/** Monotonic µs via esp_timer_get_time() — never use micros() here (uint32 wrap ~71 min). */
+static volatile int64_t g_wallStartUs = 0;
 static volatile uint32_t g_dispFrames = 0;
 static volatile uint32_t g_dispBytes = 0;
 static volatile uint32_t g_lastXferUs = 0;
@@ -174,7 +198,10 @@ static void pauseMediaForUsb();
 static void emitDiskSnap(const char *tag);
 static void maybeLogDiskHeartbeat();
 static void resyncEmuWallClock();
+static void refreshCcLayout();
+
 static void applyPresentChange();
+static void applyLivePad(uint8_t p0, uint8_t p1, bool pb0, bool pb1, bool pb2);
 static void servicePresentApplyOnDisplayTask();
 static void emitPresentStatus();
 static const char *presentMonitorName();
@@ -189,20 +216,15 @@ static uint16_t rgb565(uint8_t r, uint8_t g, uint8_t b) {
 }
 
 static void panel_sleep_co5300() {
-    if (g_gfx) {
-        g_gfx->displayOff();
-    }
+    esp2DisplaySleep(g_gfx);
 }
 static void panel_wake_co5300() {
-    if (g_gfx) {
-        g_gfx->displayOn();
-        g_gfx->setBrightness(kDisplayBrightness);
-    }
+    esp2DisplayWake(g_gfx, g_displayBrightness);
 }
 static void draw_screensaver_stub(uint8_t) {
     if (g_gfx && g_display_ok) {
         g_gfx->fillScreen(0x0000);
-        g_gfx->drawPixel(20 + (millis() / 50) % 240, 40, 0x07E0);
+        g_gfx->drawPixel(20 + (millis() / 50) % (kPanelW > 40 ? kPanelW - 40 : 1), 40, 0x07E0);
     }
 }
 static void restore_ui_stub() {
@@ -212,28 +234,29 @@ static void restore_ui_stub() {
 }
 
 static bool init_display() {
-    g_bus = new Arduino_ESP32QSPI(PIN_LCD_CS, PIN_LCD_SCK, PIN_LCD_D0, PIN_LCD_D1, PIN_LCD_D2,
-                                  PIN_LCD_D3);
-    g_gfx = new Arduino_CO5300(g_bus, PIN_LCD_RST, 0, LCD_WIDTH, LCD_HEIGHT, LCD_COL_OFFSET1,
-                               LCD_ROW_OFFSET1, LCD_COL_OFFSET2, LCD_ROW_OFFSET2);
-    if (!g_gfx->begin()) {
-        logf("DISPLAY", "[FAIL] CO5300 begin");
+    if (!esp2DisplayInit(&g_bus, &g_gfx) || !g_gfx) {
         return false;
     }
-    g_gfx->setBrightness(kDisplayBrightness);
     g_gfx->fillScreen(0x0000);
-    logf("DISPLAY", "CO5300 init OK %dx%d qspi_hz=%u", g_gfx->width(), g_gfx->height(), kQspiHz);
+#if !ESP2_PANEL_NEEDS_CLASSIC_SCALE
+    logf("DISPLAY", "panel %dx%d classic_view@%d,%d", kPanelW, kPanelH, kViewX, kViewY);
+#else
+    logf("DISPLAY", "panel %dx%d classic_scale=on", kPanelW, kPanelH);
+#endif
+    refreshCcLayout();
     return true;
 }
 
 static bool probe_touch() {
-    Wire.begin(PIN_TOUCH_SDA, PIN_TOUCH_SCL);
-    Wire.beginTransmission(FT3168_I2C_ADDR);
-    if (Wire.endTransmission() != 0) {
+    if (!esp2_touch::initAfterDisplay()) {
         logf("TOUCH", "[FAIL]");
         return false;
     }
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P) || defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    logf("TOUCH", "FT6336G OK");
+#else
     logf("TOUCH", "FT3168 OK");
+#endif
     return true;
 }
 static void *psramAlloc(size_t n);
@@ -249,7 +272,11 @@ static bool probe_sd() {
         return false;
     }
     g_sdStore.setMounted(true);
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P) || defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    logf("SD", "mounted owner=%s bus=SDMMC", sdOwnerStateName(g_sdOwner.state()));
+#else
     logf("SD", "mounted owner=%s bus=SPI3", sdOwnerStateName(g_sdOwner.state()));
+#endif
     return true;
 }
 
@@ -288,14 +315,14 @@ static bool prepareEsp2Tree() {
     }
     g_sdStore.ensureDiskRoot();
     g_sdStore.ensureRomRoot();
-    if (!SD.exists("/esp2/config")) {
-        SD.mkdir("/esp2/config");
+    if (!ESP2_SD.exists("/esp2/config")) {
+        ESP2_SD.mkdir("/esp2/config");
     }
-    if (!SD.exists("/esp2/diagnostics")) {
-        SD.mkdir("/esp2/diagnostics");
+    if (!ESP2_SD.exists("/esp2/diagnostics")) {
+        ESP2_SD.mkdir("/esp2/diagnostics");
     }
-    if (!SD.exists("/esp2/tmp")) {
-        SD.mkdir("/esp2/tmp");
+    if (!ESP2_SD.exists("/esp2/tmp")) {
+        ESP2_SD.mkdir("/esp2/tmp");
     }
     // Seed project-owned Esp2BootTest if missing.
     if (!g_sdStore.exists(Esp32SdStorageBackend::kBootTestDsk)) {
@@ -323,18 +350,74 @@ static bool prepareEsp2Tree() {
     return true;
 }
 
+static const char *usbMscErrorCode() {
+    const char *e = g_sdOwner.lastError();
+    if (!e || !e[0]) {
+        return "FAILED";
+    }
+    if (strstr(e, "usb_mode")) {
+        return "UNSUPPORTED";
+    }
+    if (strstr(e, "sd_pdrv")) {
+        return "NO_SD";
+    }
+    if (strstr(e, "sd_geometry")) {
+        return "SD_INIT";
+    }
+    if (strstr(e, "msc_begin")) {
+        return "MSC_INIT";
+    }
+    if (strstr(e, "bad_owner")) {
+        return "BUSY";
+    }
+    return "FAILED";
+}
+
+static void emitUsbMscError(const char *code) {
+    Serial.printf("#ESP2USBMSC ERROR %s\n", code);
+}
+
+static void emitIdent() {
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
+    const char *platform = "diymore-es3c28p";
+#else
+    const char *platform = "waveshare-amoled-s3";
+#endif
+    Serial.printf("#ACK IDENT product=ESP][ platform=%s build=%s msc=%d usb=%s\n", platform,
+                  kBuildId, UsbStorageMode::isSupported() ? 1 : 0,
+                  ARDUINO_USB_MODE ? "HW_CDC" : "TinyUSB");
+}
+
+static void emitSdInfo() {
+    const bool fat = g_sdOwner.esp2MayUseFat() && g_sd_ok;
+    const char *present = fat ? "1" : "unknown";
+    const char *fs = fat ? "fat" : "none";
+    unsigned long long sizeMb = 0;
+    int hasEsp2 = 0;
+    if (fat) {
+        sizeMb = static_cast<unsigned long long>(ESP2_SD.cardSize() / (1024ULL * 1024ULL));
+        hasEsp2 = ESP2_SD.exists("/esp2") ? 1 : 0;
+    }
+    Serial.printf("#ACK SDINFO present=%s fs=%s size_mb=%llu esp2=%d owner=%s msc=%d\n", present,
+                  fs, sizeMb, hasEsp2, sdOwnerStateName(g_sdOwner.state()),
+                  g_usbStorage.active() ? 1 : 0);
+}
+
 static bool enterUsbStorageMode() {
+    if (g_usbStorage.active()) {
+        Serial.println("#ESP2USBMSC READY");
+        return true;
+    }
     if (!UsbStorageMode::isSupported()) {
         logf("USB", "MSC unsupported (need TinyUSB / USB_MODE=0)");
+        emitUsbMscError("UNSUPPORTED");
         return false;
     }
-    if (!g_sdOwner.esp2MayUseFat()) {
-        logf("USB", "enter denied owner=%s", sdOwnerStateName(g_sdOwner.state()));
-        return false;
-    }
+    // Raw MSC must not require /esp2 or a mounted FAT volume.
     pauseMediaForUsb();
     if (!g_usbStorage.enter()) {
         logf("USB", "enter FAIL err=%s", g_sdOwner.lastError());
+        emitUsbMscError(usbMscErrorCode());
         return false;
     }
     g_sdStore.setMounted(false);
@@ -347,8 +430,13 @@ static bool enterUsbStorageMode() {
 }
 
 static bool leaveUsbStorageMode(bool unsafe) {
+    if (!g_usbStorage.active()) {
+        Serial.println("#ESP2USBMSC LEFT");
+        return true;
+    }
     if (!g_usbStorage.leave(unsafe)) {
         logf("USB", "leave FAIL err=%s", g_sdOwner.lastError());
+        emitUsbMscError(usbMscErrorCode());
         return false;
     }
     g_sdStore.setMounted(true);
@@ -533,11 +621,12 @@ static bool mountDiskPath(const char *path) {
 static void resyncEmuWallClock() {
     // CPU cycle counter restarts on reset; throttle/PERF use deltas from these bases.
     // Without resync, (cycles - g_emuCyclesAtBoot) underflows and the emu sleeps forever.
+    // Wall clock MUST be int64 monotonic (esp_timer) — Arduino micros() wraps ~71 min and
+    // then targetUs >> wallUs makes vTaskDelay sleep for many minutes (looks "frozen").
     g_emuCyclesAtBoot = g_cpu.cycles();
-    g_wallStartUs = micros();
+    g_wallStartUs = esp_timer_get_time();
 }
 
-static uint32_t g_settingsHintUntilMs = 0;
 static void appleIiResetKeepDisks();
 
 static void onLocalControlAction(esp_bracket::LocalAction action, const char *source) {
@@ -547,11 +636,9 @@ static void onLocalControlAction(esp_bracket::LocalAction action, const char *so
         appleIiResetKeepDisks();
         break;
     case esp_bracket::LocalAction::OpenSettings:
-        // V1: no full OLED settings menu yet — brief status hint + CDC notice.
-        // Future physical 5-way control must call the same LocalAction::OpenSettings.
-        g_settingsHintUntilMs = millis() + 4000;
         g_display_power.notifyActivity("settings");
-        logf("CONTROL", "OPEN_SETTINGS source=%s v1=status_hint", source ? source : "-");
+        esp2_cc::open();
+        logf("CONTROL", "OPEN_SETTINGS source=%s", source ? source : "-");
         Serial.printf("#ACK SETTINGS OPEN source=%s\n", source ? source : "-");
         break;
     default:
@@ -579,6 +666,286 @@ static void appleIiResetKeepDisks() {
     markVideoDirty();
     logf("APPLE2", "reset keep_disks=%d slot6=%d", g_diskMounted ? 1 : 0, g_slot6UserProm ? 1 : 0);
     Serial.println("#ACK APPLE RESET");
+}
+
+static void neutralizeEmuInput() {
+    applyLivePad(128, 128, false, false, false);
+    g_a2bus.keyboard().reset();
+}
+
+static const char *ccHardwareName() {
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
+    return "diymore 2.8\"";
+#else
+    return "Waveshare";
+#endif
+}
+
+static void ccPauseEmu() {
+    neutralizeEmuInput();
+    g_emuHold = true;
+    logf("CONTROL", "pause menu");
+}
+
+static void ccResumeEmu() {
+    g_emuHold = false;
+    resyncEmuWallClock();
+    markVideoDirty();
+    logf("CONTROL", "resume menu resync");
+}
+
+static esp2_cc_svc::PresentSnap ccPresent() {
+    esp2_cc_svc::PresentSnap s{};
+    s.monitor = static_cast<esp2_cc_svc::Monitor>(static_cast<uint8_t>(g_presentMonitor));
+    s.effect = static_cast<esp2_cc_svc::Effect>(static_cast<uint8_t>(g_presentEffect));
+    s.orient = static_cast<esp2_cc_svc::Orient>(static_cast<uint8_t>(g_presentOrient));
+    return s;
+}
+
+static void ccSetMonitor(esp2_cc_svc::Monitor m) {
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    // 1bpp RLCD: only true mono luminance path — ignore phosphor/artifact UI leftovers.
+    (void)m;
+    g_presentMonitor = PresentMonitor::White;
+#else
+    g_presentMonitor = static_cast<PresentMonitor>(static_cast<uint8_t>(m));
+#endif
+    applyPresentChange();
+}
+
+static void ccSetEffect(esp2_cc_svc::Effect e) {
+    g_presentEffect = static_cast<PresentEffect>(static_cast<uint8_t>(e));
+    applyPresentChange();
+}
+
+static void ccSetOrient(esp2_cc_svc::Orient o) {
+    g_presentOrient = static_cast<PresentOrientation>(static_cast<uint8_t>(o));
+    applyPresentChange();
+}
+
+static void refreshCcLayout() {
+    using namespace esp_bracket;
+    CcLayoutContext c{};
+    c.physicalW = kPanelW;
+    c.physicalH = kPanelH;
+    c.present = (g_presentOrient == PresentOrientation::Landscape) ? CcPresentMode::Landscape
+                                                                   : CcPresentMode::Classic;
+    using Surf = esp2_config::SystemConfig::SystemUiSurface;
+    if (g_sysConfig.systemUiSurface == Surf::FullPanel) {
+        c.surface = CcUiSurface::FullPanel;
+    } else if (g_sysConfig.systemUiSurface == Surf::EnclosureVisible) {
+        c.surface = CcUiSurface::EnclosureVisible;
+    } else {
+        c.surface = ccDefaultUiSurface(kPanelW, kPanelH);
+    }
+    if (g_sysConfig.uiViewportOverride) {
+        c.over.enabled = true;
+        c.over.x = g_sysConfig.uiX;
+        c.over.y = g_sysConfig.uiY;
+        c.over.w = g_sysConfig.uiW;
+        c.over.h = g_sysConfig.uiH;
+    }
+    c.ui = ccComputeSystemUiViewport(c.physicalW, c.physicalH, c.present, c.surface, c.over);
+    esp2_cc::setLayoutContext(c);
+}
+
+static void ccDiskBaseName(const char *path, char *out, size_t outLen) {
+    if (!out || outLen == 0) {
+        return;
+    }
+    const char *s = path ? strrchr(path, '/') : nullptr;
+    s = s ? s + 1 : (path ? path : "");
+    strncpy(out, s, outLen - 1);
+    out[outLen - 1] = 0;
+}
+
+static esp2_cc_svc::DiskSnap ccDisks() {
+    esp2_cc_svc::DiskSnap s{};
+    s.sdUsable = g_sdOwner.esp2MayUseFat() && g_sd_ok;
+    s.drive1Mounted = g_diskMounted;
+    s.drive1Motor = g_diskII.diagState().motorOn;
+    s.drive2Supported = false;
+    if (g_diskMounted) {
+        ccDiskBaseName(g_mountedDiskPath, s.drive1Name, sizeof(s.drive1Name));
+    }
+    return s;
+}
+
+static bool ccEndsWithFold(const char *n, const char *ext) {
+    const size_t ln = strlen(n);
+    const size_t le = strlen(ext);
+    if (ln < le) {
+        return false;
+    }
+    for (size_t i = 0; i < le; ++i) {
+        char a = n[ln - le + i];
+        char b = ext[i];
+        if (a >= 'A' && a <= 'Z') {
+            a = static_cast<char>(a - 'A' + 'a');
+        }
+        if (a != b) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static int ccListDiskFiles(char names[][32], int maxCount) {
+    int n = 0;
+    if (!g_sdOwner.esp2MayUseFat() || maxCount <= 0) {
+        return 0;
+    }
+    if (!sdExclusiveBegin()) {
+        return 0;
+    }
+    File dir = ESP2_SD.open("/esp2/disks");
+    if (!dir || !dir.isDirectory()) {
+        if (dir) {
+            dir.close();
+        }
+        sdExclusiveEnd();
+        return 0;
+    }
+    for (;;) {
+        File f = dir.openNextFile();
+        if (!f) {
+            break;
+        }
+        if (!f.isDirectory()) {
+            const char *raw = f.name();
+            const char *base = strrchr(raw, '/');
+            base = base ? base + 1 : raw;
+            if (ccEndsWithFold(base, ".dsk") || ccEndsWithFold(base, ".po") ||
+                ccEndsWithFold(base, ".nib")) {
+                if (n < maxCount) {
+                    strncpy(names[n], base, 31);
+                    names[n][31] = 0;
+                    ++n;
+                } else if (maxCount > 0) {
+                    const char *w = "galaxian.dsk";
+                    const char *p = base;
+                    bool match = true;
+                    while (*w) {
+                        char c = *p++;
+                        if (c >= 'A' && c <= 'Z') {
+                            c = static_cast<char>(c - 'A' + 'a');
+                        }
+                        if (c != *w++) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match && *p == 0) {
+                        strncpy(names[maxCount - 1], base, 31);
+                        names[maxCount - 1][31] = 0;
+                    }
+                }
+            }
+        }
+        f.close();
+    }
+    dir.close();
+    sdExclusiveEnd();
+    if (n > 1) {
+        qsort(names, static_cast<size_t>(n), 32, [](const void *a, const void *b) {
+            return strcmp(static_cast<const char *>(a), static_cast<const char *>(b));
+        });
+    }
+    return n;
+}
+
+static bool ccMountDrive1(const char *path) {
+    const bool ok = mountDiskPath(path);
+    if (ok) {
+        appleIiResetKeepDisks();
+    }
+    if (esp2_cc::isOpen()) {
+        g_emuHold = true;
+    }
+    return ok;
+}
+
+static void ccEjectDrive1() {
+    g_diskII.ejectDrive(1);
+    g_diskMounted = false;
+    g_mountedDiskPath[0] = 0;
+    logf("DISK", "eject drive1");
+}
+
+static esp2_cc_svc::InputSnap ccInput() {
+    esp2_cc_svc::InputSnap s{};
+#if ESP2_BLE_HID
+    s.bleReady = esp2_ble::ready();
+    const auto st = esp2_ble::status();
+    s.knownCount = static_cast<uint8_t>(st.knownCount);
+    s.connectedCount = st.connected ? 1 : 0;
+    esp2_ble::ConnectedCaps caps{};
+    if (esp2_ble::connectedCaps(&caps)) {
+        s.keyboard = caps.keyboard;
+        s.gamepad = caps.gamepad || caps.joystick;
+        s.pointer = caps.mouse;
+    }
+#endif
+    return s;
+}
+
+static esp2_cc_svc::StorageSnap ccStorage() {
+    esp2_cc_svc::StorageSnap s{};
+    s.present = g_sd_ok;
+    s.fatOk = g_sd_ok && g_sdOwner.esp2MayUseFat();
+    s.mscSupported = UsbStorageMode::isSupported();
+    switch (g_sdOwner.state()) {
+    case SdOwnerState::UsbOwnsSd:
+        s.owner = esp2_cc_svc::SdOwnerUi::Computer;
+        break;
+    case SdOwnerState::TransitionToUsb:
+    case SdOwnerState::TransitionToEsp2:
+        s.owner = esp2_cc_svc::SdOwnerUi::Transition;
+        break;
+    case SdOwnerState::Error:
+        s.owner = esp2_cc_svc::SdOwnerUi::Error;
+        break;
+    default:
+        s.owner = esp2_cc_svc::SdOwnerUi::Esp2;
+        break;
+    }
+    return s;
+}
+
+static bool ccShareSd() { return enterUsbStorageMode(); }
+static bool ccReturnSd() { return leaveUsbStorageMode(false); }
+
+static void ccResetApple() { appleIiResetKeepDisks(); }
+
+static void ccColdStart() {
+    g_a2bus.clearRam();
+    appleIiResetKeepDisks();
+}
+
+static void ccRestartEsp() { ESP.restart(); }
+
+static void registerControlCenterServices() {
+    esp2_cc_svc::Services s{};
+    s.hardwareName = ccHardwareName;
+    s.pauseEmu = ccPauseEmu;
+    s.resumeEmu = ccResumeEmu;
+    s.present = ccPresent;
+    s.setMonitor = ccSetMonitor;
+    s.setEffect = ccSetEffect;
+    s.setOrient = ccSetOrient;
+    s.disks = ccDisks;
+    s.listDiskFiles = ccListDiskFiles;
+    s.mountDrive1 = ccMountDrive1;
+    s.ejectDrive1 = ccEjectDrive1;
+    s.input = ccInput;
+    s.storage = ccStorage;
+    s.shareSd = ccShareSd;
+    s.returnSd = ccReturnSd;
+    s.resetApple = ccResetApple;
+    s.coldStart = ccColdStart;
+    s.restartEsp = ccRestartEsp;
+    s.bleAvailable = ESP2_BLE_HID != 0;
+    esp2_cc_svc::setServices(s);
 }
 
 static bool bootMountedDisk() {
@@ -619,6 +986,9 @@ static void applyLiveKey(uint8_t apple7, bool pressed) {
     if (pressed) {
         // Normal Apple II latch path — ROM clears strobe via $C010.
         g_a2bus.keyboard().keyDown(apple7);
+        const CpuRegisters r = g_cpu.registers();
+        logf("INPUT", "down apple7=0x%02X latch=$%02X pc=$%04X hold=%d",
+             static_cast<unsigned>(apple7), g_a2bus.keyboard().latch(), r.pc, g_emuHold ? 1 : 0);
     } else {
         g_a2bus.keyboard().keyUp(apple7);
     }
@@ -646,6 +1016,20 @@ static void handleDevCommandLine(const char *line) {
         leaveUsbStorageMode(false);
         return;
     }
+    if (strcmp(line, "#ESP2IDENT") == 0) {
+        emitIdent();
+        return;
+    }
+    if (strcmp(line, "#ESP2SDINFO") == 0) {
+        emitSdInfo();
+        return;
+    }
+    if (strcmp(line, "#ESP2SDOWNER") == 0) {
+        // Machine-readable ownership — host flash guard / Information task.
+        Serial.printf("#ACK SDOWNER state=%s msc=%d\n", sdOwnerStateName(g_sdOwner.state()),
+                      g_usbStorage.active() ? 1 : 0);
+        return;
+    }
     if (strcmp(line, "#ESP2UPLOAD") == 0) {
         if (g_cdcMode == CdcDevMode::LiveInput) {
             g_cdcMode = CdcDevMode::Idle;
@@ -665,19 +1049,19 @@ static void handleDevCommandLine(const char *line) {
             g_diagQuiet = false;
             return;
         }
-        if (!SD.exists("/esp2")) {
-            SD.mkdir("/esp2");
+        if (!ESP2_SD.exists("/esp2")) {
+            ESP2_SD.mkdir("/esp2");
         }
-        if (!SD.exists("/esp2/roms")) {
-            SD.mkdir("/esp2/roms");
+        if (!ESP2_SD.exists("/esp2/roms")) {
+            ESP2_SD.mkdir("/esp2/roms");
         }
-        if (!SD.exists("/esp2/disks")) {
-            SD.mkdir("/esp2/disks");
+        if (!ESP2_SD.exists("/esp2/disks")) {
+            ESP2_SD.mkdir("/esp2/disks");
         }
-        if (!SD.exists("/esp2/tmp")) {
-            SD.mkdir("/esp2/tmp");
+        if (!ESP2_SD.exists("/esp2/tmp")) {
+            ESP2_SD.mkdir("/esp2/tmp");
         }
-        if (!SD.exists("/esp2") || !SD.exists("/esp2/roms")) {
+        if (!ESP2_SD.exists("/esp2") || !ESP2_SD.exists("/esp2/roms")) {
             Serial.println("#NAK mkdir_esp2");
             sdExclusiveEnd();
             return;
@@ -833,6 +1217,47 @@ static void handleDevCommandLine(const char *line) {
     }
     if (strcmp(line, "#ESP2PRESENT STATUS") == 0) {
         emitPresentStatus();
+        return;
+    }
+    if (strncmp(line, "#ESP2DISPLAY BRIGHTNESS", 23) == 0) {
+        const char *arg = line + 23;
+        while (*arg == ' ') {
+            ++arg;
+        }
+        if (*arg == '?' || *arg == 0) {
+            Serial.printf("#ACK BRIGHTNESS pct=%u level=%u\n",
+                          static_cast<unsigned>((g_displayBrightness * 100u + 127u) / 255u),
+                          static_cast<unsigned>(g_displayBrightness));
+            return;
+        }
+        unsigned pct = 0;
+        if (sscanf(arg, "%u", &pct) != 1 || pct > 100) {
+            Serial.println("#NAK BRIGHTNESS");
+            return;
+        }
+        g_displayBrightness = static_cast<uint8_t>((pct * 255u + 50u) / 100u);
+        if (pct > 0 && g_displayBrightness == 0) {
+            g_displayBrightness = 1;
+        }
+        esp2DisplaySetBrightness(g_gfx, g_displayBrightness);
+        g_display_power.notifyActivity("brightness");
+        Serial.printf("#ACK BRIGHTNESS pct=%u level=%u\n", pct,
+                      static_cast<unsigned>(g_displayBrightness));
+        return;
+    }
+    if (strcmp(line, "#ESP2POWER WAKE") == 0) {
+        g_display_power.notifyActivity("serial");
+        Serial.printf("#ACK POWER state=%s\n",
+                      g_display_power.isInteractive() ? "ACTIVE" : "NON_ACTIVE");
+        return;
+    }
+    if (strcmp(line, "#ESP2POWER STATUS") == 0) {
+        const auto &s = g_display_power.settings();
+        Serial.printf("#ACK POWER state=%u ss_ms=%u off_ms=%u brightness=%u\n",
+                      static_cast<unsigned>(g_display_power.state()),
+                      static_cast<unsigned>(display_power_screensaver_ms(s)),
+                      static_cast<unsigned>(display_power_screen_off_ms(s)),
+                      static_cast<unsigned>(g_displayBrightness));
         return;
     }
     if (strcmp(line, "#ESP2CONFIG STATUS") == 0) {
@@ -1006,6 +1431,48 @@ static void handleDevCommandLine(const char *line) {
                           static_cast<unsigned>(c.openSettings.gamepad.holdMs));
             return;
         }
+        if (strncmp(cmd, "HIDMON", 6) == 0) {
+            bool on = true;
+            if (cmd[6] == ' ') {
+                if (strncmp(cmd + 7, "0", 1) == 0 || strncmp(cmd + 7, "off", 3) == 0 ||
+                    strncmp(cmd + 7, "false", 5) == 0) {
+                    on = false;
+                }
+            }
+            esp2_ble::setHidMonitor(on);
+            Serial.printf("#ACK BLE HIDMON enabled=%d\n", on ? 1 : 0);
+            return;
+        }
+        if (strncmp(cmd, "PADMODE ", 8) == 0) {
+            const esp2_ble::PadMapMode mode = esp2_ble::parsePadMapMode(cmd + 8);
+            esp2_ble::setPadMapMode(mode);
+            Serial.printf("#ACK BLE PADMODE mode=%s\n", esp2_ble::padMapModeName(mode));
+            return;
+        }
+        if (strncmp(cmd, "SENS ", 5) == 0) {
+            unsigned s = 3;
+            sscanf(cmd + 5, "%u", &s);
+            esp2_ble::setPadSensitivity(static_cast<uint8_t>(s));
+            Serial.printf("#ACK BLE SENS value=%u\n",
+                          static_cast<unsigned>(esp2_ble::padSensitivity()));
+            return;
+        }
+        if (strcmp(cmd, "RECENTER") == 0) {
+            esp2_ble::recenterVirtualPad();
+            Serial.println("#ACK BLE RECENTER");
+            return;
+        }
+        if (strcmp(cmd, "PADSTAT") == 0) {
+            const auto gp = esp2_ble::latestGamepad();
+            Serial.printf("#ACK BLE PADSTAT mode=%s sens=%u mon=%d connected=%d "
+                          "x=%d y=%d a=%d b=%d\n",
+                          esp2_ble::padMapModeName(esp2_ble::padMapMode()),
+                          static_cast<unsigned>(esp2_ble::padSensitivity()),
+                          esp2_ble::hidMonitorEnabled() ? 1 : 0, gp.connected ? 1 : 0,
+                          static_cast<int>(gp.leftX), static_cast<int>(gp.leftY),
+                          gp.btnA ? 1 : 0, gp.btnB ? 1 : 0);
+            return;
+        }
         Serial.println("#NAK BLE cmd");
         return;
     }
@@ -1077,8 +1544,9 @@ static void maybeLogGalaxianVisible() {
     }
     g_galaxianVisibleLogged = true;
     markVideoDirty();
-    const uint32_t wallUs = micros() - g_wallStartUs;
-    const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
+    const int64_t wallUs = esp_timer_get_time() - g_wallStartUs;
+    const double cps =
+        wallUs > 0 ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / static_cast<double>(wallUs)) : 0;
     Serial.printf("[GALAXIAN] ESP32_VISIBLE pc=$%04X cycles=%llu cps=%.0f video=HGR "
                   "page2=%d hgr_samples=%u\n",
                   r.pc, static_cast<unsigned long long>(g_cpu.cycles()), cps, vs.page2 ? 1 : 0,
@@ -1121,6 +1589,25 @@ static void emitDiskSnap(const char *tag) {
                   "autostart_sig=%s\n",
                   tag ? tag : "SNAP", c0, c1, c2, c3, c4, c5,
                   (c1 == 0x20 && c3 == 0x00 && c5 == 0x03) ? "yes" : "no");
+    {
+        char hex[48]{};
+        size_t hp = 0;
+        for (int i = 0; i < 12 && hp + 3 < sizeof(hex); ++i) {
+            hp += static_cast<size_t>(snprintf(hex + hp, sizeof(hex) - hp, "%02X%s",
+                                               g_a2bus.peek(static_cast<uint16_t>(r.pc + i)),
+                                               (i + 1 < 12) ? " " : ""));
+        }
+        Serial.printf("[DISK][%s] kbd=$%02X strobe=%d code=%s\n", tag ? tag : "SNAP",
+                      g_a2bus.keyboard().latch(), g_a2bus.keyboard().strobePending() ? 1 : 0, hex);
+    }
+    if (vs.text) {
+        const TextScreen scr = TextScreen::fromBus(g_a2bus, 0);
+        for (int row = 0; row < 24; ++row) {
+            char line[41]{};
+            scr.rowString(row, line);
+            Serial.printf("[DISK][%s] t%02d=%s\n", tag ? tag : "SNAP", row, line);
+        }
+    }
     if (!vs.text && vs.hires) {
         const uint16_t base = vs.page2 ? 0x4000 : 0x2000;
         unsigned lit = 0;
@@ -1145,6 +1632,40 @@ static void maybeLogDiskHeartbeat() {
     lastMs = now;
     emitDiskSnap("HB");
 }
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
+static bool probe_imu() {
+    logf("IMU", "SKIP diymore");
+    return false;
+}
+
+/** Probe ES8311 on shared touch I2C; enable amp path (Audio_EN active-low). */
+static bool probe_audio() {
+    pinMode(PIN_DIYMORE_AUDIO_EN, OUTPUT);
+    digitalWrite(PIN_DIYMORE_AUDIO_EN, LOW); // enable
+    Wire.begin(PIN_DIYMORE_TP_SDA, PIN_DIYMORE_TP_SCL);
+    Wire.beginTransmission(DIYMORE_ES8311_I2C_ADDR);
+    const uint8_t err = Wire.endTransmission();
+    if (err != 0) {
+        logf("AUDIO", "[FAIL] ES8311 ack err=%u (pins documented; PCM path TODO)",
+             static_cast<unsigned>(err));
+        return false;
+    }
+    logf("AUDIO", "ES8311 ACK addr=0x%02X en=LOW i2s=MCLK%d BCLK%d DOUT%d WS%d DIN%d",
+         DIYMORE_ES8311_I2C_ADDR, PIN_DIYMORE_I2S_MCLK, PIN_DIYMORE_I2S_BCLK, PIN_DIYMORE_I2S_DOUT,
+         PIN_DIYMORE_I2S_WS, PIN_DIYMORE_I2S_DIN);
+    logf("AUDIO", "PCM/I2S playback NOT_YET — speaker jack ready, codec seen");
+    return true;
+}
+#elif defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+static bool probe_imu() {
+    logf("IMU", "SKIP rlcd42");
+    return false;
+}
+static bool probe_audio() {
+    logf("AUDIO", "SKIP rlcd42");
+    return false;
+}
+#else
 static Qmi8658Min g_imu_probe;
 static bool probe_imu() {
     if (!g_imu_probe.begin(Wire)) {
@@ -1154,6 +1675,10 @@ static bool probe_imu() {
     logf("IMU", "QMI8658 OK who=0x%02X", g_imu_probe.whoAmI());
     return true;
 }
+static bool probe_audio() {
+    return false;
+}
+#endif
 
 static void softSwitch(uint16_t addr) {
     g_a2bus.write(addr, 0);
@@ -1325,6 +1850,10 @@ static uint32_t transferScanlineRange(int y0, int y1) {
     if (!g_gfx || !g_viewportFb || y0 > y1) {
         return 0;
     }
+    if (kClassicScaled) {
+        // Scaled classic always transfers the full present FB (partial runs not mapped).
+        return 0;
+    }
     const int h = y1 - y0 + 1;
     const uint32_t t0 = micros();
     g_gfx->draw16bitRGBBitmap(kViewX, kViewY + y0, g_viewportFb + y0 * kViewW, kViewW, h);
@@ -1335,30 +1864,89 @@ static uint32_t transferScanlineRange(int y0, int y1) {
 
 /**
  * Landscape presentation: rotate Apple II 280×192 CW 90° → 192×280, then
- * nearest-neighbor scale to maximize fit on 280×456 while preserving aspect.
+ * nearest-neighbor scale to maximize fit on panel while preserving aspect.
  * Apple II memory / soft-switches are untouched.
  */
 static void computeLandscapeGeometry() {
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
+    // 240×320: 1× of 192×280 (integer) — fractional upscale wrecks 5px text glyphs.
+    LandscapePresent::computeOutSizeInteger(kPanelW, kPanelH, &g_landOutW, &g_landOutH, &g_landOx,
+                                            &g_landOy);
+#else
     LandscapePresent::computeOutSize(kPanelW, kPanelH, &g_landOutW, &g_landOutH, &g_landOx,
                                      &g_landOy);
+#endif
+}
+
+static void computeClassicScaledGeometry() {
+    ClassicPresent::computeOutSize(kPanelW, kPanelH, &g_classicOutW, &g_classicOutH, &g_classicOx,
+                                   &g_classicOy);
 }
 
 static bool ensurePresentFb() {
-    if (g_presentOrient != PresentOrientation::Landscape) {
+    if (g_presentOrient == PresentOrientation::Landscape) {
+        if (!g_presentFb) {
+            computeLandscapeGeometry();
+            g_presentFb = static_cast<uint16_t *>(
+                psramAlloc(static_cast<size_t>(g_landOutW * g_landOutH) * sizeof(uint16_t)));
+            if (!g_presentFb) {
+                logf("PRESENT", "[FAIL] landscape fb alloc");
+                return false;
+            }
+            logf("PRESENT", "landscape fb %dx%d ox=%d oy=%d", g_landOutW, g_landOutH, g_landOx,
+                 g_landOy);
+        }
         return true;
     }
-    if (!g_presentFb) {
-        computeLandscapeGeometry();
-        g_presentFb = static_cast<uint16_t *>(
-            psramAlloc(static_cast<size_t>(g_landOutW * g_landOutH) * sizeof(uint16_t)));
+    if (kClassicScaled) {
         if (!g_presentFb) {
-            logf("PRESENT", "[FAIL] landscape fb alloc");
-            return false;
+            computeClassicScaledGeometry();
+            g_presentFb = static_cast<uint16_t *>(psramAlloc(
+                static_cast<size_t>(g_classicOutW * g_classicOutH) * sizeof(uint16_t)));
+            if (!g_presentFb) {
+                logf("PRESENT", "[FAIL] classic-scale fb alloc");
+                return false;
+            }
+            logf("PRESENT", "classic-scale fb %dx%d ox=%d oy=%d", g_classicOutW, g_classicOutH,
+                 g_classicOx, g_classicOy);
         }
-        logf("PRESENT", "landscape fb %dx%d ox=%d oy=%d", g_landOutW, g_landOutH, g_landOx,
-             g_landOy);
+        return true;
     }
     return true;
+}
+
+static uint32_t transferClassicScaledFromViewport() {
+    if (!g_gfx || !g_viewportFb) {
+        return 0;
+    }
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    // One-pass 280×192 → mono (skip presentFb scale + canvas blit).
+    const uint32_t t0 = micros();
+    esp2DisplayFlushClassic280(g_viewportFb);
+    g_lastXferUs = micros() - t0;
+    g_dispBytes = static_cast<uint32_t>(kViewW * kViewH * 2);
+    g_lastPresentUs = g_lastXferUs;
+    return g_lastXferUs;
+#else
+    if (!ensurePresentFb() || !g_presentFb) {
+        return 0;
+    }
+    const uint32_t t0 = micros();
+    ClassicPresent::scaleRgb565(g_viewportFb, g_presentFb, g_classicOutW, g_classicOutH);
+    // Strip transfer so long SPI bursts yield to IDLE (task WDT).
+    constexpr int kStrip = 16;
+    for (int y = 0; y < g_classicOutH; y += kStrip) {
+        const int h = (y + kStrip <= g_classicOutH) ? kStrip : (g_classicOutH - y);
+        g_gfx->draw16bitRGBBitmap(g_classicOx, g_classicOy + y, g_presentFb + y * g_classicOutW,
+                                  g_classicOutW, h);
+        taskYIELD();
+    }
+    esp2DisplayFlush(g_gfx);
+    g_lastXferUs = micros() - t0;
+    g_dispBytes = static_cast<uint32_t>(g_classicOutW * g_classicOutH * 2);
+    g_lastPresentUs = g_lastXferUs;
+    return g_lastXferUs;
+#endif
 }
 
 static uint32_t transferLandscapeFromViewport() {
@@ -1368,7 +1956,18 @@ static uint32_t transferLandscapeFromViewport() {
     const uint32_t t0 = micros();
     // CW rotate + edge-preserving nearest-neighbor scale (shared host/device math).
     LandscapePresent::transformRgb565(g_viewportFb, g_presentFb, g_landOutW, g_landOutH);
-    g_gfx->draw16bitRGBBitmap(g_landOx, g_landOy, g_presentFb, g_landOutW, g_landOutH);
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    esp2DisplayFlushRgb565(g_presentFb, g_landOutW, g_landOutH, g_landOx, g_landOy);
+#else
+    constexpr int kStrip = 16;
+    for (int y = 0; y < g_landOutH; y += kStrip) {
+        const int h = (y + kStrip <= g_landOutH) ? kStrip : (g_landOutH - y);
+        g_gfx->draw16bitRGBBitmap(g_landOx, g_landOy + y, g_presentFb + y * g_landOutW, g_landOutW,
+                                  h);
+        taskYIELD();
+    }
+    esp2DisplayFlush(g_gfx);
+#endif
     g_lastXferUs = micros() - t0;
     g_dispBytes = static_cast<uint32_t>(g_landOutW * g_landOutH * 2);
     g_lastPresentUs = g_lastXferUs;
@@ -1400,6 +1999,9 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
     if (g_presentOrient == PresentOrientation::Landscape) {
         // Full transform — dirty scanline runs are not axis-aligned after rotate.
         return transferLandscapeFromViewport();
+    }
+    if (kClassicScaled) {
+        return transferClassicScaledFromViewport();
     }
     const int pop = work.popcount();
     if (pop >= kFullUpdateThreshold || pop >= kViewH || g_presentEffect == PresentEffect::Crt) {
@@ -1463,9 +2065,12 @@ static void applyPresentChange() {
     // Called from the CDC/loop task — never touch g_gfx here (SPI race with a2disp).
     if (g_presentOrient == PresentOrientation::Landscape) {
         computeLandscapeGeometry();
+    } else if (kClassicScaled) {
+        computeClassicScaledGeometry();
     }
     g_presentApplyPending = true;
     emitPresentStatus();
+    refreshCcLayout();
     logf("PRESENT", "monitor=%s effect=%s orient=%s pending", presentMonitorName(),
          presentEffectName(), presentOrientName());
 }
@@ -1476,12 +2081,15 @@ static void servicePresentApplyOnDisplayTask() {
         return;
     }
     g_presentApplyPending = false;
-    if (g_gfx) {
+    // While Control Center is open, do not wipe the UI framebuffer.
+    if (!esp2_cc::isOpen() && g_gfx) {
         g_gfx->fillScreen(0x0000);
     }
     if (g_presentOrient == PresentOrientation::Landscape) {
         computeLandscapeGeometry();
         (void)ensurePresentFb();
+    } else if (kClassicScaled) {
+        computeClassicScaledGeometry();
     }
     markVideoDirty();
     logf("PRESENT", "applied monitor=%s effect=%s orient=%s land=%dx%d@%d,%d",
@@ -1647,7 +2255,7 @@ static bool findUserRomPath(char outPath[96]) {
         }
     }
     // Scan directory for first 12288-byte .rom/.bin
-    File dir = SD.open(Esp32SdStorageBackend::kRomRoot);
+    File dir = ESP2_SD.open(Esp32SdStorageBackend::kRomRoot);
     if (!dir || !dir.isDirectory()) {
         return false;
     }
@@ -1907,10 +2515,28 @@ static void applyDisplayPowerFromConfig() {
         dps.screen_off = ScreenOffTimeout::Min10;
     }
     g_display_power.setSettings(dps);
-    logf("CONFIG", "display ss_s=%u ss_ms=%u off_ms=%u",
+
+    if (g_sysConfig.valid && g_sysConfig.brightnessPercent > 0) {
+        // percent 1–100 → 0–255 (keep at least 1 so “1%” is visible)
+        const uint32_t pct = g_sysConfig.brightnessPercent;
+        g_displayBrightness =
+            static_cast<uint8_t>((pct * 255u + 50u) / 100u);
+        if (g_displayBrightness == 0) {
+            g_displayBrightness = 1;
+        }
+    } else {
+        g_displayBrightness = kDisplayBrightnessDefault;
+    }
+    esp2DisplaySetBrightness(g_gfx, g_displayBrightness);
+
+    logf("CONFIG", "display ss_s=%u ss_ms=%u off_ms=%u brightness=%u (%u%%)",
          static_cast<unsigned>(g_sysConfig.screensaverSeconds),
          static_cast<unsigned>(dps.screensaver_override_ms),
-         static_cast<unsigned>(dps.screen_off_override_ms));
+         static_cast<unsigned>(dps.screen_off_override_ms),
+         static_cast<unsigned>(g_displayBrightness),
+         static_cast<unsigned>(g_sysConfig.brightnessPercent
+                                   ? g_sysConfig.brightnessPercent
+                                   : (g_displayBrightness * 100u + 127u) / 255u));
 }
 
 static void loadPersistentConfigFromSd() {
@@ -2007,7 +2633,17 @@ static void loadPersistentConfigFromSd() {
 }
 
 static void macroInjectKey(uint8_t apple7) {
+    logf("MACRO", "key=0x%02X", static_cast<unsigned>(apple7));
+    // Latch only — keyUp can disturb Beautiful Boot / soft-switch readers mid-strobe.
     applyLiveKey(apple7, true);
+}
+
+static void macroInjectPb0() {
+    logf("MACRO", "pb0 pulse");
+    // Joystick fire — Galaxian (menu A) waits on PREPARE YOURSELF for button 0.
+    applyLivePad(128, 128, true, false, false);
+    delay(120);
+    applyLivePad(128, 128, false, false, false);
 }
 
 static void applyStartupFromConfig() {
@@ -2146,10 +2782,13 @@ static void emulatorTask(void *) {
         vTaskDelay(pdMS_TO_TICKS(1));
     }
     logf("SCHED", "emu core=%d", xPortGetCoreID());
-    g_wallStartUs = micros();
+    g_wallStartUs = esp_timer_get_time();
     g_emuCyclesAtBoot = g_cpu.cycles();
     for (;;) {
-        if (g_emuHold || g_sdExclusive || esp2_upload::isSessionActive()) {
+#if ESP2_BLE_HID
+        esp2_ble::service(millis());
+#endif
+        if (g_emuHold || g_sdExclusive || esp2_upload::isSessionActive() || !g_rom_ok) {
             vTaskDelay(pdMS_TO_TICKS(5));
             continue;
         }
@@ -2162,7 +2801,8 @@ static void emulatorTask(void *) {
             // Generic video condition: graphics + HIRES (not title-specific).
             const auto &ss = g_a2bus.softSwitches();
             const bool hires = ss.isGraphics() && ss.isHires();
-            const bool still = esp2_macro::tickMacro(&g_macroRunner, millis(), hires, macroInjectKey);
+            const bool still =
+                esp2_macro::tickMacro(&g_macroRunner, millis(), hires, macroInjectKey, macroInjectPb0);
             if (!still) {
                 if (g_macroRunner.state == esp2_macro::RunState::Done) {
                     logf("MACRO", "done id=%s", g_macroRunner.activeId);
@@ -2177,25 +2817,32 @@ static void emulatorTask(void *) {
         }
         maybeLogGalaxianVisible();
         maybeLogDiskHeartbeat();
-#if ESP2_BLE_HID
-        esp2_ble::service(millis());
-#endif
         const uint64_t after = g_cpu.cycles();
         const uint64_t emuSince = after - g_emuCyclesAtBoot;
-        const uint64_t targetUs = (emuSince * 1000000ULL) / kAppleIiHz;
-        const uint64_t wallUs = micros() - g_wallStartUs;
+        const int64_t targetUs =
+            static_cast<int64_t>((emuSince * 1000000ULL) / static_cast<uint64_t>(kAppleIiHz));
+        const int64_t wallUs = esp_timer_get_time() - g_wallStartUs;
         if (targetUs > wallUs + 50) {
-            const uint32_t sleepUs = static_cast<uint32_t>(targetUs - wallUs);
-            if (sleepUs > 2000) {
-                vTaskDelay(pdMS_TO_TICKS(sleepUs / 1000));
+            const int64_t sleepUs = targetUs - wallUs;
+            // Guard: corrupt bases (legacy micros wrap / stalled clock) must not sleep forever.
+            if (sleepUs > 2000000LL) {
+                resyncEmuWallClock();
+            } else if (sleepUs > 2000) {
+                uint32_t ms = static_cast<uint32_t>(sleepUs / 1000);
+                if (ms > 50) {
+                    ms = 50;
+                }
+                vTaskDelay(pdMS_TO_TICKS(ms));
             } else {
-                delayMicroseconds(sleepUs);
+                delayMicroseconds(static_cast<uint32_t>(sleepUs));
             }
         } else if (((after / kExecQuantum) & 0x0F) == 0) {
             taskYIELD();
         }
     }
 }
+
+static void showNoRomStatusScreen();
 
 static void displayTask(void *) {
     while (!g_schedulerGo) {
@@ -2217,14 +2864,76 @@ static void displayTask(void *) {
             continue;
         }
         g_display_power.update(now);
-        if (g_settingsHintUntilMs != 0 && now < g_settingsHintUntilMs && g_gfx &&
-            g_display_power.state() == DisplayPowerState::Active) {
-            // V1 OPEN_SETTINGS: minimal status banner (not a full settings UI).
-            g_gfx->fillRect(0, 0, kPanelW, 28, 0x0010);
-            g_gfx->setTextColor(0xFFFF);
-            g_gfx->setCursor(8, 8);
-            g_gfx->print("ESP][ Settings (V1 stub)");
+        // Apply present changes even while the menu is open (no framebuffer wipe).
+        servicePresentApplyOnDisplayTask();
+        refreshCcLayout();
+
+        bool wakeConsumed = false;
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+        {
+            // Two firmware buttons only: KEY=GPIO18, BOOT=GPIO0. PWR is power-latch (not GPIO).
+            // Short KEY = open / activate focused · Short BOOT = next · Hold either = back.
+            static bool keyPrev = false;
+            static bool bootPrev = false;
+            static uint32_t keyDownMs = 0;
+            static uint32_t bootDownMs = 0;
+            constexpr uint32_t kHoldMs = 550;
+            const bool key = digitalRead(PIN_RLCD42_KEY) == LOW;
+            const bool boot = digitalRead(PIN_RLCD42_BOOT) == LOW;
+            if (key && !keyPrev) {
+                keyDownMs = now;
+                wakeConsumed = g_display_power.notifyActivity("key");
+            }
+            if (!key && keyPrev && g_display_power.isInteractive()) {
+                const uint32_t held = now - keyDownMs;
+                if (held >= kHoldMs) {
+                    esp2_cc::onButton(esp2_cc::Button::Back);
+                } else {
+                    esp2_cc::onButton(esp2_cc::Button::Activate);
+                }
+            }
+            if (boot && !bootPrev) {
+                bootDownMs = now;
+                wakeConsumed = g_display_power.notifyActivity("boot") || wakeConsumed;
+            }
+            if (!boot && bootPrev && g_display_power.isInteractive()) {
+                const uint32_t held = now - bootDownMs;
+                if (held >= kHoldMs) {
+                    esp2_cc::onButton(esp2_cc::Button::Back);
+                } else {
+                    esp2_cc::onButton(esp2_cc::Button::Next);
+                }
+            }
+            keyPrev = key;
+            bootPrev = boot;
         }
+#endif
+        if (g_touch_ok && esp2_touch::ready()) {
+            esp2_touch::Sample ts = esp2_touch::poll();
+            uint16_t lx = ts.x;
+            uint16_t ly = ts.y;
+            esp_bracket::mapTouchToPanel(ts.x, ts.y, kPanelW, kPanelH, false, &lx, &ly);
+            ts.x = lx;
+            ts.y = ly;
+            if (ts.pressed || ts.contact) {
+                wakeConsumed = g_display_power.notifyActivity("touch");
+            }
+            if (g_display_power.isInteractive() && (ts.pressed || ts.released)) {
+                (void)esp2_cc::onPointer(ts.x, ts.y, ts.pressed, ts.released, ts.contact,
+                                         wakeConsumed, kPanelW, kPanelH);
+            }
+        }
+
+        if (esp2_cc::isOpen() && g_gfx && g_display_power.isInteractive()) {
+            esp2_cc::tick(now);
+            if (esp2_cc::uiDirty()) {
+                esp2_cc::draw(g_gfx, kPanelW, kPanelH);
+                esp2DisplayFlush(g_gfx);
+            }
+            vTaskDelay(pdMS_TO_TICKS(20));
+            continue;
+        }
+
         const auto st = g_display_power.state();
         if (static_cast<uint32_t>(st) != lastPower) {
             lastPower = static_cast<uint32_t>(st);
@@ -2236,20 +2945,13 @@ static void displayTask(void *) {
                 logf("POWER", "OFF");
             }
         }
-        if (g_touch_ok) {
-            Wire.beginTransmission(FT3168_I2C_ADDR);
-            Wire.write(0x02);
-            if (Wire.endTransmission(false) == 0 &&
-                Wire.requestFrom((int)FT3168_I2C_ADDR, 1) == 1) {
-                if ((Wire.read() & 0x0F) > 0) {
-                    g_display_power.notifyActivity("touch");
-                }
-            }
-        }
         if (now - lastDiag >= 5000) {
             lastDiag = now;
-            const uint32_t wallUs = micros() - g_wallStartUs;
-            const double cps = wallUs ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / wallUs) : 0;
+            const int64_t wallUs = esp_timer_get_time() - g_wallStartUs;
+            const double cps = wallUs > 0
+                                   ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 /
+                                      static_cast<double>(wallUs))
+                                   : 0;
             logf("PERF",
                  "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u "
                  "psram_free=%u monitor=%s effect=%s orient=%s render_us=%u xfer_us=%u",
@@ -2277,6 +2979,16 @@ static void displayTask(void *) {
             vTaskDelay(pdMS_TO_TICKS(40));
             continue;
         }
+        // Without user ROM, Apple II VRAM is garbage — do not present it on RLCD/AMOLED.
+        if (!g_rom_ok) {
+            static uint32_t lastNoRomDraw = 0;
+            if (now - lastNoRomDraw > 1000) {
+                showNoRomStatusScreen();
+                lastNoRomDraw = now;
+            }
+            vTaskDelay(pdMS_TO_TICKS(50));
+            continue;
+        }
         servicePresentApplyOnDisplayTask();
         // Periodically refresh text screen from ROM (cursor flash etc.).
         static uint32_t lastRefresh = 0;
@@ -2287,12 +2999,30 @@ static void displayTask(void *) {
         portENTER_CRITICAL(&g_dirtyMux);
         auto bits = g_dirty.exchange();
         portEXIT_CRITICAL(&g_dirtyMux);
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+        // Reflective panel + full-frame mono flush: keep a minimum refresh so play
+        // does not look stalled when VRAM dirty bits are sparse (text / light HGR).
+        if (bits.empty()) {
+            static uint32_t sLastForceMs = 0;
+            if (now - sLastForceMs < 33) {
+                vTaskDelay(pdMS_TO_TICKS(1));
+                continue;
+            }
+            sLastForceMs = now;
+            bits.markAll();
+        }
+#else
         if (bits.empty()) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
+#endif
         presentDirty(bits);
         g_dispFrames++;
+        // Blocking SPI present (esp. diymore ILI9341 + landscape/artifact) can starve
+        // IDLE0 long enough to trip the task WDT — always yield after a frame.
+        taskYIELD();
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }
 
@@ -2312,10 +3042,10 @@ static void writeBootStage(const char *stage) {
     if (!g_sdStore.beginMounted() || !g_sdOwner.esp2MayUseFat()) {
         return;
     }
-    if (!SD.exists("/esp2/diagnostics")) {
-        SD.mkdir("/esp2/diagnostics");
+    if (!ESP2_SD.exists("/esp2/diagnostics")) {
+        ESP2_SD.mkdir("/esp2/diagnostics");
     }
-    File f = SD.open("/esp2/diagnostics/last-boot.txt", FILE_WRITE);
+    File f = ESP2_SD.open("/esp2/diagnostics/last-boot.txt", FILE_WRITE);
     if (f) {
         f.printf("build=%s\n", kBuildId);
         f.print(g_bootLog);
@@ -2338,6 +3068,41 @@ static void showEarlyBootSplash() {
     g_gfx->print(kBuildId);
     g_gfx->setCursor(24, 240);
     g_gfx->print("booting...");
+    esp2DisplayFlush(g_gfx);
+}
+
+/** Clear mono/status screen when Apple II cannot run (no SD / no ROM). */
+static void showNoRomStatusScreen() {
+    if (!g_gfx || !g_display_ok) {
+        return;
+    }
+    g_gfx->fillScreen(0x0000);
+    g_gfx->drawRect(4, 4, kPanelW - 8, kPanelH - 8, 0xFFFF);
+    g_gfx->setTextColor(0xFFFF);
+    g_gfx->setTextSize(2);
+    g_gfx->setCursor(24, 40);
+    g_gfx->print("ESP][ RLCD");
+    g_gfx->setTextSize(1);
+    g_gfx->setCursor(24, 90);
+    g_gfx->print("display: OK");
+    g_gfx->setCursor(24, 110);
+    g_gfx->print(g_sd_ok ? "sd: OK" : "sd: FAIL (insert card)");
+    g_gfx->setCursor(24, 130);
+    g_gfx->print(g_rom_ok ? "rom: OK" : "rom: missing");
+    g_gfx->setCursor(24, 170);
+    g_gfx->print("Need /esp2/roms on microSD");
+    g_gfx->setCursor(24, 190);
+    g_gfx->print("KEY = Control Center");
+    g_gfx->fillRect(24, 230, 80, 40, 0xFFFF);
+    g_gfx->setTextColor(0x0000);
+    g_gfx->setCursor(36, 246);
+    g_gfx->print("WHITE");
+    g_gfx->setTextColor(0xFFFF);
+    g_gfx->fillRect(120, 230, 80, 40, 0x0000);
+    g_gfx->drawRect(120, 230, 80, 40, 0xFFFF);
+    g_gfx->setCursor(132, 246);
+    g_gfx->print("BLACK");
+    esp2DisplayFlush(g_gfx);
 }
 
 void setup() {
@@ -2384,13 +3149,22 @@ void setup() {
         logf("UPLOAD", "skip boot-window — no CDC host (standalone power)");
     }
 
+#if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
+    pinMode(PIN_RLCD42_KEY, INPUT_PULLUP);
+    pinMode(PIN_RLCD42_BOOT, INPUT_PULLUP);
+    logf("BTN", "KEY=GPIO%d BOOT=GPIO%d", PIN_RLCD42_KEY, PIN_RLCD42_BOOT);
+#endif
     g_touch_ok = probe_touch();
+    registerControlCenterServices();
     g_sd_ok = probe_sd();
     if (g_sd_ok) {
         prepareEsp2Tree();
         writeBootStage(Serial ? "display_sd_cdc" : "display_sd_standalone");
     }
     g_imu_ok = probe_imu();
+#if defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
+    g_audio_ok = probe_audio();
+#endif
 
     xTaskCreatePinnedToCore(
         [](void *) {
@@ -2403,21 +3177,10 @@ void setup() {
                 applyStartupFromConfig();
                 writeBootStage(g_diskMounted ? "startup_media_ok" : "startup_no_disk");
 #if ESP2_BLE_HID
-                if (esp2_ble::init()) {
+                    if (esp2_ble::init()) {
                     esp2_ble::setInjectors(applyLiveKey, applyLivePad);
                     esp2_ble::setLocalActionHandler(onLocalControlAction);
-                    // Standalone reconnect: try first autoReconnect known device.
-                    const auto &bcfg = esp2_ble::config();
-                    for (size_t i = 0; i < bcfg.knownCount; ++i) {
-                        if (!bcfg.known[i].autoReconnect) {
-                            continue;
-                        }
-                        logf("BLE", "auto-reconnect addr=%s name=\"%s\"", bcfg.known[i].address,
-                             bcfg.known[i].name);
-                        if (esp2_ble::connectAddress(bcfg.known[i].address)) {
-                            break;
-                        }
-                    }
+                    (void)esp2_ble::requestAutoReconnect();
                     writeBootStage("ble_ready");
                 } else {
                     logf("BLE", "[FAIL] init");
@@ -2428,11 +3191,13 @@ void setup() {
                 logf("APPLE2", "bootSuite skipped — SD not owned by ESP2");
                 writeBootStage("sd_not_owned");
             }
-            logf("SELFTEST", "display=%s touch=%s sd=%s imu=%s rom=%s basic=%s level4=%s owner=%s",
+            logf("SELFTEST",
+                 "display=%s touch=%s sd=%s imu=%s audio=%s rom=%s basic=%s level4=%s owner=%s",
                  g_display_ok ? "PASS" : "FAIL", g_touch_ok ? "PASS" : "FAIL",
                  g_sd_ok ? "PASS" : "FAIL", g_imu_ok ? "PASS" : "FAIL",
-                 g_rom_ok ? "PASS" : "SKIPPED_NO_ROM", g_basic_ok ? "PASS" : "n/a",
-                 g_level4_ok ? "PASS" : "FAIL", sdOwnerStateName(g_sdOwner.state()));
+                 g_audio_ok ? "PROBE_OK" : "n/a", g_rom_ok ? "PASS" : "SKIPPED_NO_ROM",
+                 g_basic_ok ? "PASS" : "n/a", g_level4_ok ? "PASS" : "FAIL",
+                 sdOwnerStateName(g_sdOwner.state()));
             xTaskCreatePinnedToCore(displayTask, "a2disp", 10240, nullptr, 2, &g_dispTaskHandle, 0);
             xTaskCreatePinnedToCore(emulatorTask, "a2emu", 8192, nullptr, 1, nullptr, 1);
             g_schedulerGo = true;

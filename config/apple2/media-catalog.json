@@ -26,6 +26,46 @@
       "sourceSha256": "6e823ae61e2d3ea57447d22ccdd77f75750742fee695681073685bfaea0c446d",
       "runtimeSha256": "b1e85b78b689a64c5787893c4954d309a8d20e4d1d4a551dc4d9cb5dc132c2d1",
       "runtimeFormat": "dsk"
+    },
+    {
+      "id": "starblazer",
+      "title": "Star Blazer",
+      "catalogId": "star-blazer",
+      "apple2jsBasename": "starblazer",
+      "apple2jsFilename": "json/disks/starblazer.json",
+      "source": "apple2js-website",
+      "sourceUrl": "https://www.scullinsteel.com/apple2/json/disks/starblazer.json",
+      "expectedFormat": "dsk",
+      "provenance": "USER_SUPPLIED_ONLY",
+      "evidence": "Commercial/entertainment title on Apple ][js website catalog. Website availability is not redistribution permission. LOCAL_TEST_ONLY.",
+      "localTestOnly": true,
+      "defaultRomId": "appleiigo",
+      "slot6Mode": "cleanroom",
+      "deviceDiskName": "StarBlazer.dsk",
+      "devicePath": "/esp2/disks/StarBlazer.dsk",
+      "sourceSha256": "b35bd0aabf8d5b7da754c4bce57020a870cee6480b81a987940f72f0d3c8af9b",
+      "runtimeSha256": "ef52539d4f5bda1d265bd9c065d4e87884bd313c52170cfa4468205852c6623b",
+      "runtimeFormat": "dsk"
+    },
+    {
+      "id": "little-brick-out",
+      "title": "Little Brick Out",
+      "catalogId": "little-brick-out",
+      "apple2jsBasename": null,
+      "apple2jsFilename": null,
+      "source": "cowgod-cassette",
+      "sourceUrl": "https://cowgod.org/apple2/tapes/little-brick-out.dsk.gz",
+      "expectedFormat": "dsk",
+      "provenance": "USER_SUPPLIED_ONLY",
+      "evidence": "Cowgod Apple II Cassette Software DSK.gz. Not on Apple ][js website catalog. LOCAL_TEST_ONLY — download is not redistribution permission. HELLO patched locally to RUN LITTLE BRICK OUT.",
+      "localTestOnly": true,
+      "defaultRomId": "appleiigo",
+      "slot6Mode": "cleanroom",
+      "deviceDiskName": "LittleBrickOut.dsk",
+      "devicePath": "/esp2/disks/LittleBrickOut.dsk",
+      "sourceSha256": "2f9b78ee27f5d0167a2a7ead2193607a0ded6ef1e90406b30726483c62307f2f",
+      "runtimeSha256": "50502098248f122d02fd5ab9779b8e94be1f040803fde2913f9f31f718eea505",
+      "runtimeFormat": "dsk"
     }
   ]
 }

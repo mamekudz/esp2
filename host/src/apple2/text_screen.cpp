@@ -5,35 +5,22 @@
 namespace esp_bracket {
 
 void classifyTextByte(uint8_t ramByte, int flashPhase, char *outCh, TextCellStyle *outStyle) {
-    // Apple II text:
-    //  $00–$3F inverse (uppercase set)
-    //  $40–$7F flashing
-    //  $80–$FF normal (high bit set)
+    uint8_t ascii7 = 0x20;
+    bool inverse = false;
+    TextDecoder::mapAppleTextByte(ramByte, flashPhase, &ascii7, &inverse);
     TextCellStyle style = TextCellStyle::Normal;
-    uint8_t code = ramByte;
     if (ramByte < 0x40) {
         style = TextCellStyle::Inverse;
-        code = static_cast<uint8_t>(ramByte + 0x40); // map to ASCII-ish uppercase
     } else if (ramByte < 0x80) {
         style = TextCellStyle::Flash;
-        code = ramByte; // already ASCII range for many glyphs
-        if ((flashPhase & 1) != 0) {
-            code = ' ';
-        }
-    } else {
-        style = TextCellStyle::Normal;
-        code = static_cast<uint8_t>(ramByte & 0x7Fu);
-    }
-    char ch = static_cast<char>(code & 0x7Fu);
-    if (ch < 0x20 || ch > 0x7E) {
-        ch = ' ';
     }
     if (outCh) {
-        *outCh = ch;
+        *outCh = static_cast<char>(ascii7);
     }
     if (outStyle) {
         *outStyle = style;
     }
+    (void)inverse;
 }
 
 TextScreen TextScreen::fromRam(const uint8_t *ram, uint16_t pageBase, int flashPhase) {

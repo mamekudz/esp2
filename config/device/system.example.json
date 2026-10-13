@@ -16,6 +16,22 @@
     "color": "sharp"
   },
   "display": {
-    "screensaverSeconds": 0
+    "screensaverSeconds": 0,
+    "systemUiSurface": "enclosureVisible"
+  },
+  "usb": {
+    "storageMode": "normal"
+  },
+  "input": {
+    "hostBridge": {
+      "gamepad": "none",
+      "gamepadId": "",
+      "pdl0": "auto",
+      "pdl1": "auto",
+      "pb0": "auto",
+      "dial": false,
+      "keyboard": true,
+      "deadzone": 0.08
+    }
   }
 }

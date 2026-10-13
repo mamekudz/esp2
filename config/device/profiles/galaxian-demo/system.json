@@ -13,9 +13,26 @@
   },
   "presentation": {
     "orientation": "landscape",
+    "monitor": "artifact",
+    "effect": "clean",
     "color": "artifact"
   },
   "display": {
     "screensaverSeconds": 300
+  },
+  "usb": {
+    "storageMode": "normal"
+  },
+  "input": {
+    "hostBridge": {
+      "gamepad": "auto",
+      "gamepadId": "",
+      "pdl0": "gamepadX",
+      "pdl1": "gamepadY",
+      "pb0": "gamepadA",
+      "dial": false,
+      "keyboard": true,
+      "deadzone": 0.08
+    }
   }
 }

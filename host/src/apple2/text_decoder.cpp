@@ -144,6 +144,45 @@ uint8_t TextDecoder::glyphRow(uint8_t ascii7, int row) {
     return kGlyphs[c - 0x20][row];
 }
 
+void TextDecoder::mapAppleTextByte(uint8_t ramByte, int flashPhase, uint8_t *ascii7,
+                                   bool *inverse) {
+    // Apple II primary text page (II / II+):
+    //  $00–$1F inverse @–_   → ASCII $40–$5F
+    //  $20–$3F inverse sp–?  → ASCII $20–$3F
+    //  $40–$7F flashing      → same glyph indices; blank when flashPhase odd
+    //  $80–$FF normal        → low 7 bits
+    uint8_t code = 0x20;
+    bool inv = false;
+    if (ramByte < 0x20) {
+        inv = true;
+        code = static_cast<uint8_t>(ramByte + 0x40);
+    } else if (ramByte < 0x40) {
+        inv = true;
+        code = ramByte;
+    } else if (ramByte < 0x80) {
+        inv = false;
+        if ((flashPhase & 1) != 0) {
+            code = 0x20;
+        } else if (ramByte < 0x60) {
+            code = ramByte; // @–_
+        } else {
+            code = static_cast<uint8_t>(ramByte - 0x40); // flash sp–? → $20–$3F
+        }
+    } else {
+        inv = false;
+        code = static_cast<uint8_t>(ramByte & 0x7Fu);
+    }
+    if (code < 0x20 || code > 0x7E) {
+        code = 0x20;
+    }
+    if (ascii7) {
+        *ascii7 = code;
+    }
+    if (inverse) {
+        *inverse = inv;
+    }
+}
+
 void TextDecoder::renderRgb888(const uint8_t chars40x24[kRows * kCols], uint8_t *rgbOut,
                                size_t rgbBytes, uint8_t fgR, uint8_t fgG, uint8_t fgB, uint8_t bgR,
                                uint8_t bgG, uint8_t bgB) {
@@ -158,8 +197,9 @@ void TextDecoder::renderRgb888(const uint8_t chars40x24[kRows * kCols], uint8_t 
             const int col = px / kCellW;
             const int gx = px % kCellW;
             const uint8_t cell = chars40x24[row * kCols + col];
-            const uint8_t ascii7 = cell & 0x7Fu;
-            const bool inverse = (cell & 0x80u) == 0;
+            uint8_t ascii7 = 0x20;
+            bool inverse = false;
+            mapAppleTextByte(cell, 0, &ascii7, &inverse);
             bool on = false;
             if (gy < kGlyphH && gx < kGlyphW) {
                 const uint8_t bits = glyphRow(ascii7, gy);

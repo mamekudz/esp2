@@ -40,6 +40,8 @@ Paket-/Repo-Identifier (ASCII): `esp2` — sichtbarer Projektname bleibt **ESP][
 
 **`GALAXIAN_ESP32 = PASS`**
 
+**`MICROS_WRAP_REGRESSION = PASS`** · **`GALAXIAN_2H_SOAK = PASS`**
+
 Echte Apple-II-Software läuft auf dem Board über den normalen Emulator-Stack — **kein** natives Galaxian-Port, **kein** fertiges Screenshot-Overlay, **keine** Fake-Firmware-Animation:
 
 ```
@@ -52,6 +54,10 @@ Apple-II+-System-ROM (user-supplied)
     → physisches CO5300-AMOLED
 ```
 
+### Galaxian — 2-Stunden physischer Soak-Test bestanden
+
+Die kontinuierliche Apple-II-Ausführung blieb über die frühere **32-Bit-Mikrosekunden-Timer-Wrap**-Grenze (~71,6 Minuten) hinaus stabil. Physisch verifiziert auf ESP][ (`apple2_text`, COM5): Cycles liefen weiter, cps ≈ 1,023 MHz, HGR aktiv. Das schließt den bekannten Langzeit-Throttle-Stillstand; es behauptet **keine** Overnight- oder All-Titel-Stabilität. Details: `docs/architecture/apple2-throttle.md`, `docs/apple2/galaxian-2h-soak.json`.
+
 Physisch verifiziert (Kurzfassung):
 
 | Check | Ergebnis |
@@ -62,7 +68,8 @@ Physisch verifiziert (Kurzfassung):
 | Erkennbares Galaxian-HGR-Playfield | PASS |
 | Presentation-Matrix (Orient × Monitor × Effekt inkl. CRT) | PASS (physisch geprüft) |
 | Emulierte Geschwindigkeit | ≈ **1,023 MHz** (Artifact Color kostet Renderzeit; Takt nicht abgesenkt) |
-| Stabilität | mehrminütige Läufe ohne SPI-Panic / Watchdog |
+| Früherer ~71,6-Min-`micros()`-Throttle-Wrap | **PASS** (`MICROS_WRAP_REGRESSION`) |
+| Galaxian ≥ 2 h physischer Soak | **PASS** (`GALAXIAN_2H_SOAK`) |
 | Windows-Tastatur-Bridge | PASS |
 | Startup-Makro (`galaxian-start`) | Infrastruktur **IMPLEMENTED** |
 | 8BitDo-Gameplay | **NOT_TESTED** |
@@ -127,9 +134,19 @@ ESP][ kann ein **Geräteprofil** auf der microSD speichern (`/esp2/config/system
 - optionales **Startup-Makro**
 - benannte Makros, die auch manuell laufen können
 
-Das ist **generische Infrastruktur**. Galaxian ist ein Demo-Profil — kein fest verdrahtetes Titelverhalten im Emulatorkern.
+Das ist **generische Infrastruktur**. Titelverhalten liegt in **Benutzerprofilen** unter `config/device/profiles/` — nicht fest im Emulatorkern.
 
-Beispielprofil **galaxian-demo** (nur Pfade; Medien nicht in Git):
+### Getrackte Demo-Profile (nur Pfade)
+
+Diskettenabbilder sind **nie** in Git. Medien nach dem Clone lokal aktivieren mit µGulp **`setup:profiles`** (oder `setup:first-run` für einen einzelnen Demo-Titel).
+
+| Profil-ID | Drive 1 (Gerätepfad) | Presentation | Hinweise |
+| --- | --- | --- | --- |
+| `galaxian-demo` | `/esp2/disks/Galaxian.dsk` | landscape / artifact | Startup-Makro `galaxian-start` |
+| `little-brick-out` | `/esp2/disks/LittleBrickOut.dsk` | landscape / white | LORES + Paddle / Dial; Makro `little-brick-out-start` |
+| `star-blazer` | `/esp2/disks/StarBlazer.dsk` | landscape / artifact | HGR-Demo; leere Makros |
+
+Beispiel **galaxian-demo**:
 
 | Feld | Wert |
 | --- | --- |
@@ -141,7 +158,25 @@ Beispielprofil **galaxian-demo** (nur Pfade; Medien nicht in Git):
 | Screensaver | `300` Sekunden |
 | Startup-Makro | `galaxian-start` |
 
-**Standalone-Formulierung:** Der persistente Startup-Pfad ist **implementiert** und für Betrieb nur mit USB-Stromversorgung (ohne PC) gedacht. Die unabhängige Bestätigung eines reinen Netzteil-**Kaltstarts** bis zur vollen Galaxian-Demo wird noch validiert — `STANDALONE_GALAXIAN = PASS` ist noch nicht als erledigt zu behandeln. Details: `docs/architecture/device-config.md`.
+### Apple-][js-Katalogprofile (herunterladbar)
+
+Pfad-only-**Geräteprofile** unter `config/device/profiles/<id>/` verweisen auf Titel von [Apple ][js](https://www.scullinsteel.com/apple2). Jeder Eintrag hat einen Geräte-Disketten-**Pfad**; Medien kommen von der Website-JSON-URL (z. B. `…/json/disks/starblazer.json`) — **nicht** in Git.
+
+Nach dem Clone laden (gitignored `local/apple2/`, LOCAL_TEST_ONLY):
+
+```bash
+npx gulp setup:profiles
+npx gulp setup:profiles --profile star-blazer --seed star-blazer
+npx gulp setup:profiles --profile category:Game
+```
+
+**Vollständige Profil-Liste mit Medien-URLs** steht im englischen Abschnitt oben (und parallel in [`docs/device/generated/profile-catalog.md`](docs/device/generated/profile-catalog.md)). Neu erzeugen: `npx gulp device:profiles:generate`.
+
+Downloads landen in gitignored `local/apple2/`; optional wird `local/device/config/` gesetzt. Details: `docs/architecture/device-config.md`.
+
+**Hinweis (µGulp-UI):** Select-Dropdowns sind im aktuellen µGulp-Host auf ca. **200 Optionen** begrenzt — daher browsen `device:config` / `setup:profiles` nach **Gruppe**. Das Limit anzuheben ist eine µGulp-Änderung.
+
+**Standalone-Formulierung:** Der persistente Startup-Pfad ist **implementiert** und für Betrieb nur mit USB-Stromversorgung (ohne PC) gedacht. Die unabhängige Bestätigung eines reinen Netzteil-**Kaltstarts** bis zur vollen Galaxian-Demo wird noch validiert — `STANDALONE_GALAXIAN = PASS` ist noch nicht als erledigt zu behandeln.
 
 ### microSD-Backup / -Wiederherstellung
 
@@ -241,6 +276,22 @@ Während das Panel schläft oder aus ist, **läuft die Apple-II-Emulation weiter
 
 ## Hardware
 
+### Unterstützte Targets
+
+Boardwahl über die µGulp-**Project-Control**-Leiste (**Target**-Radio) unter der Projektidentität — nicht in einzelnen Tasks. Persistenz: `.microgulp/project-controls.json` (gitignored).
+
+| Platform-ID | UI-Label | Status | Default-PlatformIO-Env |
+| --- | --- | --- | --- |
+| `waveshare-amoled-s3` | Waveshare AMOLED | Produktion ESP][ | `apple2_text` |
+| `diymore-es3c28p` | diymore 2.8" | Bring-up / in Entwicklung | `diymore_apple2` |
+| `waveshare-rlcd42` | RLCD 4.2 | Mono-Apple-II (in Entwicklung) | `rlcd42_apple2` |
+
+diymore-Teilenummer (nur Metadatum): **AM03-FBBA0125-AAA**. Siehe `docs/hardware/diymore-es3c28p.md`.
+
+**RLCD 4.2** (Waveshare/Luckfox ESP32-S3-RLCD-4.2): reflektives **ST7305** 300×400 (logisch 400×300), kein Touch — Control Center über **KEY / BOOT**. Classic-Darstellung standardmäßig scharfes **1×** (280×192 + Balken); optionale Vollflächen-Skalierung im Anzeige-Menü. Details: `docs/hardware/waveshare-rlcd42.md`.
+
+### Waveshare (Produktion)
+
 | | |
 | --- | --- |
 | Board | Waveshare ESP32-S3-Touch-AMOLED-1.64 |
@@ -284,6 +335,8 @@ Inkrementell, PlatformIO. Agenten lesen zuerst `CLAUDE.md`.
 ```bash
 npm install
 npx gulp help
+npx gulp setup:first-run   # ROMs + ein Demo-Titel + lokale Config
+npx gulp setup:profiles    # Profile / Medien wahlweise aktivieren
 npx gulp docs
 npx gulp backup:git
 npx gulp backup:nas
