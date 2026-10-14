@@ -4,8 +4,8 @@
  * Real RESET vector → ROM execution → interactive text → keyboard injection.
  * Slot 6 default NONE. No PC shortcuts. No ROM bytes in the repository.
  */
-#include <Arduino.h>
 #include "esp2_sd_bus.hpp"
+#include <Arduino.h>
 #include <SPI.h>
 #include <Wire.h>
 #include <esp_heap_caps.h>
@@ -20,17 +20,17 @@
 
 #include <Arduino_GFX_Library.h>
 
-#include "esp2_board.h"
-#include "esp2_display_hal.h"
 #include "display_power.h"
-#include "esp2_macro_engine.hpp"
 #include "esp2_ble_hid.hpp"
-#include "esp2_settings_ui.hpp"
+#include "esp2_board.h"
 #include "esp2_control_center.hpp"
-#include "esp_bracket/control_center.hpp"
+#include "esp2_display_hal.h"
+#include "esp2_macro_engine.hpp"
+#include "esp2_settings_ui.hpp"
 #include "esp2_system_config.hpp"
 #include "esp2_touch.hpp"
 #include "esp32_sd_storage.hpp"
+#include "esp_bracket/control_center.hpp"
 #include "i18x_fw.hpp"
 #if !defined(ESP2_PLATFORM_DIYMORE_ES3C28P)
 #include "qmi8658_min.h"
@@ -165,6 +165,17 @@ static int g_classicOx = 0;
 static int g_classicOy = 0;
 static uint8_t *g_hgrBits = nullptr;
 static uint8_t *g_hgrHigh = nullptr;
+/** Live HGR page sample + previous raw sample for soft-sprite erase hold. */
+static uint8_t *g_hgrPageSnap = nullptr;
+static uint8_t *g_hgrPageLastRaw = nullptr;
+/** Bit per HGR byte: already held one present after an erase (0←nonzero). */
+static uint8_t g_hgrEraseHeldBits[0x2000 / 8]{};
+/**
+ * Soft-sprites erase then redraw. Holding a just-erased byte for one extra
+ * present hides black flashes without freezing the whole frame (no VRAM-quiet wait).
+ */
+static constexpr uint32_t kHgrPresentSettleUs = 150;
+static constexpr uint32_t kHgrPresentSettleMaxUs = 400;
 static volatile bool g_schedulerGo = false;
 static volatile bool g_emuHold = false; // pause a2emu during SD/boot mutations
 static TaskHandle_t g_dispTaskHandle = nullptr;
@@ -912,17 +923,25 @@ static esp2_cc_svc::StorageSnap ccStorage() {
     return s;
 }
 
-static bool ccShareSd() { return enterUsbStorageMode(); }
-static bool ccReturnSd() { return leaveUsbStorageMode(false); }
+static bool ccShareSd() {
+    return enterUsbStorageMode();
+}
+static bool ccReturnSd() {
+    return leaveUsbStorageMode(false);
+}
 
-static void ccResetApple() { appleIiResetKeepDisks(); }
+static void ccResetApple() {
+    appleIiResetKeepDisks();
+}
 
 static void ccColdStart() {
     g_a2bus.clearRam();
     appleIiResetKeepDisks();
 }
 
-static void ccRestartEsp() { ESP.restart(); }
+static void ccRestartEsp() {
+    ESP.restart();
+}
 
 static void registerControlCenterServices() {
     esp2_cc_svc::Services s{};
@@ -1371,8 +1390,7 @@ static void handleDevCommandLine(const char *line) {
                               static_cast<unsigned>(d.addrType), d.autoReconnect ? 1 : 0,
                               d.bonded ? 1 : 0);
             }
-            Serial.printf("#ACK BLE LIST KNOWN count=%u\n",
-                          static_cast<unsigned>(cfg.knownCount));
+            Serial.printf("#ACK BLE LIST KNOWN count=%u\n", static_cast<unsigned>(cfg.knownCount));
             return;
         }
         if (strncmp(cmd, "PAIR ", 5) == 0) {
@@ -1469,8 +1487,8 @@ static void handleDevCommandLine(const char *line) {
                           esp2_ble::padMapModeName(esp2_ble::padMapMode()),
                           static_cast<unsigned>(esp2_ble::padSensitivity()),
                           esp2_ble::hidMonitorEnabled() ? 1 : 0, gp.connected ? 1 : 0,
-                          static_cast<int>(gp.leftX), static_cast<int>(gp.leftY),
-                          gp.btnA ? 1 : 0, gp.btnB ? 1 : 0);
+                          static_cast<int>(gp.leftX), static_cast<int>(gp.leftY), gp.btnA ? 1 : 0,
+                          gp.btnB ? 1 : 0);
             return;
         }
         Serial.println("#NAK BLE cmd");
@@ -1484,7 +1502,7 @@ static void serviceDevSerialCommands() {
     if (esp2_upload::isSessionActive()) {
         return;
     }
-static char line[160];
+    static char line[160];
     static size_t len = 0;
     while (Serial.available()) {
         const int b = Serial.read();
@@ -1766,8 +1784,8 @@ static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
     // LORES uses the classic 16-color palette. Only Green/Amber monitors force
     // true monochrome phosphor — White/Artifact keep LORES color (never HGR
     // ArtifactRenderer). Green/Amber derive luminance from LORES RGB.
-    const bool phosphorMono = g_presentMonitor == PresentMonitor::Green ||
-                              g_presentMonitor == PresentMonitor::Amber;
+    const bool phosphorMono =
+        g_presentMonitor == PresentMonitor::Green || g_presentMonitor == PresentMonitor::Amber;
     const VideoColorMode monoMode = presentVideoColorMode();
     for (int py = scan0; py <= scan1; ++py) {
         const int brow = py / LoresDecoder::kBlockH;
@@ -1789,17 +1807,85 @@ static void renderLoresRows(uint16_t *fb, int scan0, int scan1) {
     }
 }
 
+static void captureHgrPageSnap() {
+    if (!g_hgrPageSnap) {
+        return;
+    }
+    const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    memcpy(g_hgrPageSnap, g_a2bus.ram() + vs.hgrPageBase(), 0x2000);
+}
+
+/**
+ * If a HGR byte just went from ink→empty, keep the previous ink for one present.
+ * A second consecutive empty accepts the erase (sprite really left). Redraw in
+ * between never shows the black hole — without stalling the whole frame.
+ */
+static void applyHgrEraseHold() {
+    if (!g_hgrPageSnap || !g_hgrPageLastRaw) {
+        return;
+    }
+    for (int i = 0; i < 0x2000; ++i) {
+        const uint8_t raw = g_hgrPageSnap[i];
+        const uint8_t prev = g_hgrPageLastRaw[i];
+        const int bi = i >> 3;
+        const uint8_t mask = static_cast<uint8_t>(1u << (i & 7));
+        if ((raw & 0x7Fu) == 0 && (prev & 0x7Fu) != 0) {
+            if ((g_hgrEraseHeldBits[bi] & mask) == 0) {
+                g_hgrPageSnap[i] = prev;
+                g_hgrEraseHeldBits[bi] = static_cast<uint8_t>(g_hgrEraseHeldBits[bi] | mask);
+            } else {
+                g_hgrEraseHeldBits[bi] = static_cast<uint8_t>(g_hgrEraseHeldBits[bi] & ~mask);
+            }
+        } else {
+            g_hgrEraseHeldBits[bi] = static_cast<uint8_t>(g_hgrEraseHeldBits[bi] & ~mask);
+        }
+        g_hgrPageLastRaw[i] = raw;
+    }
+}
+
 static void renderHgrRows(uint16_t *fb, int scan0, int scan1) {
     if (!g_hgrBits || !g_hgrHigh || scan0 > scan1) {
         return;
     }
     const AppleIIVideoState vs = videoStateFromSoftSwitches(g_a2bus.softSwitches());
-    HgrDecoder::decode(g_a2bus.ram(), vs.hgrPageBase(), g_hgrBits, g_hgrHigh);
+    const uint16_t page = vs.hgrPageBase();
+    if (g_hgrPageSnap) {
+        HgrDecoder::decode(g_hgrPageSnap, 0, g_hgrBits, g_hgrHigh);
+    } else {
+        HgrDecoder::decode(g_a2bus.ram(), page, g_hgrBits, g_hgrHigh);
+    }
     const VideoColorMode mode = presentVideoColorMode();
     for (int y = scan0; y <= scan1; ++y) {
         uint16_t *dst = fb + y * kViewW;
         ArtifactRenderer::renderScanlineRgb565(g_hgrBits + y * 280, g_hgrHigh + y * 40, mode, dst);
     }
+}
+
+/** Merge further VRAM dirty bits until quiet or timeout (soft-sprite coalesce). */
+static VideoDirtyTracker::Bitset coalesceDirtyForPresent(VideoDirtyTracker::Bitset bits) {
+    if (bits.empty()) {
+        return bits;
+    }
+    const uint32_t t0 = micros();
+    uint32_t lastActivity = t0;
+    for (;;) {
+        const uint32_t now = micros();
+        if ((now - t0) >= kHgrPresentSettleMaxUs) {
+            break;
+        }
+        if ((now - lastActivity) >= kHgrPresentSettleUs) {
+            break;
+        }
+        delayMicroseconds(100);
+        portENTER_CRITICAL(&g_dirtyMux);
+        auto more = g_dirty.exchange();
+        portEXIT_CRITICAL(&g_dirtyMux);
+        if (!more.empty()) {
+            bits.merge(more);
+            lastActivity = micros();
+        }
+    }
+    return bits;
 }
 
 static void renderDirtyIntoFb(uint16_t *fb, const VideoDirtyTracker::Bitset &bits) {
@@ -1901,8 +1987,8 @@ static bool ensurePresentFb() {
     if (kClassicScaled) {
         if (!g_presentFb) {
             computeClassicScaledGeometry();
-            g_presentFb = static_cast<uint16_t *>(psramAlloc(
-                static_cast<size_t>(g_classicOutW * g_classicOutH) * sizeof(uint16_t)));
+            g_presentFb = static_cast<uint16_t *>(
+                psramAlloc(static_cast<size_t>(g_classicOutW * g_classicOutH) * sizeof(uint16_t)));
             if (!g_presentFb) {
                 logf("PRESENT", "[FAIL] classic-scale fb alloc");
                 return false;
@@ -1979,8 +2065,7 @@ static void applyCrtToViewportIfNeeded() {
         return;
     }
     DisplayEffect::applyRgb565(g_viewportFb, kViewW, kViewH, DisplayEffectMode::CrtTv,
-                               EffectStrength::Low,
-                               g_presentMonitor == PresentMonitor::Artifact);
+                               EffectStrength::Low, g_presentMonitor == PresentMonitor::Artifact);
 }
 
 static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
@@ -1991,6 +2076,12 @@ static uint32_t presentDirty(const VideoDirtyTracker::Bitset &bits) {
     VideoDirtyTracker::Bitset work = bits;
     if (g_presentEffect == PresentEffect::Crt) {
         work.markAll();
+    }
+    const AppleIIVideoState vsPre = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+    const bool hgrPresent = !vsPre.text && vsPre.hires;
+    if (hgrPresent && g_hgrPageSnap) {
+        captureHgrPageSnap();
+        applyHgrEraseHold();
     }
     const uint32_t tR0 = micros();
     renderDirtyIntoFb(g_viewportFb, work);
@@ -2092,9 +2183,8 @@ static void servicePresentApplyOnDisplayTask() {
         computeClassicScaledGeometry();
     }
     markVideoDirty();
-    logf("PRESENT", "applied monitor=%s effect=%s orient=%s land=%dx%d@%d,%d",
-         presentMonitorName(), presentEffectName(), presentOrientName(), g_landOutW, g_landOutH,
-         g_landOx, g_landOy);
+    logf("PRESENT", "applied monitor=%s effect=%s orient=%s land=%dx%d@%d,%d", presentMonitorName(),
+         presentEffectName(), presentOrientName(), g_landOutW, g_landOutH, g_landOx, g_landOy);
 }
 
 static void markVideoDirty() {
@@ -2519,8 +2609,7 @@ static void applyDisplayPowerFromConfig() {
     if (g_sysConfig.valid && g_sysConfig.brightnessPercent > 0) {
         // percent 1–100 → 0–255 (keep at least 1 so “1%” is visible)
         const uint32_t pct = g_sysConfig.brightnessPercent;
-        g_displayBrightness =
-            static_cast<uint8_t>((pct * 255u + 50u) / 100u);
+        g_displayBrightness = static_cast<uint8_t>((pct * 255u + 50u) / 100u);
         if (g_displayBrightness == 0) {
             g_displayBrightness = 1;
         }
@@ -2572,8 +2661,9 @@ static void loadPersistentConfigFromSd() {
                         logf("CONFIG", "[FAIL] parse=%s — safe defaults", err[0] ? err : "?");
                         g_sysConfig = esp2_config::defaultSystemConfig();
                     } else {
-                        logf("CONFIG", "system.json ok rom=%s drive1=%s boot=%d macro=%s "
-                                       "orient=%s monitor=%s effect=%s ss=%u",
+                        logf("CONFIG",
+                             "system.json ok rom=%s drive1=%s boot=%d macro=%s "
+                             "orient=%s monitor=%s effect=%s ss=%u",
                              g_sysConfig.romPath[0] ? g_sysConfig.romPath : "-",
                              g_sysConfig.drive1[0] ? g_sysConfig.drive1 : "-",
                              g_sysConfig.bootFromDisk ? 1 : 0,
@@ -2671,8 +2761,8 @@ static void applyStartupFromConfig() {
         g_presentMonitor = PresentMonitor::White;
         break;
     }
-    g_presentEffect =
-        (g_sysConfig.effect == esp2_config::Effect::Crt) ? PresentEffect::Crt : PresentEffect::Clean;
+    g_presentEffect = (g_sysConfig.effect == esp2_config::Effect::Crt) ? PresentEffect::Crt
+                                                                       : PresentEffect::Clean;
     g_presentOrient = (g_sysConfig.orientation == esp2_config::Orient::Landscape)
                           ? PresentOrientation::Landscape
                           : PresentOrientation::Classic;
@@ -2718,9 +2808,17 @@ static void bootSuite() {
     g_viewportFb = static_cast<uint16_t *>(psramAlloc(kViewW * kViewH * sizeof(uint16_t)));
     g_hgrBits = static_cast<uint8_t *>(psramAlloc(280 * 192));
     g_hgrHigh = static_cast<uint8_t *>(psramAlloc(40 * 192));
+    g_hgrPageSnap = static_cast<uint8_t *>(psramAlloc(0x2000));
+    g_hgrPageLastRaw = static_cast<uint8_t *>(psramAlloc(0x2000));
+    if (g_hgrPageLastRaw) {
+        memset(g_hgrPageLastRaw, 0, 0x2000);
+    }
+    memset(g_hgrEraseHeldBits, 0, sizeof(g_hgrEraseHeldBits));
     computeLandscapeGeometry();
-    logf("RAM", "viewport=%s psram_free=%u heap=%u", g_viewportFb ? "ok" : "FAIL",
-         ESP.getPsramSize() ? ESP.getFreePsram() : 0, ESP.getFreeHeap());
+    logf("RAM", "viewport=%s hgr_snap=%s last_raw=%s psram_free=%u heap=%u",
+         g_viewportFb ? "ok" : "FAIL", g_hgrPageSnap ? "ok" : "FAIL",
+         g_hgrPageLastRaw ? "ok" : "FAIL", ESP.getPsramSize() ? ESP.getFreePsram() : 0,
+         ESP.getFreeHeap());
     logf("PRESENT", "default monitor=%s effect=%s orient=%s classic=%dx%d@%d,%d land=%dx%d@%d,%d",
          presentMonitorName(), presentEffectName(), presentOrientName(), kViewW, kViewH, kViewX,
          kViewY, g_landOutW, g_landOutH, g_landOx, g_landOy);
@@ -2801,8 +2899,8 @@ static void emulatorTask(void *) {
             // Generic video condition: graphics + HIRES (not title-specific).
             const auto &ss = g_a2bus.softSwitches();
             const bool hires = ss.isGraphics() && ss.isHires();
-            const bool still =
-                esp2_macro::tickMacro(&g_macroRunner, millis(), hires, macroInjectKey, macroInjectPb0);
+            const bool still = esp2_macro::tickMacro(&g_macroRunner, millis(), hires,
+                                                     macroInjectKey, macroInjectPb0);
             if (!still) {
                 if (g_macroRunner.state == esp2_macro::RunState::Done) {
                     logf("MACRO", "done id=%s", g_macroRunner.activeId);
@@ -2948,10 +3046,10 @@ static void displayTask(void *) {
         if (now - lastDiag >= 5000) {
             lastDiag = now;
             const int64_t wallUs = esp_timer_get_time() - g_wallStartUs;
-            const double cps = wallUs > 0
-                                   ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 /
-                                      static_cast<double>(wallUs))
-                                   : 0;
+            const double cps =
+                wallUs > 0
+                    ? ((g_cpu.cycles() - g_emuCyclesAtBoot) * 1e6 / static_cast<double>(wallUs))
+                    : 0;
             logf("PERF",
                  "ESP32 PHYSICAL MEASURED live cps=%.0f frames=%u heap=%u heap_min=%u "
                  "psram_free=%u monitor=%s effect=%s orient=%s render_us=%u xfer_us=%u",
@@ -3000,22 +3098,30 @@ static void displayTask(void *) {
         auto bits = g_dirty.exchange();
         portEXIT_CRITICAL(&g_dirtyMux);
 #if defined(ESP2_PLATFORM_WAVESHARE_RLCD42)
-        // Reflective panel + full-frame mono flush: keep a minimum refresh so play
-        // does not look stalled when VRAM dirty bits are sparse (text / light HGR).
+        // HGR: never force-refresh mid soft-sprite — that reintroduced black flashes.
+        // Text: occasional force so cursor/ROM updates still appear.
         if (bits.empty()) {
+            const AppleIIVideoState vsIdle = videoStateFromSoftSwitches(g_a2bus.softSwitches());
+            if (!vsIdle.text && vsIdle.hires) {
+                vTaskDelay(pdMS_TO_TICKS(2));
+                continue;
+            }
             static uint32_t sLastForceMs = 0;
-            if (now - sLastForceMs < 33) {
-                vTaskDelay(pdMS_TO_TICKS(1));
+            if (now - sLastForceMs < 100) {
+                vTaskDelay(pdMS_TO_TICKS(2));
                 continue;
             }
             sLastForceMs = now;
             bits.markAll();
+        } else {
+            bits = coalesceDirtyForPresent(bits);
         }
 #else
         if (bits.empty()) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
+        bits = coalesceDirtyForPresent(bits);
 #endif
         presentDirty(bits);
         g_dispFrames++;
@@ -3177,7 +3283,7 @@ void setup() {
                 applyStartupFromConfig();
                 writeBootStage(g_diskMounted ? "startup_media_ok" : "startup_no_disk");
 #if ESP2_BLE_HID
-                    if (esp2_ble::init()) {
+                if (esp2_ble::init()) {
                     esp2_ble::setInjectors(applyLiveKey, applyLivePad);
                     esp2_ble::setLocalActionHandler(onLocalControlAction);
                     (void)esp2_ble::requestAutoReconnect();

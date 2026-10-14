@@ -66,6 +66,14 @@ int main() {
     expect(bits.test(42), "hgr line42 dirty");
     expect(bits.popcount() == 1, "100 writes coalesce to 1 scanline");
 
+    VideoDirtyTracker::Bitset a{};
+    VideoDirtyTracker::Bitset b{};
+    a.mark(10);
+    b.mark(20);
+    a.merge(b);
+    expect(a.test(10) && a.test(20), "bitset merge ors lines");
+    expect(a.popcount() == 2, "bitset merge popcount");
+
     dirty.clear();
     bus.write(0xC050, 0); // GRAPHICS
     bits = dirty.exchange();

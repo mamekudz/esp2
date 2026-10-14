@@ -4,6 +4,17 @@
 		{
 			"main": 0,
 			"minor": 1,
+			"revision": 2,
+			"date": "2026-10-14 10:02",
+			"beta": true,
+			"info": [
+				"Reduced soft-sprite black flashes during HGR present (e.g. Galaxian invaders) with a one-/two-present erase-hold on HGR bytes, without freezing the whole frame on a VRAM-quiet wait.",
+				"Stopped forced mid-play HGR refreshes on the RLCD 4.2 path that reintroduced tear samples; text mode still gets an occasional refresh for cursor/ROM updates."
+			]
+		},
+		{
+			"main": 0,
+			"minor": 1,
 			"revision": 1,
 			"date": "2026-10-13 19:26",
 			"beta": true,

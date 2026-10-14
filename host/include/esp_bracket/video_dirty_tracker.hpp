@@ -69,6 +69,13 @@ class VideoDirtyTracker {
             }
             return true;
         }
+
+        /** OR another bitset into this one (display coalesce / settle). */
+        void merge(const Bitset &other) {
+            for (int i = 0; i < kWordCount; ++i) {
+                words[i] |= other.words[i];
+            }
+        }
     };
 
     VideoDirtyTracker() { clear(); }

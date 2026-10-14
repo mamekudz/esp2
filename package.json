@@ -1,6 +1,6 @@
 {
   "name": "esp2",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "ESP][ — µGulp / Gulp task runner (Apple II emulator bring-up)",
   "type": "module",
